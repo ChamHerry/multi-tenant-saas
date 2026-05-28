@@ -13,13 +13,21 @@ import { Select } from '@/shared/ui/Select'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 import { Table, Td, Th } from '@/shared/ui/Table'
 
-function slugify(value: string) {
+const TENANT_SLUG_MAX_LENGTH = 80
+const TENANT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$/
+const TENANT_SLUG_ERROR = 'Slug 需为 3-80 位小写字母、数字或短横线，且首尾必须是字母或数字'
+
+function slugifyTenantSlug(value: string) {
   return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 80)
+    .slice(0, TENANT_SLUG_MAX_LENGTH)
+    .replace(/^-+|-+$/g, '')
 }
 
 export function TenantsPage() {
@@ -31,16 +39,56 @@ export function TenantsPage() {
   const [slug, setSlug] = useState('')
   const [plan, setPlan] = useState('free')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false)
+
+  const trimmedName = name.trim()
+  const trimmedSlug = slug.trim()
+  const slugError =
+    trimmedName && !trimmedSlug
+      ? 'Slug 不能为空；请使用英文小写字母、数字或短横线'
+      : trimmedSlug && !TENANT_SLUG_PATTERN.test(trimmedSlug)
+        ? TENANT_SLUG_ERROR
+        : undefined
+  const canSubmitCreateTenant = Boolean(trimmedName) && TENANT_SLUG_PATTERN.test(trimmedSlug)
+
+  const resetCreateTenantForm = () => {
+    setName('')
+    setSlug('')
+    setPlan('free')
+    setIsSlugManuallyEdited(false)
+  }
+
+  const closeCreateDialog = () => {
+    setIsCreateOpen(false)
+    resetCreateTenantForm()
+  }
+
+  const handleNameChange = (value: string) => {
+    setName(value)
+    if (!isSlugManuallyEdited) {
+      setSlug(slugifyTenantSlug(value))
+    }
+  }
+
+  const handleSlugChange = (value: string) => {
+    setIsSlugManuallyEdited(true)
+    setSlug(slugifyTenantSlug(value))
+  }
+
+  const regenerateSlug = () => {
+    setIsSlugManuallyEdited(false)
+    setSlug(slugifyTenantSlug(name))
+  }
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
+    if (!canSubmitCreateTenant) return
+
     createTenant.mutate(
-      { name: name.trim(), slug: slug.trim(), plan },
+      { name: trimmedName, slug: trimmedSlug, plan },
       {
         onSuccess: () => {
-          setName('')
-          setSlug('')
-          setPlan('free')
+          resetCreateTenantForm()
           setIsCreateOpen(false)
         },
       },
@@ -60,25 +108,37 @@ export function TenantsPage() {
         </Button>
       </div>
 
-      <Dialog open={isCreateOpen} title="添加组织" onClose={() => setIsCreateOpen(false)}>
+      <Dialog open={isCreateOpen} title="添加组织" onClose={closeCreateDialog}>
         <form className="space-y-4" onSubmit={submit}>
           <Input
             label="组织名称"
             value={name}
-            onChange={(event) => {
-              setName(event.target.value)
-              if (!slug) setSlug(slugify(event.target.value))
-            }}
+            onChange={(event) => handleNameChange(event.target.value)}
             placeholder="Acme Demo"
             required
           />
-          <Input label="Slug" value={slug} onChange={(event) => setSlug(slugify(event.target.value))} placeholder="acme-demo" required />
+          <div className="space-y-2">
+            <Input
+              label="Slug"
+              value={slug}
+              onChange={(event) => handleSlugChange(event.target.value)}
+              placeholder="acme-demo"
+              required
+              error={slugError}
+              hint="用于组织 URL/API 标识；可手动修改。"
+            />
+            <div className="flex justify-end">
+              <Button type="button" variant="ghost" size="sm" onClick={regenerateSlug}>
+                按名称生成
+              </Button>
+            </div>
+          </div>
           <Select label="套餐" value={plan} onChange={(event) => setPlan(event.target.value)}>
             <option value="free">free</option>
             <option value="pro">pro</option>
             <option value="enterprise">enterprise</option>
           </Select>
-          <Button type="submit" isLoading={createTenant.isPending} leftIcon={<Plus className="size-4" />}>添加并切换</Button>
+          <Button type="submit" disabled={!canSubmitCreateTenant} isLoading={createTenant.isPending} leftIcon={<Plus className="size-4" />}>添加并切换</Button>
         </form>
       </Dialog>
 
