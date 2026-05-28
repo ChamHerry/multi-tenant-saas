@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Building2, Plus } from 'lucide-react'
+import TinyPinyin from 'tiny-pinyin'
 import { useMyTenants } from '@/features/auth/auth-hooks'
 import { useCreateTenant } from '@/features/tenants/tenant-hooks'
 import { useTenantStore } from '@/features/tenants/tenant-store'
@@ -16,11 +17,13 @@ import { Table, Td, Th } from '@/shared/ui/Table'
 const TENANT_SLUG_MAX_LENGTH = 80
 const TENANT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$/
 const TENANT_SLUG_ERROR = 'Slug 需为 3-80 位小写字母、数字或短横线，且首尾必须是字母或数字'
+const CJK_TEXT_PATTERN = /[\u3400-\u9fff\uf900-\ufaff]+/g
 
 function slugifyTenantSlug(value: string) {
   return value
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(CJK_TEXT_PATTERN, (text) => TinyPinyin.convertToPinyin(text, '-', true))
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -125,7 +128,7 @@ export function TenantsPage() {
               placeholder="acme-demo"
               required
               error={slugError}
-              hint="用于组织 URL/API 标识；可手动修改。"
+              hint="用于组织 URL/API 标识；中文名称会自动转为拼音，可手动修改。"
             />
             <div className="flex justify-end">
               <Button type="button" variant="ghost" size="sm" onClick={regenerateSlug}>
