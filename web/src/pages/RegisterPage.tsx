@@ -63,7 +63,7 @@ export function RegisterPage() {
   return (
     <AuthShell>
       <Card className="mx-auto max-w-md bg-white/95 hover:border-line hover:shadow-soft">
-        <CardHeader title="注册 SaaS 控制台" description="创建正式账号后，系统会自动准备一个默认组织；后端会在开始使用时按需完成初始化。" />
+        <CardHeader title="注册 SaaS 控制台" description="创建正式账号后，系统会自动准备一个默认组织；如果这是平台首次注册，该账号会自动成为平台管理员以完成初始化。" />
         <form className="space-y-4" onSubmit={submit}>
           <Input
             label="邮箱"
@@ -110,7 +110,7 @@ export function RegisterPage() {
           <Link className="font-bold text-brand hover:text-brand-hover" to="/login" state={location.state}>
             返回登录
           </Link>
-          <p className="mt-2">如果后端关闭了公开注册，请在配置中开启 <code>auth.password.registrationEnabled</code> 或使用管理员 CLI 创建账号。</p>
+          <p className="mt-2">如果后端关闭了公开注册，请在配置中开启 <code>auth.password.registrationEnabled</code> 或使用管理员 CLI 创建账号。平台管理员身份只由后端根据用户表是否为空自动授予。</p>
         </div>
       </Card>
     </AuthShell>
