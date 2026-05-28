@@ -50,33 +50,27 @@ func (s *sTenant) CreateTenant(ctx context.Context, in service.CreateTenantInput
 		return nil, gerror.Wrap(err, "marshal tenant metadata")
 	}
 	plan := defaultString(in.Plan, "free")
-	maxRepos := defaultInt(in.MaxRepos, 5)
-	maxSymbols := defaultInt(in.MaxSymbols, 100000)
-	maxStorageMB := defaultInt(in.MaxStorageMB, 1024)
 	now := time.Now()
 
 	db := g.DB()
 	if _, err = db.Exec(ctx, `
 INSERT INTO public.tenants(
-    id, name, slug, plan, status, max_repos, max_symbols, max_storage_mb, metadata, created_at, updated_at
+    id, name, slug, plan, status, metadata, created_at, updated_at
 ) VALUES (
-    ?, ?, ?, ?, 'active', ?, ?, ?, ?::jsonb, now(), now()
-)`, tenantID, in.Name, in.Slug, plan, maxRepos, maxSymbols, maxStorageMB, string(metadata)); err != nil {
+    ?, ?, ?, ?, 'active', ?::jsonb, now(), now()
+)`, tenantID, in.Name, in.Slug, plan, string(metadata)); err != nil {
 		return nil, gerror.Wrap(err, "insert public tenant metadata")
 	}
 
 	created := &service.Tenant{
-		ID:           tenantID,
-		Name:         in.Name,
-		Slug:         in.Slug,
-		Plan:         plan,
-		Status:       "active",
-		MaxRepos:     maxRepos,
-		MaxSymbols:   maxSymbols,
-		MaxStorageMB: maxStorageMB,
-		OwnerUserID:  in.OwnerUserID,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:          tenantID,
+		Name:        in.Name,
+		Slug:        in.Slug,
+		Plan:        plan,
+		Status:      "active",
+		OwnerUserID: in.OwnerUserID,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if in.OwnerUserID != "" {
@@ -89,11 +83,11 @@ INSERT INTO public.tenants(
 			return created, err
 		}
 	}
-	if err = createTenantDefaults(ctx, db, tenantID, plan, maxRepos, maxSymbols, maxStorageMB); err != nil {
+	if err = createTenantDefaults(ctx, db, tenantID, plan); err != nil {
 		return created, err
 	}
 	if err = service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: in.OwnerUserID, Action: "tenant.create", ResourceType: "tenant", ResourceID: tenantID, Metadata: map[string]any{
-		"storage_model": "public_schema_shared_repositories",
+		"template": "multi_tenant_saas",
 	}}); err != nil {
 		return created, err
 	}
@@ -116,7 +110,7 @@ func (s *sTenant) UpdateTenant(ctx context.Context, tenantID string, in service.
 	if in.Slug != "" && !slugPattern.MatchString(in.Slug) {
 		return nil, gerror.Newf("invalid tenant slug %q", in.Slug)
 	}
-	if in.Name == "" && in.Slug == "" && in.Plan == "" && in.MaxRepos <= 0 && in.MaxSymbols <= 0 && in.MaxStorageMB <= 0 && in.Metadata == nil {
+	if in.Name == "" && in.Slug == "" && in.Plan == "" && in.Metadata == nil {
 		return fetchTenant(ctx, tenantID)
 	}
 	metadata := ""
@@ -132,16 +126,10 @@ UPDATE public.tenants
 SET name=COALESCE(NULLIF(?, ''), name),
     slug=COALESCE(NULLIF(?, ''), slug),
     plan=COALESCE(NULLIF(?, ''), plan),
-    max_repos=CASE WHEN ? > 0 THEN ? ELSE max_repos END,
-    max_symbols=CASE WHEN ? > 0 THEN ? ELSE max_symbols END,
-    max_storage_mb=CASE WHEN ? > 0 THEN ? ELSE max_storage_mb END,
     metadata=COALESCE(NULLIF(?, '')::jsonb, metadata),
     updated_at=now()
 WHERE id=? AND deleted_at IS NULL`,
 		in.Name, in.Slug, in.Plan,
-		in.MaxRepos, in.MaxRepos,
-		in.MaxSymbols, in.MaxSymbols,
-		in.MaxStorageMB, in.MaxStorageMB,
 		metadata,
 		tenantID)
 	if err != nil {
@@ -249,16 +237,21 @@ func validateInternalID(tenantID string) error {
 	return nil
 }
 
-func createTenantDefaults(ctx context.Context, db gdb.DB, tenantID string, plan string, maxRepos, maxSymbols, maxStorageMB int) error {
+func createTenantDefaults(ctx context.Context, db gdb.DB, tenantID string, plan string) error {
 	if _, err := db.Exec(ctx, `
-INSERT INTO public.tenant_quotas(tenant_id, max_repos, max_symbols, max_storage_mb)
-VALUES (?, ?, ?, ?)
+INSERT INTO public.tenant_quotas(tenant_id)
+VALUES (?)
 ON CONFLICT (tenant_id) DO UPDATE
-SET max_repos=EXCLUDED.max_repos,
-    max_symbols=EXCLUDED.max_symbols,
-    max_storage_mb=EXCLUDED.max_storage_mb,
-    updated_at=now()`, tenantID, maxRepos, maxSymbols, maxStorageMB); err != nil {
+SET updated_at=now()`, tenantID); err != nil {
 		return gerror.Wrap(err, "upsert tenant quotas")
+	}
+	for _, metric := range []service.QuotaMetric{service.MetricMemberCount, service.MetricAPIKeyCount} {
+		if _, err := db.Exec(ctx, `
+INSERT INTO public.tenant_usage_counters(tenant_id, metric, used, reserved, updated_at)
+VALUES (?, ?, 0, 0, now())
+ON CONFLICT (tenant_id, metric, period_start) DO NOTHING`, tenantID, string(metric)); err != nil {
+			return gerror.Wrapf(err, "init tenant usage counter %s", metric)
+		}
 	}
 	if _, err := db.Exec(ctx, `
 INSERT INTO public.subscriptions(tenant_id, plan, status, started_at)
@@ -291,7 +284,7 @@ func fetchTenant(ctx context.Context, tenantID string) (*service.Tenant, error) 
 
 func fetchTenantByWhere(ctx context.Context, where string, arg any) (*service.Tenant, error) {
 	record, err := g.DB().GetOne(ctx, `
-SELECT id, name, slug, plan, status, max_repos, max_symbols, max_storage_mb, created_at, updated_at
+SELECT id, name, slug, plan, status, created_at, updated_at
 FROM public.tenants
 WHERE `+where+` AND deleted_at IS NULL
 LIMIT 1`, arg)
@@ -306,16 +299,13 @@ LIMIT 1`, arg)
 		return nil, gerror.Newf("invalid tenant id %q", id)
 	}
 	return &service.Tenant{
-		ID:           id,
-		Name:         record["name"].String(),
-		Slug:         record["slug"].String(),
-		Plan:         record["plan"].String(),
-		Status:       record["status"].String(),
-		MaxRepos:     record["max_repos"].Int(),
-		MaxSymbols:   record["max_symbols"].Int(),
-		MaxStorageMB: record["max_storage_mb"].Int(),
-		CreatedAt:    record["created_at"].Time(),
-		UpdatedAt:    record["updated_at"].Time(),
+		ID:        id,
+		Name:      record["name"].String(),
+		Slug:      record["slug"].String(),
+		Plan:      record["plan"].String(),
+		Status:    record["status"].String(),
+		CreatedAt: record["created_at"].Time(),
+		UpdatedAt: record["updated_at"].Time(),
 	}, nil
 }
 
@@ -338,13 +328,6 @@ func defaultMetadata(in map[string]any) map[string]any {
 
 func defaultString(value, fallback string) string {
 	if value == "" {
-		return fallback
-	}
-	return value
-}
-
-func defaultInt(value, fallback int) int {
-	if value <= 0 {
 		return fallback
 	}
 	return value

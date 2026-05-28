@@ -5,9 +5,9 @@ BASE_PORT="${BASE_PORT:-18081}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:${BASE_PORT}}"
 PGHOST="${PGHOST:-127.0.0.1}"
 PGPORT="${PGPORT:-55432}"
-PGUSER="${PGUSER:-repomind}"
+PGUSER="${PGUSER:-saas_template}"
 PGPASSWORD="${PGPASSWORD:-secret}"
-PGDATABASE="${PGDATABASE:-repomind}"
+PGDATABASE="${PGDATABASE:-saas_template}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

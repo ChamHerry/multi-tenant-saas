@@ -40,12 +40,12 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <section className="hero-gradient rounded-[28px] border border-white p-6 shadow-soft sm:p-8">
-        <Badge tone="blue">RepoMind Dashboard</Badge>
+        <Badge tone="blue">SaaS Dashboard</Badge>
         <h1 className="mt-4 text-3xl font-black text-ink sm:text-4xl">
           欢迎，<span className="text-gradient">{me.data?.user.display_name || me.data?.user.email || 'Dev User'}</span>
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
-          这里展示 GoFrame 服务状态、AutoMigrate readiness、当前用户组织和当前组织信息。后续 repo/analyze/query 能力可以继续挂到当前组织下。
+          这里展示 GoFrame 服务状态、AutoMigrate readiness、当前用户、当前组织、成员、API Key、审计和配额管理入口。
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link to="/tenants"><Button>{(tenants.data?.tenants.length ?? 0) === 0 ? '创建第一个组织' : '管理组织'}</Button></Link>

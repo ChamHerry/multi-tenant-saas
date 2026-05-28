@@ -1,4 +1,4 @@
-export type QuotaMetric = 'repo.count' | 'symbol.count' | 'storage.mb' | 'api_key.count' | 'member.count'
+export type QuotaMetric = 'api_key.count' | 'member.count'
 
 export type QuotaUsage = {
   metric: QuotaMetric

@@ -93,9 +93,8 @@ type PlanEntitlementList struct {
 }
 
 type UpdateTenantQuotaInput struct {
-	MaxRepos     int
-	MaxSymbols   int
-	MaxStorageMB int
+	MaxMembers int
+	MaxAPIKeys int
 }
 
 type IPlatformAdmin interface {

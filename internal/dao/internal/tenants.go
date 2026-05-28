@@ -21,34 +21,28 @@ type TenantsDao struct {
 
 // TenantsColumns defines and stores column names for the table tenants.
 type TenantsColumns struct {
-	Id           string //
-	Name         string //
-	Slug         string //
-	Plan         string //
-	Status       string //
-	MaxRepos     string //
-	MaxSymbols   string //
-	MaxStorageMb string //
-	Metadata     string //
-	CreatedAt    string //
-	UpdatedAt    string //
-	DeletedAt    string //
+	Id        string //
+	Name      string //
+	Slug      string //
+	Plan      string //
+	Status    string //
+	Metadata  string //
+	CreatedAt string //
+	UpdatedAt string //
+	DeletedAt string //
 }
 
 // tenantsColumns holds the columns for the table tenants.
 var tenantsColumns = TenantsColumns{
-	Id:           "id",
-	Name:         "name",
-	Slug:         "slug",
-	Plan:         "plan",
-	Status:       "status",
-	MaxRepos:     "max_repos",
-	MaxSymbols:   "max_symbols",
-	MaxStorageMb: "max_storage_mb",
-	Metadata:     "metadata",
-	CreatedAt:    "created_at",
-	UpdatedAt:    "updated_at",
-	DeletedAt:    "deleted_at",
+	Id:        "id",
+	Name:      "name",
+	Slug:      "slug",
+	Plan:      "plan",
+	Status:    "status",
+	Metadata:  "metadata",
+	CreatedAt: "created_at",
+	UpdatedAt: "updated_at",
+	DeletedAt: "deleted_at",
 }
 
 // NewTenantsDao creates and returns a new DAO object for table data access.

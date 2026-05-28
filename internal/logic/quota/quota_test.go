@@ -1,6 +1,7 @@
 package quota
 
 import (
+	"strings"
 	"testing"
 
 	"repomind-temp/internal/service"
@@ -8,9 +9,6 @@ import (
 
 func TestFeatureKey(t *testing.T) {
 	cases := map[service.QuotaMetric]string{
-		service.MetricRepoCount:   "repo.max_count",
-		service.MetricSymbolCount: "symbol.max_count",
-		service.MetricStorageMB:   "storage.max_mb",
 		service.MetricAPIKeyCount: "api_key.max_count",
 		service.MetricMemberCount: "member.max_count",
 	}
@@ -18,6 +16,28 @@ func TestFeatureKey(t *testing.T) {
 		if got := featureKey(metric); got != want {
 			t.Fatalf("featureKey(%s)=%s want %s", metric, got, want)
 		}
+	}
+	if got := featureKey(service.QuotaMetric("custom.count")); got != "" {
+		t.Fatalf("featureKey(custom.count)=%s want empty", got)
+	}
+}
+
+func TestUsageQueryOnlySupportsTemplateMetrics(t *testing.T) {
+	cases := map[service.QuotaMetric]string{
+		service.MetricAPIKeyCount: "public.api_keys",
+		service.MetricMemberCount: "public.tenant_memberships",
+	}
+	for metric, wantFragment := range cases {
+		got, err := usageQuery(metric)
+		if err != nil {
+			t.Fatalf("usageQuery(%s) error = %v", metric, err)
+		}
+		if !strings.Contains(got, wantFragment) {
+			t.Fatalf("usageQuery(%s)=%s missing %s", metric, got, wantFragment)
+		}
+	}
+	if _, err := usageQuery(service.QuotaMetric("custom.count")); err == nil {
+		t.Fatal("usageQuery(custom.count) expected invalid metric error")
 	}
 }
 

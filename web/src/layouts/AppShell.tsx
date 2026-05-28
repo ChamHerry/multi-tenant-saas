@@ -56,9 +56,9 @@ export function AppShell() {
     <div className="min-h-screen bg-page">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[17rem] border-r border-line bg-white/85 px-4 py-5 shadow-soft backdrop-blur lg:block">
         <Link to="/" className="flex items-center gap-3 rounded-card bg-brand-soft p-3">
-          <div className="brand-gradient grid size-10 place-items-center rounded-panel text-sm font-black text-white">RM</div>
+          <div className="brand-gradient grid size-10 place-items-center rounded-panel text-sm font-black text-white">MT</div>
           <div>
-            <div className="text-base font-black text-ink">RepoMind</div>
+            <div className="text-base font-black text-ink">SaaS Template</div>
             <div className="text-xs font-semibold text-brand">Organization Console</div>
           </div>
         </Link>

@@ -24,9 +24,6 @@ var permissionOrder = []service.Permission{
 	service.PermissionAuditRead,
 	service.PermissionBillingRead,
 	service.PermissionBillingManage,
-	service.PermissionRepoWrite,
-	service.PermissionAnalyzeRun,
-	service.PermissionGraphRead,
 	service.PermissionAPIKeyManage,
 }
 
@@ -40,9 +37,6 @@ var rolePermissions = map[string]map[service.Permission]struct{}{
 		service.PermissionAuditRead:        {},
 		service.PermissionBillingRead:      {},
 		service.PermissionBillingManage:    {},
-		service.PermissionRepoWrite:        {},
-		service.PermissionAnalyzeRun:       {},
-		service.PermissionGraphRead:        {},
 		service.PermissionAPIKeyManage:     {},
 	},
 	"admin": {
@@ -52,22 +46,15 @@ var rolePermissions = map[string]map[service.Permission]struct{}{
 		service.PermissionInvitationManage: {},
 		service.PermissionAuditRead:        {},
 		service.PermissionBillingRead:      {},
-		service.PermissionRepoWrite:        {},
-		service.PermissionAnalyzeRun:       {},
-		service.PermissionGraphRead:        {},
 		service.PermissionAPIKeyManage:     {},
 	},
 	"member": {
 		service.PermissionTenantRead:  {},
 		service.PermissionMemberRead:  {},
 		service.PermissionBillingRead: {},
-		service.PermissionRepoWrite:   {},
-		service.PermissionAnalyzeRun:  {},
-		service.PermissionGraphRead:   {},
 	},
 	"viewer": {
 		service.PermissionTenantRead: {},
-		service.PermissionGraphRead:  {},
 	},
 }
 

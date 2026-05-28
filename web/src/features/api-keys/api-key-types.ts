@@ -27,8 +27,9 @@ export const knownScopes = [
   'tenant:manage',
   'member:read',
   'member:manage',
-  'repo:write',
-  'analyze:run',
-  'graph:read',
+  'tenant:invitation:manage',
+  'tenant:audit:read',
+  'tenant:billing:read',
+  'tenant:billing:manage',
   'api_key:manage',
 ] as const

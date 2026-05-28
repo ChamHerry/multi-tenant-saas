@@ -19,9 +19,8 @@ export function AdminPlansPage() {
   const [plan, setPlan] = useState('')
   const [tenantId, setTenantId] = useState('')
   const [targetPlan, setTargetPlan] = useState('pro')
-  const [maxRepos, setMaxRepos] = useState('')
-  const [maxSymbols, setMaxSymbols] = useState('')
-  const [maxStorageMB, setMaxStorageMB] = useState('')
+  const [maxMembers, setMaxMembers] = useState('')
+  const [maxAPIKeys, setMaxAPIKeys] = useState('')
   const planQuery = useAdminPlans({ plan })
   const mutations = useAdminBillingMutations()
   const firstError = planQuery.error ?? mutations.updateTenantPlan.error ?? mutations.updateTenantQuota.error
@@ -36,9 +35,8 @@ export function AdminPlansPage() {
     mutations.updateTenantQuota.mutate({
       tenantId: tenantId.trim(),
       quota: {
-        max_repos: positiveIntOrUndefined(maxRepos),
-        max_symbols: positiveIntOrUndefined(maxSymbols),
-        max_storage_mb: positiveIntOrUndefined(maxStorageMB),
+        max_members: positiveIntOrUndefined(maxMembers),
+        max_api_keys: positiveIntOrUndefined(maxAPIKeys),
       },
     })
   }
@@ -67,12 +65,11 @@ export function AdminPlansPage() {
             </form>
           </Card>
           <Card>
-            <CardHeader title="单组织资源配额" description="只填写要覆盖的正整数；留空保持不变。" />
+            <CardHeader title="单组织资源配额" description="覆盖通用 SaaS 模板配额；只填写要覆盖的正整数，留空保持不变。" />
             <form className="space-y-4" onSubmit={updateQuota}>
               <Input label="组织 ID" value={tenantId} onChange={(event) => setTenantId(event.target.value)} required />
-              <Input label="Max repos" type="number" min={1} value={maxRepos} onChange={(event) => setMaxRepos(event.target.value)} />
-              <Input label="Max symbols" type="number" min={1} value={maxSymbols} onChange={(event) => setMaxSymbols(event.target.value)} />
-              <Input label="Max storage MB" type="number" min={1} value={maxStorageMB} onChange={(event) => setMaxStorageMB(event.target.value)} />
+              <Input label="Max members" type="number" min={1} value={maxMembers} onChange={(event) => setMaxMembers(event.target.value)} />
+              <Input label="Max API keys" type="number" min={1} value={maxAPIKeys} onChange={(event) => setMaxAPIKeys(event.target.value)} />
               <Button type="submit" variant="secondary" isLoading={mutations.updateTenantQuota.isPending}>更新资源配额</Button>
             </form>
           </Card>

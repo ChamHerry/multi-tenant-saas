@@ -95,11 +95,10 @@ type UpdateTenantPlanReq struct {
 }
 
 type UpdateTenantQuotaReq struct {
-	g.Meta       `path:"/admin/tenants/{tenant}/quota" tags:"Admin" method:"patch" summary:"Update tenant quota"`
-	Tenant       string `v:"required"`
-	MaxRepos     int    `json:"max_repos"`
-	MaxSymbols   int    `json:"max_symbols"`
-	MaxStorageMB int    `json:"max_storage_mb"`
+	g.Meta     `path:"/admin/tenants/{tenant}/quota" tags:"Admin" method:"patch" summary:"Update tenant quota"`
+	Tenant     string `v:"required"`
+	MaxMembers int    `json:"max_members"`
+	MaxAPIKeys int    `json:"max_api_keys"`
 }
 
 type SessionRes struct {

@@ -20,14 +20,11 @@ func (c *ControllerV1) Create(ctx context.Context, req *v1.CreateReq) (res *v1.T
 		return nil, err
 	}
 	tenant, err := service.TenantProvision().CreateTenant(ctx, service.CreateTenantInput{
-		Name:         req.Name,
-		Slug:         req.Slug,
-		OwnerUserID:  identity.UserID,
-		Plan:         req.Plan,
-		MaxRepos:     req.MaxRepos,
-		MaxSymbols:   req.MaxSymbols,
-		MaxStorageMB: req.MaxStorageMB,
-		Metadata:     req.Metadata,
+		Name:        req.Name,
+		Slug:        req.Slug,
+		OwnerUserID: identity.UserID,
+		Plan:        req.Plan,
+		Metadata:    req.Metadata,
 	})
 	if err != nil {
 		return nil, err
@@ -59,13 +56,10 @@ func (c *ControllerV1) Update(ctx context.Context, req *v1.UpdateReq) (res *v1.T
 		return nil, err
 	}
 	tenant, err := service.TenantAdmin().UpdateTenant(ctx, tc.TenantID, service.UpdateTenantInput{
-		Name:         req.Name,
-		Slug:         req.Slug,
-		Plan:         req.Plan,
-		MaxRepos:     req.MaxRepos,
-		MaxSymbols:   req.MaxSymbols,
-		MaxStorageMB: req.MaxStorageMB,
-		Metadata:     req.Metadata,
+		Name:     req.Name,
+		Slug:     req.Slug,
+		Plan:     req.Plan,
+		Metadata: req.Metadata,
 	})
 	if err != nil {
 		return nil, err

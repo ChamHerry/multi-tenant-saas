@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	defaultSessionCookieName = "repomind_session"
-	defaultCSRFCookieName    = "repomind_csrf"
+	defaultSessionCookieName = "saas_template_session"
+	defaultCSRFCookieName    = "saas_template_csrf"
 	defaultAbsoluteTTL       = 7 * 24 * time.Hour
 	defaultIdleTTL           = 12 * time.Hour
 )

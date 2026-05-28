@@ -11,17 +11,14 @@ import (
 
 // Tenants is the golang structure of table tenants for DAO operations like Where/Data.
 type Tenants struct {
-	g.Meta       `orm:"table:tenants, do:true"`
-	Id           any         //
-	Name         any         //
-	Slug         any         //
-	Plan         any         //
-	Status       any         //
-	MaxRepos     any         //
-	MaxSymbols   any         //
-	MaxStorageMb any         //
-	Metadata     *gjson.Json //
-	CreatedAt    any         //
-	UpdatedAt    any         //
-	DeletedAt    any         //
+	g.Meta    `orm:"table:tenants, do:true"`
+	Id        any         //
+	Name      any         //
+	Slug      any         //
+	Plan      any         //
+	Status    any         //
+	Metadata  *gjson.Json //
+	CreatedAt any         //
+	UpdatedAt any         //
+	DeletedAt any         //
 }

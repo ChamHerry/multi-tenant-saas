@@ -1,2 +1,1 @@
 ALTER TABLE public.api_keys VALIDATE CONSTRAINT api_keys_membership_fk;
-ALTER TABLE public.git_credentials VALIDATE CONSTRAINT git_credentials_owner_membership_fk;

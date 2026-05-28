@@ -13,19 +13,19 @@ auth:
   devHeader:
     enabled: true
   apiKey:
-    secret: "repomind-local-dev-secret-change-me"
+    secret: "saas-template-local-dev-secret-change-me"
   password:
     enabled: true
     registrationEnabled: false
     minLength: 15
     bcryptCost: 12
   session:
-    secret: "repomind-local-session-secret-change-me"
+    secret: "saas-template-local-session-secret-change-me"
     absoluteTTL: "168h"
     idleTTL: "12h"
     cookie:
-      name: "repomind_session"
-      csrfName: "repomind_csrf"
+      name: "saas_template_session"
+      csrfName: "saas_template_csrf"
       path: "/"
 
 # AutoMigrate has only one switch. Database connection is read from database.default.
@@ -44,7 +44,7 @@ tenant:
 database:
   default:
     # Format: pgsql:<user>:<password>@tcp(<host>:<port>)/<database>
-    link: "pgsql:repomind:secret@tcp(127.0.0.1:55432)/repomind"
+    link: "pgsql:saas_template:secret@tcp(127.0.0.1:55432)/saas_template"
     debug: false
     charset: "utf8"
     dryRun: false

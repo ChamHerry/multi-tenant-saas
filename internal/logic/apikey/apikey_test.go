@@ -14,8 +14,8 @@ func TestHashRawKeyUsesSecret(t *testing.T) {
 }
 
 func TestParseTextArray(t *testing.T) {
-	got := parseTextArray(`{tenant:read,graph:read}`)
-	if len(got) != 2 || got[0] != "tenant:read" || got[1] != "graph:read" {
+	got := parseTextArray(`{tenant:read,member:read}`)
+	if len(got) != 2 || got[0] != "tenant:read" || got[1] != "member:read" {
 		t.Fatalf("parseTextArray unexpected: %#v", got)
 	}
 	if got := parseTextArray("{}"); len(got) != 0 {
@@ -30,7 +30,7 @@ func TestRawKeyPrefix(t *testing.T) {
 }
 
 func TestTextArrayLiteralAndExpiresAt(t *testing.T) {
-	if got := textArrayLiteral([]string{"tenant:read", "graph:read"}); got != `{"tenant:read","graph:read"}` {
+	if got := textArrayLiteral([]string{"tenant:read", "member:read"}); got != `{"tenant:read","member:read"}` {
 		t.Fatalf("textArrayLiteral=%s", got)
 	}
 	if got := expiresAtString(nil); got != "" {
@@ -39,8 +39,8 @@ func TestTextArrayLiteralAndExpiresAt(t *testing.T) {
 }
 
 func TestParseJSONArrayScopes(t *testing.T) {
-	got := parseTextArray(`["tenant:read","graph:read"]`)
-	if len(got) != 2 || got[0] != "tenant:read" || got[1] != "graph:read" {
+	got := parseTextArray(`["tenant:read","member:read"]`)
+	if len(got) != 2 || got[0] != "tenant:read" || got[1] != "member:read" {
 		t.Fatalf("parseTextArray json unexpected: %#v", got)
 	}
 }

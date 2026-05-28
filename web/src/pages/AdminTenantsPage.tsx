@@ -19,7 +19,7 @@ export function AdminTenantsPage() {
   const firstError = access.error ?? tenants.error ?? actions.suspend.error ?? actions.restore.error
   return (
     <div className="space-y-6">
-      <div><Badge tone="red">Platform Admin</Badge><h1 className="mt-3 text-3xl font-black text-ink">平台组织管理</h1><p className="mt-2 text-sm text-muted">跨组织只读/暂停/恢复入口，不依赖当前组织上下文；底层仓库统一在 public schema 共享。</p></div>
+      <div><Badge tone="red">Platform Admin</Badge><h1 className="mt-3 text-3xl font-black text-ink">平台组织管理</h1><p className="mt-2 text-sm text-muted">跨组织只读/暂停/恢复入口，不依赖当前组织上下文；用于支持、审计与计费管理。</p></div>
       {firstError ? <ErrorView error={firstError} title="平台管理不可用" /> : null}
       <Card><CardHeader title="管理员会话" />{access.isLoading ? <LoadingView label="校验平台管理员..." /> : <div className="text-sm text-muted">角色：<Badge tone="red">{access.data?.platform_admin?.role}</Badge></div>}</Card>
       <Card><CardHeader title="过滤" /><Input label="搜索" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="tenant name / slug / id" /></Card>

@@ -22,28 +22,20 @@ type TenantQuotasDao struct {
 // TenantQuotasColumns defines and stores column names for the table tenant_quotas.
 type TenantQuotasColumns struct {
 	TenantId          string //
-	MaxRepos          string //
-	MaxSymbols        string //
-	MaxStorageMb      string //
 	MaxDailyRequests  string //
 	MaxConcurrentJobs string //
-	CurrentRepos      string //
-	CurrentSymbols    string //
-	CurrentStorageMb  string //
+	MaxMembers        string //
+	MaxApiKeys        string //
 	UpdatedAt         string //
 }
 
 // tenantQuotasColumns holds the columns for the table tenant_quotas.
 var tenantQuotasColumns = TenantQuotasColumns{
 	TenantId:          "tenant_id",
-	MaxRepos:          "max_repos",
-	MaxSymbols:        "max_symbols",
-	MaxStorageMb:      "max_storage_mb",
 	MaxDailyRequests:  "max_daily_requests",
 	MaxConcurrentJobs: "max_concurrent_jobs",
-	CurrentRepos:      "current_repos",
-	CurrentSymbols:    "current_symbols",
-	CurrentStorageMb:  "current_storage_mb",
+	MaxMembers:        "max_members",
+	MaxApiKeys:        "max_api_keys",
 	UpdatedAt:         "updated_at",
 }
 

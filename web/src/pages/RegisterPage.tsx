@@ -63,7 +63,7 @@ export function RegisterPage() {
   return (
     <AuthShell>
       <Card className="mx-auto max-w-md bg-white/95 hover:border-line hover:shadow-soft">
-        <CardHeader title="注册 RepoMind" description="创建正式账号后，系统会自动准备一个默认组织；后端会在开始使用时按需完成初始化。" />
+        <CardHeader title="注册 SaaS 控制台" description="创建正式账号后，系统会自动准备一个默认组织；后端会在开始使用时按需完成初始化。" />
         <form className="space-y-4" onSubmit={submit}>
           <Input
             label="邮箱"
