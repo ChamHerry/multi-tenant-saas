@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Activity, ArrowRight, DatabaseZap, KeyRound, Server, Users } from 'lucide-react'
+import { Activity, ArrowRight, DatabaseZap, Server, Users } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useMe, useMyTenants } from '@/features/auth/auth-hooks'
 import { useTenantContext } from '@/features/tenants/tenant-hooks'
@@ -100,7 +100,6 @@ export function DashboardPage() {
             {[
               { to: '/tenants', label: '创建/更新组织', icon: <ArrowRight className="size-4" /> },
               { to: '/members', label: '添加/更新/移除组织成员', icon: <Users className="size-4" /> },
-              { to: '/api-keys', label: '创建/吊销 API Key，raw key 仅展示一次', icon: <KeyRound className="size-4" /> },
             ].map((item) => (
               <Link key={item.to} to={item.to} className="flex items-center justify-between rounded-panel border border-line bg-surface-soft p-4 text-sm font-bold text-ink transition hover:border-brand-ring hover:bg-brand-soft hover:text-brand">
                 {item.label}

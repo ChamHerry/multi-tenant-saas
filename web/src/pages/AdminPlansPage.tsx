@@ -20,7 +20,6 @@ export function AdminPlansPage() {
   const [tenantId, setTenantId] = useState('')
   const [targetPlan, setTargetPlan] = useState('pro')
   const [maxMembers, setMaxMembers] = useState('')
-  const [maxAPIKeys, setMaxAPIKeys] = useState('')
   const planQuery = useAdminPlans({ plan })
   const mutations = useAdminBillingMutations()
   const firstError = planQuery.error ?? mutations.updateTenantPlan.error ?? mutations.updateTenantQuota.error
@@ -36,7 +35,6 @@ export function AdminPlansPage() {
       tenantId: tenantId.trim(),
       quota: {
         max_members: positiveIntOrUndefined(maxMembers),
-        max_api_keys: positiveIntOrUndefined(maxAPIKeys),
       },
     })
   }
@@ -69,7 +67,6 @@ export function AdminPlansPage() {
             <form className="space-y-4" onSubmit={updateQuota}>
               <Input label="组织 ID" value={tenantId} onChange={(event) => setTenantId(event.target.value)} required />
               <Input label="Max members" type="number" min={1} value={maxMembers} onChange={(event) => setMaxMembers(event.target.value)} />
-              <Input label="Max API keys" type="number" min={1} value={maxAPIKeys} onChange={(event) => setMaxAPIKeys(event.target.value)} />
               <Button type="submit" variant="secondary" isLoading={mutations.updateTenantQuota.isPending}>更新资源配额</Button>
             </form>
           </Card>

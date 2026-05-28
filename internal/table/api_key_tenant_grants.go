@@ -10,9 +10,9 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 )
 
-// ApiKeys defines the fields of table "api_keys" with their properties.
+// ApiKeyTenantGrants defines the fields of table "api_key_tenant_grants" with their properties.
 // This map is used internally by GoFrame ORM to understand table structure.
-var ApiKeys = map[string]*gdb.TableField{
+var ApiKeyTenantGrants = map[string]*gdb.TableField{
 	"id": {
 		Index:   0,
 		Name:    "id",
@@ -23,58 +23,28 @@ var ApiKeys = map[string]*gdb.TableField{
 		Extra:   "",
 		Comment: "",
 	},
-	"tenant_id": {
+	"api_key_id": {
 		Index:   1,
+		Name:    "api_key_id",
+		Type:    "uuid",
+		Null:    false,
+		Key:     "",
+		Default: nil,
+		Extra:   "",
+		Comment: "",
+	},
+	"tenant_id": {
+		Index:   2,
 		Name:    "tenant_id",
 		Type:    "uuid",
-		Null:    true,
-		Key:     "",
-		Default: nil,
-		Extra:   "",
-		Comment: "",
-	},
-	"user_id": {
-		Index:   2,
-		Name:    "user_id",
-		Type:    "uuid",
 		Null:    false,
 		Key:     "",
 		Default: nil,
-		Extra:   "",
-		Comment: "",
-	},
-	"name": {
-		Index:   3,
-		Name:    "name",
-		Type:    "varchar(120)",
-		Null:    false,
-		Key:     "",
-		Default: nil,
-		Extra:   "",
-		Comment: "",
-	},
-	"key_hash": {
-		Index:   4,
-		Name:    "key_hash",
-		Type:    "text",
-		Null:    false,
-		Key:     "uni",
-		Default: nil,
-		Extra:   "",
-		Comment: "",
-	},
-	"key_type": {
-		Index:   5,
-		Name:    "key_type",
-		Type:    "varchar(32)",
-		Null:    false,
-		Key:     "",
-		Default: "'personal'::character varying",
 		Extra:   "",
 		Comment: "",
 	},
 	"scopes": {
-		Index:   6,
+		Index:   3,
 		Name:    "scopes",
 		Type:    "_text",
 		Null:    false,
@@ -83,20 +53,30 @@ var ApiKeys = map[string]*gdb.TableField{
 		Extra:   "",
 		Comment: "",
 	},
-	"last_used_at": {
-		Index:   7,
-		Name:    "last_used_at",
-		Type:    "timestamptz",
+	"status": {
+		Index:   4,
+		Name:    "status",
+		Type:    "varchar(32)",
+		Null:    false,
+		Key:     "",
+		Default: "'active'::character varying",
+		Extra:   "",
+		Comment: "",
+	},
+	"granted_by_user_id": {
+		Index:   5,
+		Name:    "granted_by_user_id",
+		Type:    "uuid",
 		Null:    true,
 		Key:     "",
 		Default: nil,
 		Extra:   "",
 		Comment: "",
 	},
-	"expires_at": {
-		Index:   8,
-		Name:    "expires_at",
-		Type:    "timestamptz",
+	"revoked_by_user_id": {
+		Index:   6,
+		Name:    "revoked_by_user_id",
+		Type:    "uuid",
 		Null:    true,
 		Key:     "",
 		Default: nil,
@@ -104,7 +84,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"created_at": {
-		Index:   9,
+		Index:   7,
 		Name:    "created_at",
 		Type:    "timestamptz",
 		Null:    false,
@@ -113,8 +93,18 @@ var ApiKeys = map[string]*gdb.TableField{
 		Extra:   "",
 		Comment: "",
 	},
+	"updated_at": {
+		Index:   8,
+		Name:    "updated_at",
+		Type:    "timestamptz",
+		Null:    false,
+		Key:     "",
+		Default: "now()",
+		Extra:   "",
+		Comment: "",
+	},
 	"revoked_at": {
-		Index:   10,
+		Index:   9,
 		Name:    "revoked_at",
 		Type:    "timestamptz",
 		Null:    true,
@@ -123,31 +113,11 @@ var ApiKeys = map[string]*gdb.TableField{
 		Extra:   "",
 		Comment: "",
 	},
-	"key_prefix": {
-		Index:   11,
-		Name:    "key_prefix",
-		Type:    "varchar(32)",
-		Null:    true,
-		Key:     "",
-		Default: nil,
-		Extra:   "",
-		Comment: "",
-	},
-	"created_by_user_id": {
-		Index:   12,
-		Name:    "created_by_user_id",
-		Type:    "uuid",
-		Null:    true,
-		Key:     "",
-		Default: nil,
-		Extra:   "",
-		Comment: "",
-	},
 }
 
-// SetApiKeysTableFields registers the table fields definition to the database instance.
+// SetApiKeyTenantGrantsTableFields registers the table fields definition to the database instance.
 // db: database instance that implements gdb.DB interface.
 // schema: optional schema/namespace name, especially for databases that support schemas.
-func SetApiKeysTableFields(ctx context.Context, db gdb.DB, schema ...string) error {
-	return db.GetCore().SetTableFields(ctx, "api_keys", ApiKeys, schema...)
+func SetApiKeyTenantGrantsTableFields(ctx context.Context, db gdb.DB, schema ...string) error {
+	return db.GetCore().SetTableFields(ctx, "api_key_tenant_grants", ApiKeyTenantGrants, schema...)
 }

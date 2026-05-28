@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **RepoMind** (2836 symbols, 7974 relationships, 235 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **multi-tenant-saas** (3954 symbols, 10683 relationships, 297 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -24,10 +24,10 @@ This project is indexed by GitNexus as **RepoMind** (2836 symbols, 7974 relation
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/RepoMind/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/RepoMind/clusters` | All functional areas |
-| `gitnexus://repo/RepoMind/processes` | All execution flows |
-| `gitnexus://repo/RepoMind/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/multi-tenant-saas/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/multi-tenant-saas/clusters` | All functional areas |
+| `gitnexus://repo/multi-tenant-saas/processes` | All execution flows |
+| `gitnexus://repo/multi-tenant-saas/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 

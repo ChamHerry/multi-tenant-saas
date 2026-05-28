@@ -24,8 +24,7 @@ ALTER TABLE public.tenant_quotas
   DROP COLUMN IF EXISTS current_storage_mb;
 
 ALTER TABLE public.tenant_quotas
-  ADD COLUMN IF NOT EXISTS max_members INT,
-  ADD COLUMN IF NOT EXISTS max_api_keys INT;
+  ADD COLUMN IF NOT EXISTS max_members INT;
 
 DROP TABLE IF EXISTS public.analysis_snapshots;
 DROP TABLE IF EXISTS public.process_steps;

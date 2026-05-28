@@ -54,6 +54,9 @@ func (c *ControllerV1) ExportTenant(ctx context.Context, req *v1.ExportTenantReq
 }
 
 func (c *ControllerV1) SecurityEvents(ctx context.Context, req *v1.SecurityEventsReq) (res *v1.ListRes, err error) {
+	if err = service.RBAC().RequireAuthScope(ctx, service.PermissionUserSecurityRead); err != nil {
+		return nil, err
+	}
 	identity, err := service.MustAuthIdentity(ctx)
 	if err != nil {
 		return nil, err

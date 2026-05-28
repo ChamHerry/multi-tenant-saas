@@ -25,7 +25,6 @@ type TenantQuotasColumns struct {
 	MaxDailyRequests  string //
 	MaxConcurrentJobs string //
 	MaxMembers        string //
-	MaxApiKeys        string //
 	UpdatedAt         string //
 }
 
@@ -35,7 +34,6 @@ var tenantQuotasColumns = TenantQuotasColumns{
 	MaxDailyRequests:  "max_daily_requests",
 	MaxConcurrentJobs: "max_concurrent_jobs",
 	MaxMembers:        "max_members",
-	MaxApiKeys:        "max_api_keys",
 	UpdatedAt:         "updated_at",
 }
 

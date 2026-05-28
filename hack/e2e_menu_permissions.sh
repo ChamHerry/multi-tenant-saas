@@ -149,7 +149,7 @@ b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/members" "
 
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status OWNER_ACCESS 200 "${s}" "${b}"
 assert_json_equals OWNER_HAS_TENANT_MANAGE "${b}" '"tenant:manage" in j["data"]["tenants"][0]["permissions"]' true
-assert_json_equals OWNER_HAS_APIKEY_MANAGE "${b}" '"api_key:manage" in j["data"]["tenants"][0]["permissions"]' true
+assert_json_equals OWNER_NO_APIKEY_MANAGE "${b}" '"api_key:manage" in j["data"]["tenants"][0]["permissions"]' false
 assert_json_equals OWNER_PLATFORM_NULL "${b}" 'j["data"]["platform_admin"] is None' true
 
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" -H "X-User-ID: ${admin_id}")"; assert_status ADMIN_ACCESS 200 "${s}" "${b}"
@@ -160,7 +160,7 @@ b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" -H "X-User-ID
 assert_json_equals VIEWER_HAS_TENANT_READ "${b}" '"tenant:read" in j["data"]["tenants"][0]["permissions"]' true
 assert_json_equals VIEWER_NO_APIKEY_MANAGE "${b}" '"api_key:manage" in j["data"]["tenants"][0]["permissions"]' false
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "${b}" -H "X-User-ID: ${viewer_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status VIEWER_APIKEY_FORBIDDEN 403 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status PERSONAL_APIKEY_ROUTE_ALLOWED 200 "${s}" "${b}"
 
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" -H "X-User-ID: ${support_id}")"; assert_status SUPPORT_ACCESS 200 "${s}" "${b}"
 assert_json_equals SUPPORT_HAS_USER_READ "${b}" '"platform:user:read" in j["data"]["platform_admin"]["permissions"]' true

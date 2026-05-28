@@ -1,32 +1,37 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createAPIKey, listAPIKeys, revokeAPIKey } from './api-key-api'
-import type { CreateAPIKeyInput } from './api-key-types'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createPersonalAPIKey,
+  listPersonalAPIKeys,
+  revokePersonalAPIKey,
+} from "./api-key-api";
+import type { CreatePersonalAPIKeyInput } from "./api-key-types";
 
 export const apiKeyKeys = {
-  list: (tenantId?: string) => ['api-keys', 'list', tenantId] as const,
-}
+  personal: () => ["api-keys", "personal"] as const,
+};
 
-export function useAPIKeys(tenantId?: string) {
+export function usePersonalAPIKeys() {
   return useQuery({
-    queryKey: apiKeyKeys.list(tenantId),
-    queryFn: () => listAPIKeys(tenantId!),
-    enabled: Boolean(tenantId),
+    queryKey: apiKeyKeys.personal(),
+    queryFn: listPersonalAPIKeys,
     retry: false,
-  })
+  });
 }
 
-export function useCreateAPIKey(tenantId?: string) {
-  const queryClient = useQueryClient()
+export function useCreatePersonalAPIKey() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateAPIKeyInput) => createAPIKey(tenantId!, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: apiKeyKeys.list(tenantId) }),
-  })
+    mutationFn: (input: CreatePersonalAPIKeyInput) => createPersonalAPIKey(input),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: apiKeyKeys.personal() }),
+  });
 }
 
-export function useRevokeAPIKey(tenantId?: string) {
-  const queryClient = useQueryClient()
+export function useRevokePersonalAPIKey() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (apiKeyId: string) => revokeAPIKey(tenantId!, apiKeyId),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: apiKeyKeys.list(tenantId) }),
-  })
+    mutationFn: (apiKeyId: string) => revokePersonalAPIKey(apiKeyId),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: apiKeyKeys.personal() }),
+  });
 }

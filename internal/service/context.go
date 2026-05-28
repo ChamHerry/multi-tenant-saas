@@ -21,6 +21,7 @@ type AuthIdentity struct {
 	Type      string
 	Scopes    []string
 	APIKeyID  string
+	KeyType   string
 	SessionID string
 }
 

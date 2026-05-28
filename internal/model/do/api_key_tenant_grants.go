@@ -8,20 +8,17 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 )
 
-// ApiKeys is the golang structure of table api_keys for DAO operations like Where/Data.
-type ApiKeys struct {
-	g.Meta          `orm:"table:api_keys, do:true"`
+// ApiKeyTenantGrants is the golang structure of table api_key_tenant_grants for DAO operations like Where/Data.
+type ApiKeyTenantGrants struct {
+	g.Meta          `orm:"table:api_key_tenant_grants, do:true"`
 	Id              any      //
+	ApiKeyId        any      //
 	TenantId        any      //
-	UserId          any      //
-	Name            any      //
-	KeyHash         any      //
-	KeyType         any      //
 	Scopes          []string //
-	LastUsedAt      any      //
-	ExpiresAt       any      //
+	Status          any      //
+	GrantedByUserId any      //
+	RevokedByUserId any      //
 	CreatedAt       any      //
+	UpdatedAt       any      //
 	RevokedAt       any      //
-	KeyPrefix       any      //
-	CreatedByUserId any      //
 }

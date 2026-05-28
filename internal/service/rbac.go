@@ -13,12 +13,16 @@ const (
 	PermissionAuditRead        Permission = "tenant:audit:read"
 	PermissionBillingRead      Permission = "tenant:billing:read"
 	PermissionBillingManage    Permission = "tenant:billing:manage"
-	PermissionAPIKeyManage     Permission = "api_key:manage"
+	PermissionUserRead         Permission = "user:read"
+	PermissionUserTenantRead   Permission = "user:tenant:read"
+	PermissionUserSecurityRead Permission = "user:security:read"
+	PermissionAPIKeySelfManage Permission = "api_key:self_manage"
 )
 
 type IRBAC interface {
 	Can(ctx context.Context, tc *TenantContext, permission Permission) bool
 	Require(ctx context.Context, permission Permission) error
+	RequireAuthScope(ctx context.Context, permission Permission) error
 	PermissionsForRole(role string) []Permission
 	PermissionsForContext(ctx context.Context, tc *TenantContext) []Permission
 }

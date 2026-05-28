@@ -60,7 +60,6 @@ CREATE TABLE IF NOT EXISTS public.tenant_quotas (
     max_daily_requests INT NOT NULL DEFAULT 1000,
     max_concurrent_jobs INT NOT NULL DEFAULT 1,
     max_members INT,
-    max_api_keys INT,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

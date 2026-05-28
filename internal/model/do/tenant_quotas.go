@@ -15,6 +15,5 @@ type TenantQuotas struct {
 	MaxDailyRequests  any //
 	MaxConcurrentJobs any //
 	MaxMembers        any //
-	MaxApiKeys        any //
 	UpdatedAt         any //
 }

@@ -252,7 +252,7 @@ func tenantPlanTx(ctx context.Context, tx gdb.TX, tenantID string) (string, erro
 }
 
 func managedMetrics() []service.QuotaMetric {
-	return []service.QuotaMetric{service.MetricAPIKeyCount, service.MetricMemberCount}
+	return []service.QuotaMetric{service.MetricMemberCount}
 }
 
 func metricLimit(ctx context.Context, tenantID, plan string, metric service.QuotaMetric) (*int64, error) {
@@ -327,8 +327,6 @@ WHERE plan=? AND feature_key=? AND enabled=true`, plan, feature)
 
 func featureKey(metric service.QuotaMetric) string {
 	switch metric {
-	case service.MetricAPIKeyCount:
-		return "api_key.max_count"
 	case service.MetricMemberCount:
 		return "member.max_count"
 	default:
@@ -338,8 +336,6 @@ func featureKey(metric service.QuotaMetric) string {
 
 func quotaOverrideColumn(metric service.QuotaMetric) (string, error) {
 	switch metric {
-	case service.MetricAPIKeyCount:
-		return "max_api_keys", nil
 	case service.MetricMemberCount:
 		return "max_members", nil
 	default:
@@ -379,8 +375,6 @@ func currentUsageTx(ctx context.Context, tx gdb.TX, tenantID string, metric serv
 
 func usageQuery(metric service.QuotaMetric) (string, error) {
 	switch metric {
-	case service.MetricAPIKeyCount:
-		return `SELECT count(*) AS used FROM public.api_keys WHERE tenant_id=? AND revoked_at IS NULL`, nil
 	case service.MetricMemberCount:
 		return `SELECT count(*) AS used FROM public.tenant_memberships WHERE tenant_id=? AND status='active' AND deleted_at IS NULL`, nil
 	default:
