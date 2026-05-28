@@ -68,16 +68,6 @@ export function PersonalApiKeysPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Badge tone="purple">Personal API Keys</Badge>
-        <h1 className="mt-3 text-3xl font-black text-ink">个人 API Key</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          API Key 绑定当前用户身份；调用租户接口时必须显式提供
-          X-Tenant-ID，最终权限由用户当前租户角色、key scopes 和租户 grant
-          scopes 共同收窄。
-        </p>
-      </div>
-
       {firstError ? (
         <ErrorView error={firstError} title="个人 API Key 操作失败" />
       ) : null}

@@ -41,11 +41,6 @@ export function AdminPlansPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Badge tone="red">Billing Admin</Badge>
-        <h1 className="mt-3 text-3xl font-black text-ink">套餐与配额管理</h1>
-        <p className="mt-2 text-sm text-muted">查看内置 plan entitlement，并对单组织执行套餐/配额覆盖。</p>
-      </div>
       {firstError ? <ErrorView error={firstError} title="套餐/配额操作失败" /> : null}
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>

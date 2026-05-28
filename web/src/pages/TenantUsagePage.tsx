@@ -17,8 +17,7 @@ export function TenantUsagePage() {
   const firstError = quota.error ?? recalculate.error
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div><Badge tone="green">Quota</Badge><h1 className="mt-3 text-3xl font-black text-ink">配额与用量</h1><p className="mt-2 text-sm text-muted">后端会在消耗型操作前强制检查配额。</p></div>
+      <div className="flex justify-end">
         <Button
           variant="secondary"
           disabled={!canManageBilling}

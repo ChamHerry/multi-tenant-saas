@@ -29,7 +29,7 @@ export function TenantAuditPage() {
   }
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><Badge tone="orange">Audit</Badge><h1 className="mt-3 text-3xl font-black text-ink">组织审计日志</h1><p className="mt-2 text-sm text-muted">按 action / 时间 / 用户过滤组织范围内的管理事件。</p></div><Button variant="secondary" onClick={() => void download()} isLoading={exportLogs.isPending} leftIcon={<Download className="size-4" />}>导出 JSONL</Button></div>
+      <div className="flex justify-end"><Button variant="secondary" onClick={() => void download()} isLoading={exportLogs.isPending} leftIcon={<Download className="size-4" />}>导出 JSONL</Button></div>
       {logs.error || exportLogs.error ? <ErrorView error={logs.error ?? exportLogs.error} title="审计日志加载失败" /> : null}
       <Card>
         <CardHeader title="过滤" />
