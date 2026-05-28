@@ -7,6 +7,7 @@ import { useTenantStore } from '@/features/tenants/tenant-store'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
+import { Dialog } from '@/shared/ui/Dialog'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Input } from '@/shared/ui/Input'
 import { Select } from '@/shared/ui/Select'
@@ -26,6 +27,7 @@ export function MembersPage() {
   const [userId, setUserId] = useState('')
   const [role, setRole] = useState<TenantRole>('viewer')
   const [status, setStatus] = useState('active')
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -36,6 +38,7 @@ export function MembersPage() {
           setUserId('')
           setRole('viewer')
           setStatus('active')
+          setIsAddMemberOpen(false)
         },
       },
     )
@@ -51,25 +54,26 @@ export function MembersPage() {
     <div className="space-y-6">
       {firstError ? <ErrorView error={firstError} title="成员操作失败" /> : null}
 
-      <section className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-        <Card>
-          <CardHeader title="添加成员" description={canManageMembers ? '需要目标用户已存在于 public.users。' : '当前角色只有成员查看权限，不能添加或更新成员。'} />
-          {canManageMembers ? (
-            <form className="space-y-4" onSubmit={submit}>
-              <Input label="User ID" value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="用户 UUID" required />
-              <Select label="角色" value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
-                {roles.map((item) => <option key={item} value={item}>{item}</option>)}
-              </Select>
-              <Select label="状态" value={status} onChange={(event) => setStatus(event.target.value)}>
-                {statuses.map((item) => <option key={item} value={item}>{item}</option>)}
-              </Select>
-              <Button type="submit" isLoading={addMember.isPending} leftIcon={<UserPlus className="size-4" />}>添加/更新成员</Button>
-            </form>
-          ) : (
-            <EmptyState title="只读成员权限" description="后端仍会拒绝 member:manage 之外的写操作；这里仅做前端体验层过滤。" />
-          )}
-        </Card>
+      <div className="flex justify-end">
+        <Button disabled={!canManageMembers} leftIcon={<UserPlus className="size-4" />} onClick={() => setIsAddMemberOpen(true)}>
+          添加成员
+        </Button>
+      </div>
 
+      <Dialog open={isAddMemberOpen} title="添加成员" onClose={() => setIsAddMemberOpen(false)}>
+        <form className="space-y-4" onSubmit={submit}>
+          <Input label="User ID" value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="用户 UUID" required />
+          <Select label="角色" value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
+            {roles.map((item) => <option key={item} value={item}>{item}</option>)}
+          </Select>
+          <Select label="状态" value={status} onChange={(event) => setStatus(event.target.value)}>
+            {statuses.map((item) => <option key={item} value={item}>{item}</option>)}
+          </Select>
+          <Button type="submit" isLoading={addMember.isPending} leftIcon={<UserPlus className="size-4" />}>添加/更新成员</Button>
+        </form>
+      </Dialog>
+
+      <section>
         <Card>
           <CardHeader title="成员列表" description="调用 GET /api/v1/tenants/{tenant}/members。" />
           {members.isLoading ? <LoadingView label="加载成员..." /> : (members.data?.members.length ?? 0) === 0 ? (

@@ -1,23 +1,86 @@
+import { FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2 } from 'lucide-react'
+import { Building2, Plus } from 'lucide-react'
 import { useMyTenants } from '@/features/auth/auth-hooks'
+import { useCreateTenant } from '@/features/tenants/tenant-hooks'
 import { useTenantStore } from '@/features/tenants/tenant-store'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
+import { Dialog } from '@/shared/ui/Dialog'
+import { Input } from '@/shared/ui/Input'
+import { Select } from '@/shared/ui/Select'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 import { Table, Td, Th } from '@/shared/ui/Table'
 
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+}
+
 export function TenantsPage() {
   const tenants = useMyTenants()
+  const createTenant = useCreateTenant()
   const currentTenantId = useTenantStore((state) => state.currentTenantId)
   const setCurrentTenantId = useTenantStore((state) => state.setCurrentTenantId)
+  const [name, setName] = useState('')
+  const [slug, setSlug] = useState('')
+  const [plan, setPlan] = useState('free')
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    createTenant.mutate(
+      { name: name.trim(), slug: slug.trim(), plan },
+      {
+        onSuccess: () => {
+          setName('')
+          setSlug('')
+          setPlan('free')
+          setIsCreateOpen(false)
+        },
+      },
+    )
+  }
 
   if (tenants.isLoading) return <LoadingView label="加载组织列表..." />
 
   return (
     <div className="space-y-6">
       {tenants.error ? <ErrorView error={tenants.error} title="组织列表加载失败" /> : null}
+      {createTenant.error ? <ErrorView error={createTenant.error} title="组织创建失败" /> : null}
+
+      <div className="flex justify-end">
+        <Button leftIcon={<Plus className="size-4" />} onClick={() => setIsCreateOpen(true)}>
+          添加组织
+        </Button>
+      </div>
+
+      <Dialog open={isCreateOpen} title="添加组织" onClose={() => setIsCreateOpen(false)}>
+        <form className="space-y-4" onSubmit={submit}>
+          <Input
+            label="组织名称"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value)
+              if (!slug) setSlug(slugify(event.target.value))
+            }}
+            placeholder="Acme Demo"
+            required
+          />
+          <Input label="Slug" value={slug} onChange={(event) => setSlug(slugify(event.target.value))} placeholder="acme-demo" required />
+          <Select label="套餐" value={plan} onChange={(event) => setPlan(event.target.value)}>
+            <option value="free">free</option>
+            <option value="pro">pro</option>
+            <option value="enterprise">enterprise</option>
+          </Select>
+          <Button type="submit" isLoading={createTenant.isPending} leftIcon={<Plus className="size-4" />}>添加并切换</Button>
+        </form>
+      </Dialog>
 
       <section>
         <Card>

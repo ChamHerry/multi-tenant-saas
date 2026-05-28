@@ -10,6 +10,7 @@ import { useTenantStore } from "@/features/tenants/tenant-store";
 import { Badge } from "@/shared/ui/Badge";
 import { Button } from "@/shared/ui/Button";
 import { Card, CardHeader } from "@/shared/ui/Card";
+import { Dialog } from "@/shared/ui/Dialog";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { Input } from "@/shared/ui/Input";
 import { ErrorView, LoadingView } from "@/shared/ui/StatusView";
@@ -31,6 +32,7 @@ export function PersonalApiKeysPage() {
     Boolean(currentTenantId),
   );
   const [rawKey, setRawKey] = useState("");
+  const [isCreateKeyOpen, setIsCreateKeyOpen] = useState(false);
   const tenantScopeSet = useMemo(() => new Set<string>(tenantScopes), []);
 
   const toggleScope = (scope: string) => {
@@ -59,6 +61,7 @@ export function PersonalApiKeysPage() {
           setRawKey(data.raw_key);
           setName("");
           setExpiresAt("");
+          setIsCreateKeyOpen(false);
         },
       },
     );
@@ -71,6 +74,13 @@ export function PersonalApiKeysPage() {
       {firstError ? (
         <ErrorView error={firstError} title="个人 API Key 操作失败" />
       ) : null}
+
+      <div className="flex justify-end">
+        <Button leftIcon={<Plus className="size-4" />} onClick={() => setIsCreateKeyOpen(true)}>
+          创建个人 Key
+        </Button>
+      </div>
+
       {rawKey ? (
         <Card className="border-success/30 bg-success-soft hover:border-success/40">
           <CardHeader
@@ -93,75 +103,71 @@ export function PersonalApiKeysPage() {
         </Card>
       ) : null}
 
-      <section className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
-        <Card>
-          <CardHeader
-            title="创建个人 Key"
-            description="user:* scopes 控制 /me 接口；tenant:* scopes 仍会被当前租户角色与 grant 收窄。"
+      <Dialog open={isCreateKeyOpen} title="创建个人 Key" onClose={() => setIsCreateKeyOpen(false)}>
+        <form className="space-y-4" onSubmit={submit}>
+          <Input
+            label="名称"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="my-automation"
+            required
           />
-          <form className="space-y-4" onSubmit={submit}>
-            <Input
-              label="名称"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="my-automation"
-              required
+          <Input
+            label="过期时间，可选"
+            type="datetime-local"
+            value={expiresAt}
+            onChange={(event) => setExpiresAt(event.target.value)}
+          />
+          <label className="flex items-start gap-2 rounded-panel border border-line bg-surface-soft px-3 py-2 text-sm text-muted">
+            <input
+              type="checkbox"
+              checked={grantCurrentTenant}
+              disabled={!currentTenantId}
+              onChange={(event) =>
+                setGrantCurrentTenant(event.target.checked)
+              }
             />
-            <Input
-              label="过期时间，可选"
-              type="datetime-local"
-              value={expiresAt}
-              onChange={(event) => setExpiresAt(event.target.value)}
-            />
-            <label className="flex items-start gap-2 rounded-panel border border-line bg-surface-soft px-3 py-2 text-sm text-muted">
-              <input
-                type="checkbox"
-                checked={grantCurrentTenant}
-                disabled={!currentTenantId}
-                onChange={(event) =>
-                  setGrantCurrentTenant(event.target.checked)
-                }
-              />
-              <span>
-                允许此 Key 访问当前租户
-                <span className="block text-xs text-subtle">
-                  {currentTenantId
-                    ? `tenant_id: ${currentTenantId}`
-                    : "未选择租户时只创建用户级 key；如需访问租户资源，请先选择租户后重新创建。"}
-                </span>
+            <span>
+              允许此 Key 访问当前租户
+              <span className="block text-xs text-subtle">
+                {currentTenantId
+                  ? `tenant_id: ${currentTenantId}`
+                  : "未选择租户时只创建用户级 key；如需访问租户资源，请先选择租户后重新创建。"}
               </span>
-            </label>
-            <div>
-              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                Scopes
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {knownScopes.map((scope) => (
-                  <label
-                    key={scope}
-                    className="flex items-center gap-2 rounded-panel border border-line bg-surface-soft px-3 py-2 text-sm text-muted"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={scopes.includes(scope)}
-                      onChange={() => toggleScope(scope)}
-                    />
-                    {scope}
-                  </label>
-                ))}
-              </div>
+            </span>
+          </label>
+          <div>
+            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
+              Scopes
             </div>
-            <Button
-              type="submit"
-              disabled={scopes.length === 0}
-              isLoading={createAPIKey.isPending}
-              leftIcon={<Plus className="size-4" />}
-            >
-              创建个人 Key
-            </Button>
-          </form>
-        </Card>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {knownScopes.map((scope) => (
+                <label
+                  key={scope}
+                  className="flex items-center gap-2 rounded-panel border border-line bg-surface-soft px-3 py-2 text-sm text-muted"
+                >
+                  <input
+                    type="checkbox"
+                    checked={scopes.includes(scope)}
+                    onChange={() => toggleScope(scope)}
+                  />
+                  {scope}
+                </label>
+              ))}
+            </div>
+          </div>
+          <Button
+            type="submit"
+            disabled={scopes.length === 0}
+            isLoading={createAPIKey.isPending}
+            leftIcon={<Plus className="size-4" />}
+          >
+            创建个人 Key
+          </Button>
+        </form>
+      </Dialog>
 
+      <section>
         <Card>
           <CardHeader
             title="我的 Key 列表"
