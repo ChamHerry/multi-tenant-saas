@@ -49,12 +49,6 @@ export function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Badge tone="green">Members</Badge>
-        <h1 className="mt-3 text-3xl font-black text-ink">成员管理</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">覆盖成员列表、添加、角色/状态更新和移除能力。viewer 执行管理动作时会由后端 RBAC 返回 403。</p>
-      </div>
-
       {firstError ? <ErrorView error={firstError} title="成员操作失败" /> : null}
 
       <section className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">

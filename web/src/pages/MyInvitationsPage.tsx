@@ -25,11 +25,6 @@ export function MyInvitationsPage() {
   const firstError = invitations.error ?? acceptInvitation.error ?? declineInvitation.error
   return (
     <div className="space-y-6">
-      <div>
-        <Badge tone="blue">My Invitations</Badge>
-        <h1 className="mt-3 text-3xl font-black text-ink">我的邀请</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">接受邀请后，当前账号会加入对应组织，并可在顶部组织选择器中切换。</p>
-      </div>
       {firstError ? <ErrorView error={firstError} title="邀请处理失败" /> : null}
       <Card>
         <CardHeader title="通过 Token 接受邀请" description="如果你拿到的是邀请链接或 token，可在这里提交。" />

@@ -5,9 +5,9 @@ import { useCanTenant } from '@/features/access/access-hooks'
 import { useTenantAction, useTenantDetail, useUpdateTenant } from '@/features/tenants/tenant-hooks'
 import { useTenantStore } from '@/features/tenants/tenant-store'
 import type { Tenant } from '@/features/tenants/tenant-types'
-import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
+import { usePageTitle } from '@/layouts/page-title'
 import { Input } from '@/shared/ui/Input'
 import { Select } from '@/shared/ui/Select'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
@@ -55,6 +55,8 @@ export function TenantDetailPage() {
   const canManageTenant = useCanTenant('tenant:manage', tenantId)
   const tenant = detail.data?.tenant
 
+  usePageTitle(tenant?.name ?? tenantId ?? '组织详情')
+
   useEffect(() => {
     if (tenantId) setCurrentTenantId(tenantId)
   }, [setCurrentTenantId, tenantId])
@@ -69,12 +71,7 @@ export function TenantDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <Badge tone="purple">Tenant Detail</Badge>
-          <h1 className="mt-3 text-3xl font-black text-ink">{tenant?.name ?? tenantId}</h1>
-          <p className="mt-2 text-sm text-muted">查看/更新组织基础信息；组织是成员、API Key、审计和配额的隔离边界。</p>
-        </div>
+      <div className="flex justify-end">
         <Button variant="secondary" onClick={() => navigate('/tenants')}>返回组织列表</Button>
       </div>
 

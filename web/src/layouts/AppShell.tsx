@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, NavLink, Outlet, useMatches, useNavigate } from 'react-router-dom'
 import { Building2, LogOut } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccess } from '@/features/access/access-hooks'
@@ -12,17 +12,34 @@ import { Select } from '@/shared/ui/Select'
 import { ErrorView } from '@/shared/ui/StatusView'
 import { cn } from '@/shared/lib/cn'
 import { platformNavItems, tenantNavItems } from './menu-config'
+import { PageTitleContext } from './page-title'
+
+function getRouteTitle(matches: { handle?: unknown }[]) {
+  for (const match of [...matches].reverse()) {
+    const title = (match.handle as { title?: unknown } | undefined)?.title
+    if (typeof title === 'string' && title.trim()) return title
+  }
+  return '仪表盘'
+}
 
 export function AppShell() {
   const navigate = useNavigate()
+  const matches = useMatches()
   const queryClient = useQueryClient()
   const { data: me, error: meError } = useMe()
   const { data: access, error: accessError } = useAccess()
   const logoutMutation = useLogoutMutation()
   const currentTenantId = useTenantStore((state) => state.currentTenantId)
   const setCurrentTenantId = useTenantStore((state) => state.setCurrentTenantId)
+  const [pageTitleOverride, setPageTitleOverride] = useState<string>()
   const tenants = useMemo(() => access?.tenants ?? [], [access?.tenants])
   const currentMembership = tenants.find((tenant) => tenant.tenant_id === currentTenantId)
+  const routeTitle = getRouteTitle(matches)
+  const setPageTitle = useCallback((title?: string) => {
+    setPageTitleOverride(title?.trim() || undefined)
+  }, [])
+  const pageTitleContext = useMemo(() => ({ setPageTitle }), [setPageTitle])
+  const pageTitle = pageTitleOverride ?? routeTitle
   const visibleTenantNavItems = useMemo(() => {
     return tenantNavItems.filter((item) => hasAll(currentMembership?.permissions, item.requiredTenantPermissions))
   }, [currentMembership?.permissions])
@@ -110,42 +127,43 @@ export function AppShell() {
       </aside>
 
       <div className="lg:pl-[17rem]">
-        <header className="sticky top-0 z-10 border-b border-line bg-page/90 px-4 py-3 backdrop-blur sm:px-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-ink">控制台</h1>
-                {currentMembership ? <Badge tone="green">{currentMembership.role}</Badge> : <Badge tone="orange">未选择组织</Badge>}
+        <PageTitleContext.Provider value={pageTitleContext}>
+          <header className="sticky top-0 z-10 border-b border-line bg-page/90 px-4 py-3 backdrop-blur sm:px-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-black text-ink">{pageTitle}</h1>
+                  {currentMembership ? <Badge tone="green">{currentMembership.role}</Badge> : <Badge tone="orange">未选择组织</Badge>}
+                </div>
               </div>
-              <p className="mt-1 text-sm text-muted">浅色蓝紫主题 · 正式 Cookie Session · GoFrame 组织 API</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Select
+                  value={currentTenantId ?? ''}
+                  onChange={(event) => setCurrentTenantId(event.target.value || undefined)}
+                  className="min-w-72 bg-white"
+                  aria-label="选择组织"
+                  disabled={tenants.length === 0}
+                >
+                  <option value="">{tenants.length === 0 ? '暂无组织' : '选择组织'}</option>
+                  {tenants.map((tenant) => (
+                    <option key={tenant.tenant_id} value={tenant.tenant_id}>
+                      {tenant.tenant_name}
+                    </option>
+                  ))}
+                </Select>
+                {tenants.length === 0 ? (
+                  <Link to="/tenants"><Button variant="secondary" leftIcon={<Building2 className="size-4" />}>管理组织</Button></Link>
+                ) : null}
+                <Button variant="ghost" onClick={() => void logout()} isLoading={logoutMutation.isPending} leftIcon={<LogOut className="size-4" />}>
+                  退出
+                </Button>
+              </div>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Select
-                value={currentTenantId ?? ''}
-                onChange={(event) => setCurrentTenantId(event.target.value || undefined)}
-                className="min-w-72 bg-white"
-                aria-label="选择组织"
-                disabled={tenants.length === 0}
-              >
-                <option value="">{tenants.length === 0 ? '暂无组织' : '选择组织'}</option>
-                {tenants.map((tenant) => (
-                  <option key={tenant.tenant_id} value={tenant.tenant_id}>
-                    {tenant.tenant_name}
-                  </option>
-                ))}
-              </Select>
-              {tenants.length === 0 ? (
-                <Link to="/tenants"><Button variant="secondary" leftIcon={<Building2 className="size-4" />}>管理组织</Button></Link>
-              ) : null}
-              <Button variant="ghost" onClick={() => void logout()} isLoading={logoutMutation.isPending} leftIcon={<LogOut className="size-4" />}>
-                退出
-              </Button>
-            </div>
-          </div>
-        </header>
-        <main className="mx-auto max-w-7xl p-4 sm:p-6">
-          {meError ? <ErrorView title="当前用户认证失败" error={meError} /> : accessError ? <ErrorView title="权限上下文加载失败" error={accessError} /> : <Outlet />}
-        </main>
+          </header>
+          <main className="mx-auto max-w-7xl p-4 sm:p-6">
+            {meError ? <ErrorView title="当前用户认证失败" error={meError} /> : accessError ? <ErrorView title="权限上下文加载失败" error={accessError} /> : <Outlet />}
+          </main>
+        </PageTitleContext.Provider>
       </div>
     </div>
   )

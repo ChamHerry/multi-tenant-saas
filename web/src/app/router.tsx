@@ -32,10 +32,11 @@ export const router = createBrowserRouter([
     path: "/",
     element: <RequireAuth />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: "tenants", element: <TenantsPage /> },
+      { index: true, element: <DashboardPage />, handle: { title: "仪表盘" } },
+      { path: "tenants", element: <TenantsPage />, handle: { title: "组织管理" } },
       {
         path: "tenants/:tenantId",
+        handle: { title: "组织详情" },
         element: (
           <RequirePermission tenant={["tenant:read"]}>
             <TenantDetailPage />
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "members",
+        handle: { title: "成员管理" },
         element: (
           <RequirePermission tenant={["member:read"]}>
             <MembersPage />
@@ -52,17 +54,19 @@ export const router = createBrowserRouter([
       },
       {
         path: "invitations",
+        handle: { title: "组织邀请" },
         element: (
           <RequirePermission tenant={["tenant:invitation:manage"]}>
             <TenantInvitationsPage />
           </RequirePermission>
         ),
       },
-      { path: "me/invitations", element: <MyInvitationsPage /> },
-      { path: "me/security", element: <SecurityEventsPage /> },
-      { path: "api-keys", element: <PersonalApiKeysPage /> },
+      { path: "me/invitations", element: <MyInvitationsPage />, handle: { title: "我的邀请" } },
+      { path: "me/security", element: <SecurityEventsPage />, handle: { title: "我的安全事件" } },
+      { path: "api-keys", element: <PersonalApiKeysPage />, handle: { title: "个人 API Key" } },
       {
         path: "usage",
+        handle: { title: "配额与用量" },
         element: (
           <RequirePermission tenant={["tenant:billing:read"]}>
             <TenantUsagePage />
@@ -71,6 +75,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "audit-logs",
+        handle: { title: "组织审计日志" },
         element: (
           <RequirePermission tenant={["tenant:audit:read"]}>
             <TenantAuditPage />
@@ -79,6 +84,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "admin/tenants",
+        handle: { title: "平台组织管理" },
         element: (
           <RequirePermission platform={["platform:tenant:read"]}>
             <AdminTenantsPage />
@@ -87,6 +93,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "admin/users",
+        handle: { title: "平台用户管理" },
         element: (
           <RequirePermission platform={["platform:user:read"]}>
             <AdminUsersPage />
@@ -95,6 +102,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "admin/audit-logs",
+        handle: { title: "平台审计日志" },
         element: (
           <RequirePermission platform={["platform:audit:read"]}>
             <AdminAuditPage />
@@ -103,13 +111,14 @@ export const router = createBrowserRouter([
       },
       {
         path: "admin/plans",
+        handle: { title: "套餐与配额管理" },
         element: (
           <RequirePermission platform={["platform:billing:manage"]}>
             <AdminPlansPage />
           </RequirePermission>
         ),
       },
-      { path: "*", element: <NotFoundPage /> },
+      { path: "*", element: <NotFoundPage />, handle: { title: "页面不存在" } },
     ],
   },
 ]);

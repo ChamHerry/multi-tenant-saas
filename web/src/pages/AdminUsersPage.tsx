@@ -29,7 +29,6 @@ export function AdminUsersPage() {
   }
   return (
     <div className="space-y-6">
-      <div><Badge tone="red">Platform Admin</Badge><h1 className="mt-3 text-3xl font-black text-ink">平台用户管理</h1><p className="mt-2 text-sm text-muted">用户检索与平台管理员授权。</p></div>
       {firstError ? <ErrorView error={firstError} title="用户管理失败" /> : null}
       <section className="grid gap-5 lg:grid-cols-[0.75fr_1.25fr]">
         <Card><CardHeader title="授权平台管理员" />{canManagePlatformAdmins ? <form className="space-y-4" onSubmit={submit}><Input label="User ID" value={userId} onChange={(event) => setUserId(event.target.value)} required /><Select label="角色" value={role} onChange={(event) => setRole(event.target.value)}>{roles.map((item) => <option key={item} value={item}>{item}</option>)}</Select><Button type="submit" isLoading={mutations.grant.isPending}>授权</Button></form> : <EmptyState title="无平台授权权限" description="当前平台角色只能查看用户，不能授予或撤销平台管理员。" />}</Card>

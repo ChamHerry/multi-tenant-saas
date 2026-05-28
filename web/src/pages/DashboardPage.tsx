@@ -8,6 +8,7 @@ import { apiRaw } from '@/shared/api/client'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
+import { usePageTitle } from '@/layouts/page-title'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 
 type Health = { ok: boolean; version?: number; dirty?: boolean; error?: string }
@@ -34,20 +35,16 @@ export function DashboardPage() {
   const tenants = useMyTenants()
   const tenantContext = useTenantContext()
   const currentTenantId = useTenantStore((state) => state.currentTenantId)
+  const displayName = me.data?.user.display_name || me.data?.user.email || 'Dev User'
+
+  usePageTitle(me.data ? `欢迎，${displayName}` : '仪表盘')
 
   if (me.isLoading) return <LoadingView label="加载当前用户..." />
 
   return (
     <div className="space-y-6">
       <section className="hero-gradient rounded-[28px] border border-white p-6 shadow-soft sm:p-8">
-        <Badge tone="blue">SaaS Dashboard</Badge>
-        <h1 className="mt-4 text-3xl font-black text-ink sm:text-4xl">
-          欢迎，<span className="text-gradient">{me.data?.user.display_name || me.data?.user.email || 'Dev User'}</span>
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
-          这里展示 GoFrame 服务状态、AutoMigrate readiness、当前用户、当前组织、成员、API Key、审计和配额管理入口。
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3">
           <Link to="/tenants"><Button>{(tenants.data?.tenants.length ?? 0) === 0 ? '创建第一个组织' : '管理组织'}</Button></Link>
           {(tenants.data?.tenants.length ?? 0) > 0 ? <Link to="/members"><Button variant="secondary">成员管理</Button></Link> : null}
         </div>

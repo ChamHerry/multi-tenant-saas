@@ -45,11 +45,6 @@ export function TenantInvitationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Badge tone="purple">Invitations</Badge>
-        <h1 className="mt-3 text-3xl font-black text-ink">组织邀请</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">通过邮箱发起 pending 邀请，用户登录后可在“我的邀请”中接受或拒绝。</p>
-      </div>
       {firstError ? <ErrorView error={firstError} title="邀请操作失败" /> : null}
       {latestToken ? (
         <Card className="border-success/30 bg-success-soft">
