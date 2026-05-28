@@ -8,7 +8,6 @@ import (
 type QuotaMetric string
 
 const (
-	MetricAPIKeyCount QuotaMetric = "api_key.count"
 	MetricMemberCount QuotaMetric = "member.count"
 )
 

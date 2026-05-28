@@ -24,7 +24,13 @@ var permissionOrder = []service.Permission{
 	service.PermissionAuditRead,
 	service.PermissionBillingRead,
 	service.PermissionBillingManage,
-	service.PermissionAPIKeyManage,
+}
+
+var userScopePermissions = map[service.Permission]struct{}{
+	service.PermissionUserRead:         {},
+	service.PermissionUserTenantRead:   {},
+	service.PermissionUserSecurityRead: {},
+	service.PermissionAPIKeySelfManage: {},
 }
 
 var rolePermissions = map[string]map[service.Permission]struct{}{
@@ -37,7 +43,6 @@ var rolePermissions = map[string]map[service.Permission]struct{}{
 		service.PermissionAuditRead:        {},
 		service.PermissionBillingRead:      {},
 		service.PermissionBillingManage:    {},
-		service.PermissionAPIKeyManage:     {},
 	},
 	"admin": {
 		service.PermissionTenantRead:       {},
@@ -46,7 +51,6 @@ var rolePermissions = map[string]map[service.Permission]struct{}{
 		service.PermissionInvitationManage: {},
 		service.PermissionAuditRead:        {},
 		service.PermissionBillingRead:      {},
-		service.PermissionAPIKeyManage:     {},
 	},
 	"member": {
 		service.PermissionTenantRead:  {},
@@ -82,6 +86,20 @@ func (s *sRBAC) Require(ctx context.Context, permission service.Permission) erro
 	}
 	if !s.Can(ctx, tc, permission) {
 		return gerror.NewCodef(gcode.CodeNotAuthorized, "role %s is not allowed to perform %s", tc.Role, permission)
+	}
+	return nil
+}
+
+func (s *sRBAC) RequireAuthScope(ctx context.Context, permission service.Permission) error {
+	identity, err := service.MustAuthIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if identity.Type != "api_key" {
+		return nil
+	}
+	if !scopeAllows(identity.Scopes, permission) {
+		return gerror.NewCodef(gcode.CodeNotAuthorized, "api key scope is not allowed to perform %s", permission)
 	}
 	return nil
 }
@@ -127,6 +145,9 @@ func scopeAllows(scopes []string, permission service.Permission) bool {
 
 func KnownPermission(scope string) bool {
 	if scope == "*" {
+		return true
+	}
+	if _, ok := userScopePermissions[service.Permission(scope)]; ok {
 		return true
 	}
 	for _, permissions := range rolePermissions {

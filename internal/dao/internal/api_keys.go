@@ -26,6 +26,7 @@ type ApiKeysColumns struct {
 	UserId          string //
 	Name            string //
 	KeyHash         string //
+	KeyType         string //
 	Scopes          string //
 	LastUsedAt      string //
 	ExpiresAt       string //
@@ -42,6 +43,7 @@ var apiKeysColumns = ApiKeysColumns{
 	UserId:          "user_id",
 	Name:            "name",
 	KeyHash:         "key_hash",
+	KeyType:         "key_type",
 	Scopes:          "scopes",
 	LastUsedAt:      "last_used_at",
 	ExpiresAt:       "expires_at",

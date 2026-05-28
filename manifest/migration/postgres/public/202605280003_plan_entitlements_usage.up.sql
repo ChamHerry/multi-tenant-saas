@@ -41,13 +41,10 @@ CREATE INDEX IF NOT EXISTS idx_tenant_usage_reservations_tenant_status
 
 INSERT INTO public.plan_entitlements(plan, feature_key, enabled, limit_value)
 VALUES
-    ('free', 'api_key.max_count', true, 5),
     ('free', 'member.max_count', true, 5),
     ('free', 'audit.retention_days', true, 30),
-    ('pro', 'api_key.max_count', true, 25),
     ('pro', 'member.max_count', true, 25),
     ('pro', 'audit.retention_days', true, 180),
-    ('enterprise', 'api_key.max_count', true, NULL),
     ('enterprise', 'member.max_count', true, NULL),
     ('enterprise', 'audit.retention_days', true, 365)
 ON CONFLICT (plan, feature_key) DO NOTHING;

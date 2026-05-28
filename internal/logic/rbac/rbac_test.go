@@ -71,12 +71,37 @@ func TestPermissionsForContextIntersectsAPIKeyScopes(t *testing.T) {
 }
 
 func TestKnownPermission(t *testing.T) {
-	for _, scope := range []string{"*", "tenant:read", "member:manage", "api_key:manage"} {
+	for _, scope := range []string{"*", "tenant:read", "member:manage"} {
 		if !KnownPermission(scope) {
 			t.Fatalf("KnownPermission(%q)=false", scope)
 		}
 	}
+	if KnownPermission("api_key:manage") {
+		t.Fatal("KnownPermission(api_key:manage)=true")
+	}
 	if KnownPermission("unknown") {
 		t.Fatal("KnownPermission(unknown)=true")
+	}
+}
+
+func TestAPIKeyUserScopes(t *testing.T) {
+	s := &sRBAC{}
+	ctx := service.WithAuthIdentity(context.Background(), &service.AuthIdentity{Type: "api_key", Scopes: []string{string(service.PermissionUserRead)}})
+	if err := s.RequireAuthScope(ctx, service.PermissionUserRead); err != nil {
+		t.Fatalf("RequireAuthScope(user:read) error = %v", err)
+	}
+	if err := s.RequireAuthScope(ctx, service.PermissionUserTenantRead); err == nil {
+		t.Fatal("RequireAuthScope(user:tenant:read) expected error")
+	}
+	if !KnownPermission("user:read") || !KnownPermission("user:tenant:read") || !KnownPermission("api_key:self_manage") {
+		t.Fatal("KnownPermission should include user-level api key scopes")
+	}
+}
+
+func TestSessionBypassesAuthScope(t *testing.T) {
+	s := &sRBAC{}
+	ctx := service.WithAuthIdentity(context.Background(), &service.AuthIdentity{Type: "session"})
+	if err := s.RequireAuthScope(ctx, service.PermissionUserRead); err != nil {
+		t.Fatalf("session RequireAuthScope error = %v", err)
 	}
 }

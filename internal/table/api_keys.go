@@ -27,7 +27,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Index:   1,
 		Name:    "tenant_id",
 		Type:    "uuid",
-		Null:    false,
+		Null:    true,
 		Key:     "",
 		Default: nil,
 		Extra:   "",
@@ -37,7 +37,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Index:   2,
 		Name:    "user_id",
 		Type:    "uuid",
-		Null:    true,
+		Null:    false,
 		Key:     "",
 		Default: nil,
 		Extra:   "",
@@ -63,8 +63,18 @@ var ApiKeys = map[string]*gdb.TableField{
 		Extra:   "",
 		Comment: "",
 	},
-	"scopes": {
+	"key_type": {
 		Index:   5,
+		Name:    "key_type",
+		Type:    "varchar(32)",
+		Null:    false,
+		Key:     "",
+		Default: "'personal'::character varying",
+		Extra:   "",
+		Comment: "",
+	},
+	"scopes": {
+		Index:   6,
 		Name:    "scopes",
 		Type:    "_text",
 		Null:    false,
@@ -74,7 +84,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"last_used_at": {
-		Index:   6,
+		Index:   7,
 		Name:    "last_used_at",
 		Type:    "timestamptz",
 		Null:    true,
@@ -84,7 +94,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"expires_at": {
-		Index:   7,
+		Index:   8,
 		Name:    "expires_at",
 		Type:    "timestamptz",
 		Null:    true,
@@ -94,7 +104,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"created_at": {
-		Index:   8,
+		Index:   9,
 		Name:    "created_at",
 		Type:    "timestamptz",
 		Null:    false,
@@ -104,7 +114,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"revoked_at": {
-		Index:   9,
+		Index:   10,
 		Name:    "revoked_at",
 		Type:    "timestamptz",
 		Null:    true,
@@ -114,7 +124,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"key_prefix": {
-		Index:   10,
+		Index:   11,
 		Name:    "key_prefix",
 		Type:    "varchar(32)",
 		Null:    true,
@@ -124,7 +134,7 @@ var ApiKeys = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"created_by_user_id": {
-		Index:   11,
+		Index:   12,
 		Name:    "created_by_user_id",
 		Type:    "uuid",
 		Null:    true,

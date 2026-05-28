@@ -1,0 +1,48 @@
+server:
+  env: "local"
+  address: ":8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+
+logger:
+  level: "all"
+  stdout: true
+
+auth:
+  devHeader:
+    enabled: true
+  apiKey:
+    secret: "repomind-docker-dev-secret-change-me"
+  password:
+    enabled: true
+    registrationEnabled: true
+    minLength: 15
+    bcryptCost: 12
+  session:
+    secret: "repomind-docker-session-secret-change-me"
+    absoluteTTL: "168h"
+    idleTTL: "12h"
+    cookie:
+      name: "repomind_session"
+      csrfName: "repomind_csrf"
+      path: "/"
+
+automigrate:
+  enabled: true
+
+web:
+  baseUrl: "http://127.0.0.1:8000"
+
+tenant:
+  lifecycle:
+    purgeDelayHours: 720
+
+database:
+  default:
+    link: "pgsql:saas_template:secret@tcp(postgres:5432)/saas_template"
+    debug: false
+    charset: "utf8"
+    dryRun: false
+    maxIdle: 10
+    maxOpen: 50
+    maxLifetime: "30m"

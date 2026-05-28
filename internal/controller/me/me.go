@@ -15,6 +15,9 @@ func NewV1() apime.IMeV1 {
 }
 
 func (c *ControllerV1) Me(ctx context.Context, req *v1.MeReq) (res *v1.MeRes, err error) {
+	if err = service.RBAC().RequireAuthScope(ctx, service.PermissionUserRead); err != nil {
+		return nil, err
+	}
 	identity, err := service.MustAuthIdentity(ctx)
 	if err != nil {
 		return nil, err
@@ -27,6 +30,9 @@ func (c *ControllerV1) Me(ctx context.Context, req *v1.MeReq) (res *v1.MeRes, er
 }
 
 func (c *ControllerV1) Tenants(ctx context.Context, req *v1.TenantsReq) (res *v1.TenantsRes, err error) {
+	if err = service.RBAC().RequireAuthScope(ctx, service.PermissionUserTenantRead); err != nil {
+		return nil, err
+	}
 	identity, err := service.MustAuthIdentity(ctx)
 	if err != nil {
 		return nil, err
@@ -39,6 +45,9 @@ func (c *ControllerV1) Tenants(ctx context.Context, req *v1.TenantsReq) (res *v1
 }
 
 func (c *ControllerV1) Access(ctx context.Context, req *v1.AccessReq) (res *v1.AccessRes, err error) {
+	if err = service.RBAC().RequireAuthScope(ctx, service.PermissionUserTenantRead); err != nil {
+		return nil, err
+	}
 	identity, err := service.MustAuthIdentity(ctx)
 	if err != nil {
 		return nil, err
@@ -55,6 +64,9 @@ func (c *ControllerV1) Access(ctx context.Context, req *v1.AccessReq) (res *v1.A
 }
 
 func (c *ControllerV1) TenantContext(ctx context.Context, req *v1.TenantContextReq) (res *v1.TenantContextRes, err error) {
+	if err = service.RBAC().Require(ctx, service.PermissionTenantRead); err != nil {
+		return nil, err
+	}
 	tc, err := service.MustTenantContext(ctx)
 	if err != nil {
 		return nil, err

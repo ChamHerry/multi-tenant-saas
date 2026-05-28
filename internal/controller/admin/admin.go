@@ -175,7 +175,7 @@ func (c *ControllerV1) UpdateTenantQuota(ctx context.Context, req *v1.UpdateTena
 		return nil, err
 	}
 	pac, _ := service.PlatformAdminContextFromCtx(ctx)
-	if err = service.PlatformAdminService().UpdateTenantQuota(ctx, pac.UserID, req.Tenant, service.UpdateTenantQuotaInput{MaxMembers: req.MaxMembers, MaxAPIKeys: req.MaxAPIKeys}); err != nil {
+	if err = service.PlatformAdminService().UpdateTenantQuota(ctx, pac.UserID, req.Tenant, service.UpdateTenantQuotaInput{MaxMembers: req.MaxMembers}); err != nil {
 		return nil, err
 	}
 	return &v1.ActionRes{OK: true}, nil

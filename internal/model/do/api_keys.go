@@ -16,6 +16,7 @@ type ApiKeys struct {
 	UserId          any      //
 	Name            any      //
 	KeyHash         any      //
+	KeyType         any      //
 	Scopes          []string //
 	LastUsedAt      any      //
 	ExpiresAt       any      //

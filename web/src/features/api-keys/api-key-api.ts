@@ -1,21 +1,27 @@
-import { apiRequest } from '@/shared/api/client'
-import type { APIKey, CreateAPIKeyInput, CreatedAPIKey } from './api-key-types'
+import { apiRequest } from "@/shared/api/client";
+import type {
+  APIKey,
+  CreatePersonalAPIKeyInput,
+  CreatedAPIKey,
+} from "./api-key-types";
 
-export function listAPIKeys(tenantId: string) {
-  return apiRequest<{ api_keys: APIKey[] }>('/api/v1/api-keys', { tenantId })
+export function listPersonalAPIKeys() {
+  return apiRequest<{ api_keys: APIKey[] }>("/api/v1/api-keys", {
+    skipTenant: true,
+  });
 }
 
-export function createAPIKey(tenantId: string, input: CreateAPIKeyInput) {
-  return apiRequest<CreatedAPIKey>('/api/v1/api-keys', {
-    method: 'POST',
-    tenantId,
+export function createPersonalAPIKey(input: CreatePersonalAPIKeyInput) {
+  return apiRequest<CreatedAPIKey>("/api/v1/api-keys", {
+    method: "POST",
+    skipTenant: true,
     body: input,
-  })
+  });
 }
 
-export function revokeAPIKey(tenantId: string, apiKeyId: string) {
+export function revokePersonalAPIKey(apiKeyId: string) {
   return apiRequest<{ ok: boolean }>(`/api/v1/api-keys/${apiKeyId}`, {
-    method: 'DELETE',
-    tenantId,
-  })
+    method: "DELETE",
+    skipTenant: true,
+  });
 }

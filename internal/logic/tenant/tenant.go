@@ -245,7 +245,7 @@ ON CONFLICT (tenant_id) DO UPDATE
 SET updated_at=now()`, tenantID); err != nil {
 		return gerror.Wrap(err, "upsert tenant quotas")
 	}
-	for _, metric := range []service.QuotaMetric{service.MetricMemberCount, service.MetricAPIKeyCount} {
+	for _, metric := range []service.QuotaMetric{service.MetricMemberCount} {
 		if _, err := db.Exec(ctx, `
 INSERT INTO public.tenant_usage_counters(tenant_id, metric, used, reserved, updated_at)
 VALUES (?, ?, 0, 0, now())

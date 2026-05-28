@@ -9,7 +9,6 @@ import (
 
 func TestFeatureKey(t *testing.T) {
 	cases := map[service.QuotaMetric]string{
-		service.MetricAPIKeyCount: "api_key.max_count",
 		service.MetricMemberCount: "member.max_count",
 	}
 	for metric, want := range cases {
@@ -24,7 +23,6 @@ func TestFeatureKey(t *testing.T) {
 
 func TestUsageQueryOnlySupportsTemplateMetrics(t *testing.T) {
 	cases := map[service.QuotaMetric]string{
-		service.MetricAPIKeyCount: "public.api_keys",
 		service.MetricMemberCount: "public.tenant_memberships",
 	}
 	for metric, wantFragment := range cases {
@@ -42,7 +40,7 @@ func TestUsageQueryOnlySupportsTemplateMetrics(t *testing.T) {
 }
 
 func TestValidateReservationInput(t *testing.T) {
-	valid := service.QuotaReservationInput{TenantID: "123e4567-e89b-12d3-a456-426614174000", Metric: service.MetricAPIKeyCount, Delta: 1, ResourceType: "api_key"}
+	valid := service.QuotaReservationInput{TenantID: "123e4567-e89b-12d3-a456-426614174000", Metric: service.MetricMemberCount, Delta: 1, ResourceType: "member"}
 	if err := validateReservationInput(valid); err != nil {
 		t.Fatalf("validateReservationInput(valid) error = %v", err)
 	}

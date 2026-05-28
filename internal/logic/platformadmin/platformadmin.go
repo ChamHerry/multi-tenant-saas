@@ -391,7 +391,7 @@ func (s *sPlatformAdmin) UpdateTenantQuota(ctx context.Context, actorUserID, ten
 	if err := validateInternalID(tenantID); err != nil {
 		return err
 	}
-	if in.MaxMembers <= 0 && in.MaxAPIKeys <= 0 {
+	if in.MaxMembers <= 0 {
 		return gerror.NewCode(gcode.CodeMissingParameter, "at least one positive quota field is required")
 	}
 	err := g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
@@ -403,28 +403,24 @@ func (s *sPlatformAdmin) UpdateTenantQuota(ctx context.Context, actorUserID, ten
 			return gerror.NewCode(gcode.CodeNotFound, "tenant not found")
 		}
 		_, err = tx.Ctx(ctx).Exec(`
-INSERT INTO public.tenant_quotas(tenant_id, max_members, max_api_keys)
+INSERT INTO public.tenant_quotas(tenant_id, max_members)
 VALUES (
     ?,
-    CAST(CASE WHEN ? > 0 THEN ? ELSE NULL END AS INT),
     CAST(CASE WHEN ? > 0 THEN ? ELSE NULL END AS INT)
 )
 ON CONFLICT (tenant_id) DO UPDATE
 SET max_members=CAST(CASE WHEN ? > 0 THEN ? ELSE public.tenant_quotas.max_members END AS INT),
-    max_api_keys=CAST(CASE WHEN ? > 0 THEN ? ELSE public.tenant_quotas.max_api_keys END AS INT),
     updated_at=now()`,
 			tenantID,
 			in.MaxMembers, in.MaxMembers,
-			in.MaxAPIKeys, in.MaxAPIKeys,
-			in.MaxMembers, in.MaxMembers,
-			in.MaxAPIKeys, in.MaxAPIKeys)
+			in.MaxMembers, in.MaxMembers)
 		return gerror.Wrap(err, "upsert tenant quota row")
 	})
 	if err != nil {
 		return err
 	}
 	return service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: actorUserID, Action: "tenant.quota.update", ResourceType: "tenant", ResourceID: tenantID, Metadata: map[string]any{
-		"max_members": in.MaxMembers, "max_api_keys": in.MaxAPIKeys,
+		"max_members": in.MaxMembers,
 	}})
 }
 

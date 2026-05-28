@@ -10,7 +10,6 @@ export type TenantPermission =
   | 'tenant:audit:read'
   | 'tenant:billing:read'
   | 'tenant:billing:manage'
-  | 'api_key:manage'
 
 export type PlatformPermission =
   | 'platform:tenant:read'

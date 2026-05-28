@@ -170,7 +170,8 @@ b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "${b}" -H "X-Use
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/session "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_SESSION 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_PLANS 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/plan" "{\"plan\":\"pro\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_PLAN 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/quota" "{\"max_api_keys\":7}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_QUOTA 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/quota" "{\"max_members\":7}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_QUOTA 200 "${s}" "${b}"
+psql_query "UPDATE public.tenant_quotas SET max_members=NULL, updated_at=now() WHERE tenant_id='${tenant_id}'" >/dev/null
 b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/users/${outsider_id}/status" "{\"status\":\"disabled\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_USER_DISABLE 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/users/${outsider_id}/status" "{\"status\":\"active\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_USER_ENABLE 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/platform-admins "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_LIST_PLATFORM_ADMINS 200 "${s}" "${b}"

@@ -178,16 +178,23 @@ b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "X-Us
 b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/tenants/${tenant_id}" '{"name":"viewer attack"}' "${b}" -H "X-User-ID: ${viewer_id}")"; assert_status VIEWER_TENANT_UPDATE_FORBIDDEN 403 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/tenants/${tenant_id}" '{"name":"owner updated"}' "${b}" -H "X-User-ID: ${owner_id}")"; assert_status OWNER_TENANT_UPDATE 200 "${s}" "${b}"; assert_json_equals OWNER_TENANT_UPDATE_NAME "${b}" 'j["data"]["tenant"]["name"]' "owner updated"
 
-b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{"name":"bad-scope","scopes":["unknown"]}' "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_BAD_SCOPE 400 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{"name":"limited","scopes":["tenant:read","member:read"]}' "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_CREATE_LIMITED 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/api-key-grants" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status ORG_APIKEY_GRANTS_REMOVED 404 "${s}" "${b}"
+
+b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{"name":"bad-scope","scopes":["unknown"]}' "${b}" -H "X-User-ID: ${owner_id}")"; assert_status APIKEY_BAD_SCOPE 400 "${s}" "${b}"
+personal_key_payload="{\"name\":\"limited\",\"scopes\":[\"tenant:read\",\"member:read\"],\"grants\":[{\"tenant_id\":\"${tenant_id}\",\"scopes\":[\"tenant:read\",\"member:read\"]}]}"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys "${personal_key_payload}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status APIKEY_CREATE_LIMITED 200 "${s}" "${b}"
 raw_key="$(json_value "${b}" 'j["data"]["raw_key"]')"
 api_key_id="$(json_value "${b}" 'j["data"]["api_key"]["id"]')"
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "Authorization: Bearer ${raw_key}")"; assert_status APIKEY_AUTH_CONTEXT 200 "${s}" "${b}"; assert_json_equals APIKEY_AUTH_TYPE "${b}" 'j["data"]["tenant_context"]["auth_type"]' api_key
-b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "${b}" -H "Authorization: Bearer ${raw_key}")"; assert_status APIKEY_SCOPE_FORBIDDEN 403 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/api-keys/${api_key_id}" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_REVOKE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status APIKEY_LIST_PERSONAL 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "${b}" -H "Authorization: Bearer ${raw_key}")"; assert_status APIKEY_SELF_MANAGE_FORBIDDEN 403 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "Authorization: Bearer ${raw_key}")"; assert_status APIKEY_TENANT_REQUIRED 400 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "Authorization: Bearer ${raw_key}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_AUTH_CONTEXT 200 "${s}" "${b}"; assert_json_equals APIKEY_AUTH_TYPE "${b}" 'j["data"]["tenant_context"]["auth_type"]' api_key
+member_manage_payload="{\"user_id\":\"${outsider_id}\",\"role\":\"viewer\",\"status\":\"active\"}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/members" "${member_manage_payload}" "${b}" -H "Authorization: Bearer ${raw_key}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_SCOPE_FORBIDDEN 403 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/api-keys/${api_key_id}" "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status APIKEY_REVOKE 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "Authorization: Bearer ${raw_key}")"; assert_status APIKEY_REVOKED_REJECTED 401 "${s}" "${b}"
 
-b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{bad-json' "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MALFORMED_JSON 400 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{bad-json' "${b}" -H "X-User-ID: ${owner_id}")"; assert_status MALFORMED_JSON 400 "${s}" "${b}"
 
 log "[E2E] all scenarios passed tenant=${tenant_id} owner=${owner_id} viewer=${viewer_id} outsider=${outsider_id}"

@@ -14,6 +14,10 @@ func PlatformAdmin(r *ghttp.Request) {
 		writeError(r, http.StatusUnauthorized, "UNAUTHENTICATED", err)
 		return
 	}
+	if identity.Type == "api_key" {
+		writeError(r, http.StatusForbidden, "PLATFORM_ADMIN_SESSION_REQUIRED", nil)
+		return
+	}
 	pac, err := service.PlatformAdminService().Resolve(r.GetCtx(), identity.UserID)
 	if err != nil {
 		writeError(r, http.StatusForbidden, "PLATFORM_ADMIN_FORBIDDEN", err)

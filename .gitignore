@@ -1,6 +1,7 @@
 .claude/skills/
 .omx/
 .spec-workflow/
+.docker-cache/
 docs/
 .buildpath
 .hgignore.swp
