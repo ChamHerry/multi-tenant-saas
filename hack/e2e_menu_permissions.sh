@@ -124,7 +124,6 @@ owner_tag="menu-owner-${stamp}"
 admin_tag="menu-admin-${stamp}"
 viewer_tag="menu-viewer-${stamp}"
 support_tag="menu-support-${stamp}"
-billing_tag="menu-billing-${stamp}"
 tenant_slug="menu-${stamp}"
 
 log "[E2E] setup users"
@@ -132,9 +131,7 @@ owner_id="$(create_user "${owner_tag}")"
 admin_id="$(create_user "${admin_tag}")"
 viewer_id="$(create_user "${viewer_tag}")"
 support_id="$(create_user "${support_tag}")"
-billing_id="$(create_user "${billing_tag}")"
 psql_query "INSERT INTO public.platform_admins(user_id, role, status, created_at, updated_at) VALUES ('${support_id}', 'support', 'active', now(), now()) ON CONFLICT (user_id) DO UPDATE SET role='support', status='active', updated_at=now()" >/dev/null
-psql_query "INSERT INTO public.platform_admins(user_id, role, status, created_at, updated_at) VALUES ('${billing_id}', 'billing_admin', 'active', now(), now()) ON CONFLICT (user_id) DO UPDATE SET role='billing_admin', status='active', updated_at=now()" >/dev/null
 
 log "[E2E] start server"
 start_server
@@ -164,13 +161,6 @@ b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "${b}" -H "X-User-ID:
 
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" -H "X-User-ID: ${support_id}")"; assert_status SUPPORT_ACCESS 200 "${s}" "${b}"
 assert_json_equals SUPPORT_HAS_USER_READ "${b}" '"platform:user:read" in j["data"]["platform_admin"]["permissions"]' true
-assert_json_equals SUPPORT_NO_BILLING "${b}" '"platform:billing:manage" in j["data"]["platform_admin"]["permissions"]' false
-
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" -H "X-User-ID: ${billing_id}")"; assert_status BILLING_ACCESS 200 "${s}" "${b}"
-assert_json_equals BILLING_HAS_BILLING "${b}" '"platform:billing:manage" in j["data"]["platform_admin"]["permissions"]' true
-assert_json_equals BILLING_NO_USER_READ "${b}" '"platform:user:read" in j["data"]["platform_admin"]["permissions"]' false
-
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" -H "X-User-ID: ${support_id}")"; assert_status SUPPORT_PLANS_FORBIDDEN 403 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" -H "X-User-ID: ${billing_id}")"; assert_status BILLING_PLANS_ALLOWED 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" -H "X-User-ID: ${support_id}")"; assert_status ADMIN_PLANS_REMOVED 404 "${s}" "${b}"
 
 log "[E2E] all menu permission scenarios passed tenant=${tenant_id}"

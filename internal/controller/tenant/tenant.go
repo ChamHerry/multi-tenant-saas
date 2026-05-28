@@ -23,7 +23,6 @@ func (c *ControllerV1) Create(ctx context.Context, req *v1.CreateReq) (res *v1.T
 		Name:        req.Name,
 		Slug:        req.Slug,
 		OwnerUserID: identity.UserID,
-		Plan:        req.Plan,
 		Metadata:    req.Metadata,
 	})
 	if err != nil {
@@ -58,7 +57,6 @@ func (c *ControllerV1) Update(ctx context.Context, req *v1.UpdateReq) (res *v1.T
 	tenant, err := service.TenantAdmin().UpdateTenant(ctx, tc.TenantID, service.UpdateTenantInput{
 		Name:     req.Name,
 		Slug:     req.Slug,
-		Plan:     req.Plan,
 		Metadata: req.Metadata,
 	})
 	if err != nil {

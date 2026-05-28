@@ -56,8 +56,6 @@ export const tenantScopes = [
   "member:manage",
   "tenant:invitation:manage",
   "tenant:audit:read",
-  "tenant:billing:read",
-  "tenant:billing:manage",
 ] as const;
 
 export const userScopes = [

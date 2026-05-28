@@ -43,18 +43,8 @@ var Tenants = map[string]*gdb.TableField{
 		Extra:   "",
 		Comment: "",
 	},
-	"plan": {
-		Index:   3,
-		Name:    "plan",
-		Type:    "varchar(32)",
-		Null:    false,
-		Key:     "",
-		Default: "'free'::character varying",
-		Extra:   "",
-		Comment: "",
-	},
 	"status": {
-		Index:   4,
+		Index:   3,
 		Name:    "status",
 		Type:    "varchar(32)",
 		Null:    false,
@@ -64,7 +54,7 @@ var Tenants = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"metadata": {
-		Index:   5,
+		Index:   4,
 		Name:    "metadata",
 		Type:    "jsonb",
 		Null:    false,
@@ -74,7 +64,7 @@ var Tenants = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"created_at": {
-		Index:   6,
+		Index:   5,
 		Name:    "created_at",
 		Type:    "timestamptz",
 		Null:    false,
@@ -84,7 +74,7 @@ var Tenants = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"updated_at": {
-		Index:   7,
+		Index:   6,
 		Name:    "updated_at",
 		Type:    "timestamptz",
 		Null:    false,
@@ -94,7 +84,7 @@ var Tenants = map[string]*gdb.TableField{
 		Comment: "",
 	},
 	"deleted_at": {
-		Index:   8,
+		Index:   7,
 		Name:    "deleted_at",
 		Type:    "timestamptz",
 		Null:    true,

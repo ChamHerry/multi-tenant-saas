@@ -10,14 +10,12 @@ import { Card, CardHeader } from '@/shared/ui/Card'
 import { Dialog } from '@/shared/ui/Dialog'
 import { usePageTitle } from '@/layouts/page-title'
 import { Input } from '@/shared/ui/Input'
-import { Select } from '@/shared/ui/Select'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 
 function TenantEditForm({ tenantId, tenant, canManage, onSaved }: { tenantId: string; tenant: Tenant; canManage: boolean; onSaved?: () => void }) {
   const updateTenant = useUpdateTenant(tenantId)
   const [name, setName] = useState(tenant.name)
   const [slug, setSlug] = useState(tenant.slug)
-  const [plan, setPlan] = useState(tenant.plan)
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -25,7 +23,6 @@ function TenantEditForm({ tenantId, tenant, canManage, onSaved }: { tenantId: st
       {
         name: name.trim(),
         slug: slug.trim(),
-        plan,
       },
       { onSuccess: onSaved },
     )
@@ -37,11 +34,6 @@ function TenantEditForm({ tenantId, tenant, canManage, onSaved }: { tenantId: st
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={submit}>
         <Input label="名称" value={name} onChange={(event) => setName(event.target.value)} disabled={!canManage} />
         <Input label="Slug" value={slug} onChange={(event) => setSlug(event.target.value)} disabled={!canManage} />
-        <Select label="套餐" value={plan} onChange={(event) => setPlan(event.target.value)} disabled={!canManage}>
-          <option value="free">free</option>
-          <option value="pro">pro</option>
-          <option value="enterprise">enterprise</option>
-        </Select>
         <div className="sm:col-span-2">
           <Button type="submit" disabled={!canManage} isLoading={updateTenant.isPending} leftIcon={<Save className="size-4" />}>保存修改</Button>
         </div>
@@ -92,7 +84,7 @@ export function TenantDetailPage() {
           <CardHeader title="模板能力边界" description="当前项目只保留通用多租户 SaaS 管理能力，不包含具体业务域数据模型。" />
           <div className="space-y-3 text-sm text-muted">
             <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Access boundary</span><p>成员角色、API Key scope、平台管理员权限共同控制组织管理入口。</p></div>
-            <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Extension point</span><p>后续业务表应显式绑定 tenant_id，并复用现有 RBAC、审计和配额服务。</p></div>
+            <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Extension point</span><p>后续业务表应显式绑定 tenant_id，并复用现有 RBAC 和审计服务。</p></div>
           </div>
         </Card>
       </section>

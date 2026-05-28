@@ -16,7 +16,6 @@ type Tenants struct {
 	Id        uuid.UUID   `json:"id"             orm:"id"             description:""` //
 	Name      string      `json:"name"           orm:"name"           description:""` //
 	Slug      string      `json:"slug"           orm:"slug"           description:""` //
-	Plan      string      `json:"plan"           orm:"plan"           description:""` //
 	Status    string      `json:"status"         orm:"status"         description:""` //
 	Metadata  *gjson.Json `json:"metadata"       orm:"metadata"       description:""` //
 	CreatedAt time.Time   `json:"created_at"     orm:"created_at"     description:""` //

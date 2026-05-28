@@ -8,8 +8,6 @@ export type TenantPermission =
   | 'member:manage'
   | 'tenant:invitation:manage'
   | 'tenant:audit:read'
-  | 'tenant:billing:read'
-  | 'tenant:billing:manage'
 
 export type PlatformPermission =
   | 'platform:tenant:read'
@@ -17,7 +15,6 @@ export type PlatformPermission =
   | 'platform:user:read'
   | 'platform:user:manage'
   | 'platform:audit:read'
-  | 'platform:billing:manage'
   | 'platform:admin:manage'
 
 export type TenantAccess = {

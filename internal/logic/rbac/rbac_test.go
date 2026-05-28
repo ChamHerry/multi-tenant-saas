@@ -79,6 +79,9 @@ func TestKnownPermission(t *testing.T) {
 	if KnownPermission("api_key:manage") {
 		t.Fatal("KnownPermission(api_key:manage)=true")
 	}
+	if KnownPermission("tenant:billing:read") || KnownPermission("tenant:billing:manage") {
+		t.Fatal("KnownPermission should not include removed tenant billing scopes")
+	}
 	if KnownPermission("unknown") {
 		t.Fatal("KnownPermission(unknown)=true")
 	}

@@ -10,7 +10,6 @@ import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
 import { Dialog } from '@/shared/ui/Dialog'
 import { Input } from '@/shared/ui/Input'
-import { Select } from '@/shared/ui/Select'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 import { Table, Td, Th } from '@/shared/ui/Table'
 
@@ -40,7 +39,6 @@ export function TenantsPage() {
   const setCurrentTenantId = useTenantStore((state) => state.setCurrentTenantId)
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
-  const [plan, setPlan] = useState('free')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false)
 
@@ -57,7 +55,6 @@ export function TenantsPage() {
   const resetCreateTenantForm = () => {
     setName('')
     setSlug('')
-    setPlan('free')
     setIsSlugManuallyEdited(false)
   }
 
@@ -88,7 +85,7 @@ export function TenantsPage() {
     if (!canSubmitCreateTenant) return
 
     createTenant.mutate(
-      { name: trimmedName, slug: trimmedSlug, plan },
+      { name: trimmedName, slug: trimmedSlug },
       {
         onSuccess: () => {
           resetCreateTenantForm()
@@ -136,18 +133,13 @@ export function TenantsPage() {
               </Button>
             </div>
           </div>
-          <Select label="套餐" value={plan} onChange={(event) => setPlan(event.target.value)}>
-            <option value="free">free</option>
-            <option value="pro">pro</option>
-            <option value="enterprise">enterprise</option>
-          </Select>
           <Button type="submit" disabled={!canSubmitCreateTenant} isLoading={createTenant.isPending} leftIcon={<Plus className="size-4" />}>添加并切换</Button>
         </form>
       </Dialog>
 
       <section>
         <Card>
-          <CardHeader title="我的组织" description="选择一个组织后，成员、邀请、API Key、审计和配额功能会使用该上下文。" />
+          <CardHeader title="我的组织" description="选择一个组织后，成员、邀请、API Key 和审计功能会使用该上下文。" />
           <div className="overflow-x-auto">
             <Table>
               <thead>

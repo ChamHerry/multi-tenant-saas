@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
@@ -52,16 +51,15 @@ func (s *sTenant) CreateTenant(ctx context.Context, in service.CreateTenantInput
 	if err != nil {
 		return nil, gerror.Wrap(err, "marshal tenant metadata")
 	}
-	plan := defaultString(in.Plan, "free")
 	now := time.Now()
 
 	db := g.DB()
 	if _, err = db.Exec(ctx, `
 INSERT INTO public.tenants(
-    id, name, slug, plan, status, metadata, created_at, updated_at
+    id, name, slug, status, metadata, created_at, updated_at
 ) VALUES (
-    ?, ?, ?, ?, 'active', ?::jsonb, now(), now()
-)`, tenantID, in.Name, in.Slug, plan, string(metadata)); err != nil {
+    ?, ?, ?, 'active', ?::jsonb, now(), now()
+)`, tenantID, in.Name, in.Slug, string(metadata)); err != nil {
 		return nil, gerror.Wrap(err, "insert public tenant metadata")
 	}
 
@@ -69,7 +67,6 @@ INSERT INTO public.tenants(
 		ID:          tenantID,
 		Name:        in.Name,
 		Slug:        in.Slug,
-		Plan:        plan,
 		Status:      "active",
 		OwnerUserID: in.OwnerUserID,
 		CreatedAt:   now,
@@ -85,9 +82,6 @@ INSERT INTO public.tenants(
 		}); err != nil {
 			return created, err
 		}
-	}
-	if err = createTenantDefaults(ctx, db, tenantID, plan); err != nil {
-		return created, err
 	}
 	if err = service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: in.OwnerUserID, Action: "tenant.create", ResourceType: "tenant", ResourceID: tenantID, Metadata: map[string]any{
 		"template": "multi_tenant_saas",
@@ -113,7 +107,7 @@ func (s *sTenant) UpdateTenant(ctx context.Context, tenantID string, in service.
 	if in.Slug != "" && !slugPattern.MatchString(in.Slug) {
 		return nil, invalidTenantSlugError(in.Slug)
 	}
-	if in.Name == "" && in.Slug == "" && in.Plan == "" && in.Metadata == nil {
+	if in.Name == "" && in.Slug == "" && in.Metadata == nil {
 		return fetchTenant(ctx, tenantID)
 	}
 	metadata := ""
@@ -128,11 +122,10 @@ func (s *sTenant) UpdateTenant(ctx context.Context, tenantID string, in service.
 UPDATE public.tenants
 SET name=COALESCE(NULLIF(?, ''), name),
     slug=COALESCE(NULLIF(?, ''), slug),
-    plan=COALESCE(NULLIF(?, ''), plan),
     metadata=COALESCE(NULLIF(?, '')::jsonb, metadata),
     updated_at=now()
 WHERE id=? AND deleted_at IS NULL`,
-		in.Name, in.Slug, in.Plan,
+		in.Name, in.Slug,
 		metadata,
 		tenantID)
 	if err != nil {
@@ -244,44 +237,6 @@ func validateInternalID(tenantID string) error {
 	return nil
 }
 
-func createTenantDefaults(ctx context.Context, db gdb.DB, tenantID string, plan string) error {
-	if _, err := db.Exec(ctx, `
-INSERT INTO public.tenant_quotas(tenant_id)
-VALUES (?)
-ON CONFLICT (tenant_id) DO UPDATE
-SET updated_at=now()`, tenantID); err != nil {
-		return gerror.Wrap(err, "upsert tenant quotas")
-	}
-	for _, metric := range []service.QuotaMetric{service.MetricMemberCount} {
-		if _, err := db.Exec(ctx, `
-INSERT INTO public.tenant_usage_counters(tenant_id, metric, used, reserved, updated_at)
-VALUES (?, ?, 0, 0, now())
-ON CONFLICT (tenant_id, metric, period_start) DO NOTHING`, tenantID, string(metric)); err != nil {
-			return gerror.Wrapf(err, "init tenant usage counter %s", metric)
-		}
-	}
-	if _, err := db.Exec(ctx, `
-INSERT INTO public.subscriptions(tenant_id, plan, status, started_at)
-SELECT ?, ?, 'active', now()
-WHERE NOT EXISTS (
-    SELECT 1 FROM public.subscriptions WHERE tenant_id=? AND status='active'
-)`, tenantID, plan, tenantID); err != nil {
-		return gerror.Wrap(err, "upsert tenant subscription")
-	}
-	return nil
-}
-
-func writeAuditLog(ctx context.Context, db gdb.DB, tenantID string, userID string, action, resourceType, resourceID string, metadata map[string]any) error {
-	payload, err := json.Marshal(defaultMetadata(metadata))
-	if err != nil {
-		return gerror.Wrap(err, "marshal audit metadata")
-	}
-	_, err = db.Exec(ctx, `
-INSERT INTO public.audit_logs(tenant_id, user_id, action, resource_type, resource_id, metadata)
-VALUES (?, NULLIF(?, '')::uuid, ?, ?, ?, ?::jsonb)`, tenantID, userID, action, resourceType, resourceID, string(payload))
-	return gerror.Wrap(err, "insert audit log")
-}
-
 func fetchTenant(ctx context.Context, tenantID string) (*service.Tenant, error) {
 	if err := validateInternalID(tenantID); err != nil {
 		return nil, err
@@ -291,7 +246,7 @@ func fetchTenant(ctx context.Context, tenantID string) (*service.Tenant, error) 
 
 func fetchTenantByWhere(ctx context.Context, where string, arg any) (*service.Tenant, error) {
 	record, err := g.DB().GetOne(ctx, `
-SELECT id, name, slug, plan, status, created_at, updated_at
+SELECT id, name, slug, status, created_at, updated_at
 FROM public.tenants
 WHERE `+where+` AND deleted_at IS NULL
 LIMIT 1`, arg)
@@ -309,7 +264,6 @@ LIMIT 1`, arg)
 		ID:        id,
 		Name:      record["name"].String(),
 		Slug:      record["slug"].String(),
-		Plan:      record["plan"].String(),
 		Status:    record["status"].String(),
 		CreatedAt: record["created_at"].Time(),
 		UpdatedAt: record["updated_at"].Time(),
@@ -331,11 +285,4 @@ func defaultMetadata(in map[string]any) map[string]any {
 		return map[string]any{}
 	}
 	return in
-}
-
-func defaultString(value, fallback string) string {
-	if value == "" {
-		return fallback
-	}
-	return value
 }

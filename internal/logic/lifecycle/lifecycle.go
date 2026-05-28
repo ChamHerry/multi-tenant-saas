@@ -119,7 +119,7 @@ func (s *sTenantLifecycle) runOne(ctx context.Context, jobID, tenantID, jobType 
 	switch jobType {
 	case "purge":
 		runErr = purgeTenant(ctx, tenantID)
-	case "export", "quota_recalculate":
+	case "export":
 		runErr = nil
 	default:
 		runErr = gerror.NewCodef(gcode.CodeInvalidParameter, "unknown lifecycle job type %s", jobType)

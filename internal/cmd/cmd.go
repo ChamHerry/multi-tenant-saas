@@ -40,14 +40,13 @@ var (
 	}
 	TenantCreate = &gcmd.Command{
 		Name:  "tenant-create",
-		Usage: "tenant-create --name <name> --slug <slug> --owner-user <uuid> [--plan free] [--system]",
+		Usage: "tenant-create --name <name> --slug <slug> --owner-user <uuid> [--system]",
 		Brief: "create tenant metadata and owner membership; owner-user is required unless --system is set",
 		Arguments: []gcmd.Argument{
 			{Name: "name", Brief: "tenant display name"},
 			{Name: "slug", Brief: "tenant slug, lowercase letters/numbers/hyphen"},
 			{Name: "owner-user", Brief: "owner user UUID"},
 			{Name: "system", Brief: "allow ownerless system tenant"},
-			{Name: "plan", Brief: "tenant plan", Default: "free"},
 		},
 		Func: func(ctx context.Context, parser *gcmd.Parser) error {
 			name, err := requiredOption(parser, "name")
@@ -66,7 +65,6 @@ var (
 				Slug:            slug,
 				OwnerUserID:     optionalOption(parser, "owner-user"),
 				SystemOwnerless: optionBool(parser, "system"),
-				Plan:            parser.GetOpt("plan", "free").String(),
 			})
 			if err != nil {
 				return err
@@ -206,7 +204,7 @@ var (
 	}
 	PlatformAdminGrant = &gcmd.Command{
 		Name:  "platform-admin-grant",
-		Usage: "platform-admin-grant --user <uuid> --role <super_admin|support|billing_admin|auditor> [--actor <uuid>]",
+		Usage: "platform-admin-grant --user <uuid> --role <super_admin|support|auditor> [--actor <uuid>]",
 		Brief: "bootstrap or update a platform admin user",
 		Arguments: []gcmd.Argument{
 			{Name: "user", Brief: "target user UUID"},

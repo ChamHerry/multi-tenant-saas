@@ -22,8 +22,6 @@ var permissionOrder = []service.Permission{
 	service.PermissionMemberManage,
 	service.PermissionInvitationManage,
 	service.PermissionAuditRead,
-	service.PermissionBillingRead,
-	service.PermissionBillingManage,
 }
 
 var userScopePermissions = map[service.Permission]struct{}{
@@ -41,8 +39,6 @@ var rolePermissions = map[string]map[service.Permission]struct{}{
 		service.PermissionMemberManage:     {},
 		service.PermissionInvitationManage: {},
 		service.PermissionAuditRead:        {},
-		service.PermissionBillingRead:      {},
-		service.PermissionBillingManage:    {},
 	},
 	"admin": {
 		service.PermissionTenantRead:       {},
@@ -50,12 +46,10 @@ var rolePermissions = map[string]map[service.Permission]struct{}{
 		service.PermissionMemberManage:     {},
 		service.PermissionInvitationManage: {},
 		service.PermissionAuditRead:        {},
-		service.PermissionBillingRead:      {},
 	},
 	"member": {
-		service.PermissionTenantRead:  {},
-		service.PermissionMemberRead:  {},
-		service.PermissionBillingRead: {},
+		service.PermissionTenantRead: {},
+		service.PermissionMemberRead: {},
 	},
 	"viewer": {
 		service.PermissionTenantRead: {},

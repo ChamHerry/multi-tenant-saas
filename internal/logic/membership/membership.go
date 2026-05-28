@@ -308,7 +308,7 @@ func resolveTenantContextRecord(ctx context.Context, userID, tenantSelector stri
 		return nil, false, err
 	}
 	record, err := g.DB().GetOne(ctx, `
-SELECT tm.tenant_id, tm.user_id, tm.role, t.slug AS tenant_slug, t.plan AS tenant_plan
+SELECT tm.tenant_id, tm.user_id, tm.role, t.slug AS tenant_slug
 FROM public.tenant_memberships tm
 JOIN public.users u ON u.id = tm.user_id
 JOIN public.tenants t ON t.id = tm.tenant_id
@@ -332,7 +332,6 @@ LIMIT 1`, userID, arg)
 		UserID:     record["user_id"].String(),
 		Role:       record["role"].String(),
 		TenantSlug: record["tenant_slug"].String(),
-		TenantPlan: record["tenant_plan"].String(),
 	}, true, nil
 }
 
@@ -397,7 +396,6 @@ func ensureDefaultTenantForUser(ctx context.Context, userID string) error {
 		Name:        defaultTenantName(user),
 		Slug:        defaultTenantSlug(user),
 		OwnerUserID: userID,
-		Plan:        "free",
 		Metadata: map[string]any{
 			"default_personal_tenant": true,
 			"source":                  "registration_default",

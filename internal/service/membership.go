@@ -49,7 +49,6 @@ type TenantContext struct {
 	UserID        string       `json:"user_id"`
 	Role          string       `json:"role"`
 	TenantSlug    string       `json:"tenant_slug"`
-	TenantPlan    string       `json:"tenant_plan"`
 	AuthType      string       `json:"auth_type"`
 	Scopes        []string     `json:"scopes,omitempty"`
 	Permissions   []Permission `json:"permissions,omitempty"`

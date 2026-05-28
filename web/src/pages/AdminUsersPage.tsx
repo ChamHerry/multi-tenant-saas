@@ -11,7 +11,7 @@ import { Select } from '@/shared/ui/Select'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 import { Table, Td, Th } from '@/shared/ui/Table'
 
-const roles = ['super_admin', 'support', 'billing_admin', 'auditor']
+const roles = ['super_admin', 'support', 'auditor']
 
 export function AdminUsersPage() {
   const [query, setQuery] = useState('')

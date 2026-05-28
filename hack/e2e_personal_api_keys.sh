@@ -157,7 +157,7 @@ b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "Auth
 b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/members" "" "${b}" -H "Authorization: Bearer ${raw_key}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_SCOPE_INTERSECTION 403 "${s}" "${b}"
 
 psql_query "INSERT INTO public.platform_admins(user_id, role, status, created_at, updated_at) VALUES ('${owner_id}', 'super_admin', 'active', now(), now()) ON CONFLICT (user_id) DO UPDATE SET role='super_admin', status='active', updated_at=now()" >/dev/null
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" -H "Authorization: Bearer ${raw_key}")"; assert_status APIKEY_PLATFORM_ADMIN_FORBIDDEN 403 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "${b}" -H "Authorization: Bearer ${raw_key}")"; assert_status APIKEY_PLATFORM_ADMIN_FORBIDDEN 403 "${s}" "${b}"
 
 b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/api-keys/${api_key_id}" "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status PERSONAL_KEY_REVOKE 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "${b}" -H "Authorization: Bearer ${raw_key}")"; assert_status PERSONAL_KEY_REVOKED_REJECTED 401 "${s}" "${b}"

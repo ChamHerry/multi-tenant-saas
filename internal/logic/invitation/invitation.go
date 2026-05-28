@@ -144,9 +144,6 @@ FOR UPDATE`, hashToken(token))
 			return gerror.NewCode(gcode.CodeNotAuthorized, "invitation email does not match current user")
 		}
 		tenantID := record["tenant_id"].String()
-		if err := service.Quota().Require(ctx, tenantID, service.MetricMemberCount, 1); err != nil {
-			return err
-		}
 		membershipID := uuid.GenerateV4()
 		memberRecord, err := tx.Ctx(ctx).GetOne(`
 INSERT INTO public.tenant_memberships(

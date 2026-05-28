@@ -11,8 +11,6 @@ const (
 	PermissionMemberManage     Permission = "member:manage"
 	PermissionInvitationManage Permission = "tenant:invitation:manage"
 	PermissionAuditRead        Permission = "tenant:audit:read"
-	PermissionBillingRead      Permission = "tenant:billing:read"
-	PermissionBillingManage    Permission = "tenant:billing:manage"
 	PermissionUserRead         Permission = "user:read"
 	PermissionUserTenantRead   Permission = "user:tenant:read"
 	PermissionUserSecurityRead Permission = "user:security:read"

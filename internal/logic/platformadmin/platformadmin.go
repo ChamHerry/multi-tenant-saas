@@ -2,7 +2,6 @@ package platformadmin
 
 import (
 	"context"
-	"encoding/json"
 	"regexp"
 	"strings"
 	"time"
@@ -24,17 +23,12 @@ var rolePermissions = map[string][]service.PlatformPermission{
 		service.PlatformPermissionUserRead,
 		service.PlatformPermissionUserManage,
 		service.PlatformPermissionAuditRead,
-		service.PlatformPermissionBillingManage,
 		service.PlatformPermissionAdminManage,
 	},
 	"support": {
 		service.PlatformPermissionTenantRead,
 		service.PlatformPermissionUserRead,
 		service.PlatformPermissionAuditRead,
-	},
-	"billing_admin": {
-		service.PlatformPermissionTenantRead,
-		service.PlatformPermissionBillingManage,
 	},
 	"auditor": {
 		service.PlatformPermissionTenantRead,
@@ -135,7 +129,7 @@ func (s *sPlatformAdmin) ListTenants(ctx context.Context, filter service.Platfor
 	}
 	rowsArgs := append(append([]any{}, args...), limit, offset)
 	rows, err := g.DB().GetAll(ctx, `
-SELECT id, name, slug, plan, status, created_at, updated_at
+SELECT id, name, slug, status, created_at, updated_at
 FROM public.tenants
 WHERE `+whereSQL+`
 ORDER BY created_at DESC
@@ -301,129 +295,6 @@ func (s *sPlatformAdmin) Revoke(ctx context.Context, actorUserID, targetUserID s
 	return service.Audit().Write(ctx, service.AuditLogInput{UserID: actorUserID, Action: "platform_admin.revoke", ResourceType: "platform_admin", ResourceID: targetUserID})
 }
 
-func (s *sPlatformAdmin) ListPlans(ctx context.Context, filter service.PlanEntitlementFilter) (*service.PlanEntitlementList, error) {
-	where := []string{"1=1"}
-	args := []any{}
-	if plan := strings.TrimSpace(filter.Plan); plan != "" {
-		where = append(where, "plan=?")
-		args = append(args, plan)
-	}
-	if feature := strings.TrimSpace(filter.FeatureKey); feature != "" {
-		where = append(where, "feature_key=?")
-		args = append(args, feature)
-	}
-	limit, offset := normalizeLimitOffset(filter.Limit, filter.Offset)
-	whereSQL := strings.Join(where, " AND ")
-	countRecord, err := g.DB().GetOne(ctx, "SELECT count(*) AS total FROM public.plan_entitlements WHERE "+whereSQL, args...)
-	if err != nil {
-		return nil, gerror.Wrap(err, "count plan entitlements")
-	}
-	rowsArgs := append(append([]any{}, args...), limit, offset)
-	rows, err := g.DB().GetAll(ctx, `
-SELECT plan, feature_key, enabled, limit_value, metadata, created_at, updated_at
-FROM public.plan_entitlements
-WHERE `+whereSQL+`
-ORDER BY plan ASC, feature_key ASC
-LIMIT ? OFFSET ?`, rowsArgs...)
-	if err != nil {
-		return nil, gerror.Wrap(err, "list plan entitlements")
-	}
-	items := make([]service.PlanEntitlement, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, mapPlanEntitlement(row))
-	}
-	return &service.PlanEntitlementList{Items: items, Total: countRecord["total"].Int()}, nil
-}
-
-func (s *sPlatformAdmin) UpdateTenantPlan(ctx context.Context, actorUserID, tenantID, plan string) error {
-	if err := validateInternalID(actorUserID); err != nil {
-		return err
-	}
-	if err := validateInternalID(tenantID); err != nil {
-		return err
-	}
-	plan = strings.TrimSpace(plan)
-	if plan == "" {
-		return gerror.NewCode(gcode.CodeMissingParameter, "plan is required")
-	}
-	err := g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		exists, err := tx.Ctx(ctx).GetOne(`SELECT 1 FROM public.plan_entitlements WHERE plan=? LIMIT 1`, plan)
-		if err != nil {
-			return gerror.Wrap(err, "select plan entitlement")
-		}
-		if exists.IsEmpty() {
-			return gerror.NewCodef(gcode.CodeInvalidParameter, "unknown plan %q", plan)
-		}
-		result, err := tx.Ctx(ctx).Exec(`
-UPDATE public.tenants
-SET plan=?, updated_at=now()
-WHERE id=? AND deleted_at IS NULL`, plan, tenantID)
-		if err != nil {
-			return gerror.Wrap(err, "update tenant plan")
-		}
-		rows, _ := result.RowsAffected()
-		if rows == 0 {
-			return gerror.NewCode(gcode.CodeNotFound, "tenant not found")
-		}
-		subResult, err := tx.Ctx(ctx).Exec(`UPDATE public.subscriptions SET plan=?, started_at=now(), ends_at=NULL WHERE tenant_id=? AND status='active'`, plan, tenantID)
-		if err != nil {
-			return gerror.Wrap(err, "update active subscription")
-		}
-		subRows, _ := subResult.RowsAffected()
-		if subRows == 0 {
-			_, err = tx.Ctx(ctx).Exec(`INSERT INTO public.subscriptions(tenant_id, plan, status, started_at) VALUES (?, ?, 'active', now())`, tenantID, plan)
-			if err != nil {
-				return gerror.Wrap(err, "insert active subscription")
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: actorUserID, Action: "tenant.plan.update", ResourceType: "tenant", ResourceID: tenantID, Metadata: map[string]any{"plan": plan}})
-}
-
-func (s *sPlatformAdmin) UpdateTenantQuota(ctx context.Context, actorUserID, tenantID string, in service.UpdateTenantQuotaInput) error {
-	if err := validateInternalID(actorUserID); err != nil {
-		return err
-	}
-	if err := validateInternalID(tenantID); err != nil {
-		return err
-	}
-	if in.MaxMembers <= 0 {
-		return gerror.NewCode(gcode.CodeMissingParameter, "at least one positive quota field is required")
-	}
-	err := g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		exists, err := tx.Ctx(ctx).GetOne(`SELECT 1 FROM public.tenants WHERE id=? AND deleted_at IS NULL`, tenantID)
-		if err != nil {
-			return gerror.Wrap(err, "select tenant")
-		}
-		if exists.IsEmpty() {
-			return gerror.NewCode(gcode.CodeNotFound, "tenant not found")
-		}
-		_, err = tx.Ctx(ctx).Exec(`
-INSERT INTO public.tenant_quotas(tenant_id, max_members)
-VALUES (
-    ?,
-    CAST(CASE WHEN ? > 0 THEN ? ELSE NULL END AS INT)
-)
-ON CONFLICT (tenant_id) DO UPDATE
-SET max_members=CAST(CASE WHEN ? > 0 THEN ? ELSE public.tenant_quotas.max_members END AS INT),
-    updated_at=now()`,
-			tenantID,
-			in.MaxMembers, in.MaxMembers,
-			in.MaxMembers, in.MaxMembers)
-		return gerror.Wrap(err, "upsert tenant quota row")
-	})
-	if err != nil {
-		return err
-	}
-	return service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: actorUserID, Action: "tenant.quota.update", ResourceType: "tenant", ResourceID: tenantID, Metadata: map[string]any{
-		"max_members": in.MaxMembers,
-	}})
-}
-
 func validateInternalID(id string) error {
 	if !internalIDPattern.MatchString(id) {
 		return gerror.NewCodef(gcode.CodeInvalidParameter, "invalid internal uuid %q", id)
@@ -450,7 +321,6 @@ func mapTenant(record gdb.Record) (*service.Tenant, error) {
 		ID:        id,
 		Name:      record["name"].String(),
 		Slug:      record["slug"].String(),
-		Plan:      record["plan"].String(),
 		Status:    record["status"].String(),
 		CreatedAt: record["created_at"].Time(),
 		UpdatedAt: record["updated_at"].Time(),
@@ -486,22 +356,6 @@ func mapPlatformAdmin(record gdb.Record) service.PlatformAdmin {
 	}
 }
 
-func mapPlanEntitlement(record gdb.Record) service.PlanEntitlement {
-	metadata := map[string]any{}
-	if raw := record["metadata"].String(); raw != "" {
-		_ = json.Unmarshal([]byte(raw), &metadata)
-	}
-	return service.PlanEntitlement{
-		Plan:       record["plan"].String(),
-		FeatureKey: record["feature_key"].String(),
-		Enabled:    record["enabled"].Bool(),
-		LimitValue: nullableInt64(record["limit_value"]),
-		Metadata:   metadata,
-		CreatedAt:  record["created_at"].Time(),
-		UpdatedAt:  record["updated_at"].Time(),
-	}
-}
-
 func nullableTime(value any) *time.Time {
 	v, ok := value.(interface {
 		IsNil() bool
@@ -512,16 +366,4 @@ func nullableTime(value any) *time.Time {
 	}
 	t := v.Time()
 	return &t
-}
-
-func nullableInt64(value any) *int64 {
-	v, ok := value.(interface {
-		IsNil() bool
-		Int64() int64
-	})
-	if !ok || v.IsNil() {
-		return nil
-	}
-	i := v.Int64()
-	return &i
 }

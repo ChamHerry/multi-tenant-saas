@@ -13,6 +13,9 @@ func TestPlatformRolePermissions(t *testing.T) {
 	if _, ok := rolePermissions["auditor"]; !ok {
 		t.Fatal("auditor role should be defined")
 	}
+	if _, ok := rolePermissions["billing_admin"]; ok {
+		t.Fatal("billing_admin role should not be defined")
+	}
 }
 
 func TestPlatformPermissionsForRoleReturnsCopy(t *testing.T) {

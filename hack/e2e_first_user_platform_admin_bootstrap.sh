@@ -95,10 +95,6 @@ MSG
     public.api_keys,
     public.tenant_invitations,
     public.tenant_lifecycle_jobs,
-    public.tenant_usage_reservations,
-    public.tenant_usage_counters,
-    public.tenant_quotas,
-    public.subscriptions,
     public.tenant_memberships,
     public.tenants,
     public.users

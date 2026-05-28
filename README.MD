@@ -9,10 +9,10 @@ Core capabilities:
 - tenant RBAC and platform-admin RBAC
 - API key management
 - tenant/platform audit logs
-- subscriptions, plan entitlements and generic quota usage
+- tenant lifecycle jobs
 - PostgreSQL migrations with runtime readiness checks
 
-This repository intentionally excludes product-specific domains so future projects can add their own tenant-bound business tables on top of the shared SaaS foundation.
+This repository intentionally excludes product-specific domains and package, resource-limit or payment features so future projects can add their own tenant-bound business tables and commercial model on top of the shared SaaS foundation.
 
 ## Docker
 

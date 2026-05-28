@@ -18,7 +18,6 @@ import (
 	_ "repomind-temp/internal/logic/membership"
 	_ "repomind-temp/internal/logic/passwordauth"
 	_ "repomind-temp/internal/logic/platformadmin"
-	_ "repomind-temp/internal/logic/quota"
 	_ "repomind-temp/internal/logic/rbac"
 	_ "repomind-temp/internal/logic/tenant"
 	_ "repomind-temp/internal/logic/user"

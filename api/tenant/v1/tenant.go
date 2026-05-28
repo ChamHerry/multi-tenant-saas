@@ -10,7 +10,6 @@ type CreateReq struct {
 	g.Meta   `path:"/tenants" tags:"Tenant" method:"post" summary:"Create tenant"`
 	Name     string         `json:"name" v:"required"`
 	Slug     string         `json:"slug" v:"required"`
-	Plan     string         `json:"plan"`
 	Metadata map[string]any `json:"metadata"`
 }
 
@@ -24,7 +23,6 @@ type UpdateReq struct {
 	Tenant   string         `v:"required"`
 	Name     string         `json:"name"`
 	Slug     string         `json:"slug"`
-	Plan     string         `json:"plan"`
 	Metadata map[string]any `json:"metadata"`
 }
 
