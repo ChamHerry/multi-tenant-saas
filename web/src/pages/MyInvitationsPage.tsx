@@ -5,6 +5,7 @@ import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/f
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
+import { Dialog } from '@/shared/ui/Dialog'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Input } from '@/shared/ui/Input'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
@@ -13,26 +14,36 @@ import { Table, Td, Th } from '@/shared/ui/Table'
 export function MyInvitationsPage() {
   const [searchParams] = useSearchParams()
   const [token, setToken] = useState(searchParams.get('token') ?? '')
+  const [isAcceptTokenOpen, setIsAcceptTokenOpen] = useState(Boolean(searchParams.get('token')))
   const invitations = useMyInvitations('pending')
   const acceptInvitation = useAcceptInvitation()
   const declineInvitation = useDeclineInvitation()
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    acceptInvitation.mutate(token.trim(), { onSuccess: () => setToken('') })
+    acceptInvitation.mutate(token.trim(), {
+      onSuccess: () => {
+        setToken('')
+        setIsAcceptTokenOpen(false)
+      },
+    })
   }
 
   const firstError = invitations.error ?? acceptInvitation.error ?? declineInvitation.error
   return (
     <div className="space-y-6">
       {firstError ? <ErrorView error={firstError} title="邀请处理失败" /> : null}
-      <Card>
-        <CardHeader title="通过 Token 接受邀请" description="如果你拿到的是邀请链接或 token，可在这里提交。" />
-        <form className="flex flex-col gap-3 sm:flex-row" onSubmit={submit}>
-          <Input className="flex-1" value={token} onChange={(event) => setToken(event.target.value)} placeholder="邀请 token" required />
+      <div className="flex justify-end">
+        <Button leftIcon={<Inbox className="size-4" />} onClick={() => setIsAcceptTokenOpen(true)}>通过 Token 接受邀请</Button>
+      </div>
+
+      <Dialog open={isAcceptTokenOpen} title="通过 Token 接受邀请" onClose={() => setIsAcceptTokenOpen(false)}>
+        <form className="space-y-4" onSubmit={submit}>
+          <Input value={token} onChange={(event) => setToken(event.target.value)} placeholder="邀请 token" required />
           <Button type="submit" isLoading={acceptInvitation.isPending} leftIcon={<Inbox className="size-4" />}>接受邀请</Button>
         </form>
-      </Card>
+      </Dialog>
+
       <Card>
         <CardHeader title="待处理邀请" />
         {invitations.isLoading ? <LoadingView label="加载我的邀请..." /> : (invitations.data?.invitations.length ?? 0) === 0 ? (

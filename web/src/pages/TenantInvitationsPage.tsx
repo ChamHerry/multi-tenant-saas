@@ -6,6 +6,7 @@ import { useTenantStore } from '@/features/tenants/tenant-store'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
+import { Dialog } from '@/shared/ui/Dialog'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Input } from '@/shared/ui/Input'
 import { Select } from '@/shared/ui/Select'
@@ -24,6 +25,7 @@ export function TenantInvitationsPage() {
   const [role, setRole] = useState<TenantRole>('viewer')
   const [message, setMessage] = useState('')
   const [latestToken, setLatestToken] = useState('')
+  const [isInviteOpen, setIsInviteOpen] = useState(false)
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -35,6 +37,7 @@ export function TenantInvitationsPage() {
           setEmail('')
           setMessage('')
           setRole('viewer')
+          setIsInviteOpen(false)
         },
       },
     )
@@ -55,18 +58,22 @@ export function TenantInvitationsPage() {
           </div>
         </Card>
       ) : null}
-      <section className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-        <Card>
-          <CardHeader title="邀请成员" description="owner/admin 可邀请邮箱加入当前组织。" />
-          <form className="space-y-4" onSubmit={submit}>
-            <Input label="邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="member@example.com" />
-            <Select label="角色" value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
-              {roles.map((item) => <option key={item} value={item}>{item}</option>)}
-            </Select>
-            <Input label="留言，可选" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="欢迎加入我们的组织" />
-            <Button type="submit" isLoading={createInvitation.isPending} leftIcon={<MailPlus className="size-4" />}>发送邀请</Button>
-          </form>
-        </Card>
+      <div className="flex justify-end">
+        <Button leftIcon={<MailPlus className="size-4" />} onClick={() => setIsInviteOpen(true)}>邀请成员</Button>
+      </div>
+
+      <Dialog open={isInviteOpen} title="邀请成员" onClose={() => setIsInviteOpen(false)}>
+        <form className="space-y-4" onSubmit={submit}>
+          <Input label="邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="member@example.com" />
+          <Select label="角色" value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
+            {roles.map((item) => <option key={item} value={item}>{item}</option>)}
+          </Select>
+          <Input label="留言，可选" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="欢迎加入我们的组织" />
+          <Button type="submit" isLoading={createInvitation.isPending} leftIcon={<MailPlus className="size-4" />}>发送邀请</Button>
+        </form>
+      </Dialog>
+
+      <section>
         <Card>
           <CardHeader title="邀请列表" description="pending 可重发或撤销；accepted/expired/revoked 保留审计线索。" />
           {invitations.isLoading ? <LoadingView label="加载邀请..." /> : (invitations.data?.invitations.length ?? 0) === 0 ? (

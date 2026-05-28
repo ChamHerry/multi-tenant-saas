@@ -7,12 +7,13 @@ import { useTenantStore } from '@/features/tenants/tenant-store'
 import type { Tenant } from '@/features/tenants/tenant-types'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
+import { Dialog } from '@/shared/ui/Dialog'
 import { usePageTitle } from '@/layouts/page-title'
 import { Input } from '@/shared/ui/Input'
 import { Select } from '@/shared/ui/Select'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 
-function TenantEditForm({ tenantId, tenant, canManage }: { tenantId: string; tenant: Tenant; canManage: boolean }) {
+function TenantEditForm({ tenantId, tenant, canManage, onSaved }: { tenantId: string; tenant: Tenant; canManage: boolean; onSaved?: () => void }) {
   const updateTenant = useUpdateTenant(tenantId)
   const [name, setName] = useState(tenant.name)
   const [slug, setSlug] = useState(tenant.slug)
@@ -20,11 +21,14 @@ function TenantEditForm({ tenantId, tenant, canManage }: { tenantId: string; ten
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    updateTenant.mutate({
-      name: name.trim(),
-      slug: slug.trim(),
-      plan,
-    })
+    updateTenant.mutate(
+      {
+        name: name.trim(),
+        slug: slug.trim(),
+        plan,
+      },
+      { onSuccess: onSaved },
+    )
   }
 
   return (
@@ -54,6 +58,7 @@ export function TenantDetailPage() {
   const actions = useTenantAction(tenantId)
   const canManageTenant = useCanTenant('tenant:manage', tenantId)
   const tenant = detail.data?.tenant
+  const [isEditOpen, setIsEditOpen] = useState(false)
 
   usePageTitle(tenant?.name ?? tenantId ?? '组织详情')
 
@@ -71,18 +76,18 @@ export function TenantDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button disabled={!tenant || !canManageTenant} onClick={() => setIsEditOpen(true)}>编辑基础信息</Button>
         <Button variant="secondary" onClick={() => navigate('/tenants')}>返回组织列表</Button>
       </div>
 
       {firstError ? <ErrorView error={firstError} title="组织操作失败" /> : null}
 
-      <section className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
-        <Card>
-          <CardHeader title="基础信息" description={canManageTenant ? '调用 PATCH /api/v1/tenants/{tenant}。owner 可以更新。' : '当前角色只有查看权限，不能更新组织基础信息。'} />
-          {tenant ? <TenantEditForm key={tenant.id} tenantId={tenantId} tenant={tenant} canManage={canManageTenant} /> : <ErrorView title="组织不存在" error="后端未返回组织数据" />}
-        </Card>
+      <Dialog open={isEditOpen} title="编辑基础信息" onClose={() => setIsEditOpen(false)}>
+        {tenant ? <TenantEditForm key={tenant.id} tenantId={tenantId} tenant={tenant} canManage={canManageTenant} onSaved={() => setIsEditOpen(false)} /> : <ErrorView title="组织不存在" error="后端未返回组织数据" />}
+      </Dialog>
 
+      <section>
         <Card>
           <CardHeader title="模板能力边界" description="当前项目只保留通用多租户 SaaS 管理能力，不包含具体业务域数据模型。" />
           <div className="space-y-3 text-sm text-muted">
