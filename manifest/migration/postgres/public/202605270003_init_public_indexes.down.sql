@@ -1,0 +1,17 @@
+DROP INDEX IF EXISTS public.idx_audit_logs_action_time;
+DROP INDEX IF EXISTS public.idx_audit_logs_tenant_time;
+DROP INDEX IF EXISTS public.idx_webhook_events_payload_gin;
+DROP INDEX IF EXISTS public.idx_webhook_events_repo_time;
+DROP INDEX IF EXISTS public.idx_analyze_jobs_running_timeout;
+DROP INDEX IF EXISTS public.idx_analyze_jobs_tenant_repo_status;
+DROP INDEX IF EXISTS public.idx_analyze_jobs_pickup;
+DROP INDEX IF EXISTS public.idx_repo_branches_repo_default;
+DROP INDEX IF EXISTS public.idx_repos_stats_gin;
+DROP INDEX IF EXISTS public.idx_repos_remote_trgm;
+DROP INDEX IF EXISTS public.idx_repos_tenant_status;
+DROP INDEX IF EXISTS public.idx_git_credentials_tenant_provider;
+DROP INDEX IF EXISTS public.idx_api_keys_tenant;
+DROP INDEX IF EXISTS public.idx_users_email_trgm;
+DROP INDEX IF EXISTS public.idx_users_tenant_role;
+DROP INDEX IF EXISTS public.idx_tenants_metadata_gin;
+DROP INDEX IF EXISTS public.idx_tenants_status;

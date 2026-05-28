@@ -1,0 +1,1 @@
+-- Constraint validation has no meaningful rollback; keep constraints in place.
