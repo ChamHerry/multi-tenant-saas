@@ -64,7 +64,7 @@ ON CONFLICT (tenant_id, user_id) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_users_metadata_gin ON public.users USING GIN (metadata);
 CREATE INDEX IF NOT EXISTS idx_user_identities_user ON public.user_identities(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_identities_email_trgm ON public.user_identities USING GIN (email gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_user_identities_email ON public.user_identities(email);
 CREATE INDEX IF NOT EXISTS idx_tenant_memberships_user_status
     ON public.tenant_memberships(user_id, status)
     WHERE deleted_at IS NULL;
@@ -76,12 +76,5 @@ ALTER TABLE public.api_keys DROP CONSTRAINT IF EXISTS api_keys_membership_fk;
 ALTER TABLE public.api_keys
 ADD CONSTRAINT api_keys_membership_fk
 FOREIGN KEY (tenant_id, user_id)
-REFERENCES public.tenant_memberships(tenant_id, user_id)
-NOT VALID;
-
-ALTER TABLE public.git_credentials DROP CONSTRAINT IF EXISTS git_credentials_owner_membership_fk;
-ALTER TABLE public.git_credentials
-ADD CONSTRAINT git_credentials_owner_membership_fk
-FOREIGN KEY (tenant_id, owner_user_id)
 REFERENCES public.tenant_memberships(tenant_id, user_id)
 NOT VALID;

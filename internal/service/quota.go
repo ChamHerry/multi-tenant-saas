@@ -8,9 +8,6 @@ import (
 type QuotaMetric string
 
 const (
-	MetricRepoCount   QuotaMetric = "repo.count"
-	MetricSymbolCount QuotaMetric = "symbol.count"
-	MetricStorageMB   QuotaMetric = "storage.mb"
 	MetricAPIKeyCount QuotaMetric = "api_key.count"
 	MetricMemberCount QuotaMetric = "member.count"
 )

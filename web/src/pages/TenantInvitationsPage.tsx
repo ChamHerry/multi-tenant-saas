@@ -68,7 +68,7 @@ export function TenantInvitationsPage() {
             <Select label="角色" value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
               {roles.map((item) => <option key={item} value={item}>{item}</option>)}
             </Select>
-            <Input label="留言，可选" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="欢迎加入 RepoMind" />
+            <Input label="留言，可选" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="欢迎加入我们的组织" />
             <Button type="submit" isLoading={createInvitation.isPending} leftIcon={<MailPlus className="size-4" />}>发送邀请</Button>
           </form>
         </Card>

@@ -135,7 +135,7 @@ func (s *sPlatformAdmin) ListTenants(ctx context.Context, filter service.Platfor
 	}
 	rowsArgs := append(append([]any{}, args...), limit, offset)
 	rows, err := g.DB().GetAll(ctx, `
-SELECT id, name, slug, plan, status, max_repos, max_symbols, max_storage_mb, created_at, updated_at
+SELECT id, name, slug, plan, status, created_at, updated_at
 FROM public.tenants
 WHERE `+whereSQL+`
 ORDER BY created_at DESC
@@ -391,40 +391,40 @@ func (s *sPlatformAdmin) UpdateTenantQuota(ctx context.Context, actorUserID, ten
 	if err := validateInternalID(tenantID); err != nil {
 		return err
 	}
-	if in.MaxRepos <= 0 && in.MaxSymbols <= 0 && in.MaxStorageMB <= 0 {
+	if in.MaxMembers <= 0 && in.MaxAPIKeys <= 0 {
 		return gerror.NewCode(gcode.CodeMissingParameter, "at least one positive quota field is required")
 	}
 	err := g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		result, err := tx.Ctx(ctx).Exec(`
-UPDATE public.tenants
-SET max_repos=CASE WHEN ? > 0 THEN ? ELSE max_repos END,
-    max_symbols=CASE WHEN ? > 0 THEN ? ELSE max_symbols END,
-    max_storage_mb=CASE WHEN ? > 0 THEN ? ELSE max_storage_mb END,
-    updated_at=now()
-WHERE id=? AND deleted_at IS NULL`,
-			in.MaxRepos, in.MaxRepos, in.MaxSymbols, in.MaxSymbols, in.MaxStorageMB, in.MaxStorageMB, tenantID)
+		exists, err := tx.Ctx(ctx).GetOne(`SELECT 1 FROM public.tenants WHERE id=? AND deleted_at IS NULL`, tenantID)
 		if err != nil {
-			return gerror.Wrap(err, "update tenant quota columns")
+			return gerror.Wrap(err, "select tenant")
 		}
-		rows, _ := result.RowsAffected()
-		if rows == 0 {
+		if exists.IsEmpty() {
 			return gerror.NewCode(gcode.CodeNotFound, "tenant not found")
 		}
 		_, err = tx.Ctx(ctx).Exec(`
-UPDATE public.tenant_quotas
-SET max_repos=CASE WHEN ? > 0 THEN ? ELSE max_repos END,
-    max_symbols=CASE WHEN ? > 0 THEN ? ELSE max_symbols END,
-    max_storage_mb=CASE WHEN ? > 0 THEN ? ELSE max_storage_mb END,
-    updated_at=now()
-WHERE tenant_id=?`,
-			in.MaxRepos, in.MaxRepos, in.MaxSymbols, in.MaxSymbols, in.MaxStorageMB, in.MaxStorageMB, tenantID)
-		return gerror.Wrap(err, "update tenant quota row")
+INSERT INTO public.tenant_quotas(tenant_id, max_members, max_api_keys)
+VALUES (
+    ?,
+    CAST(CASE WHEN ? > 0 THEN ? ELSE NULL END AS INT),
+    CAST(CASE WHEN ? > 0 THEN ? ELSE NULL END AS INT)
+)
+ON CONFLICT (tenant_id) DO UPDATE
+SET max_members=CAST(CASE WHEN ? > 0 THEN ? ELSE public.tenant_quotas.max_members END AS INT),
+    max_api_keys=CAST(CASE WHEN ? > 0 THEN ? ELSE public.tenant_quotas.max_api_keys END AS INT),
+    updated_at=now()`,
+			tenantID,
+			in.MaxMembers, in.MaxMembers,
+			in.MaxAPIKeys, in.MaxAPIKeys,
+			in.MaxMembers, in.MaxMembers,
+			in.MaxAPIKeys, in.MaxAPIKeys)
+		return gerror.Wrap(err, "upsert tenant quota row")
 	})
 	if err != nil {
 		return err
 	}
 	return service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: actorUserID, Action: "tenant.quota.update", ResourceType: "tenant", ResourceID: tenantID, Metadata: map[string]any{
-		"max_repos": in.MaxRepos, "max_symbols": in.MaxSymbols, "max_storage_mb": in.MaxStorageMB,
+		"max_members": in.MaxMembers, "max_api_keys": in.MaxAPIKeys,
 	}})
 }
 
@@ -451,16 +451,13 @@ func mapTenant(record gdb.Record) (*service.Tenant, error) {
 		return nil, err
 	}
 	return &service.Tenant{
-		ID:           id,
-		Name:         record["name"].String(),
-		Slug:         record["slug"].String(),
-		Plan:         record["plan"].String(),
-		Status:       record["status"].String(),
-		MaxRepos:     record["max_repos"].Int(),
-		MaxSymbols:   record["max_symbols"].Int(),
-		MaxStorageMB: record["max_storage_mb"].Int(),
-		CreatedAt:    record["created_at"].Time(),
-		UpdatedAt:    record["updated_at"].Time(),
+		ID:        id,
+		Name:      record["name"].String(),
+		Slug:      record["slug"].String(),
+		Plan:      record["plan"].String(),
+		Status:    record["status"].String(),
+		CreatedAt: record["created_at"].Time(),
+		UpdatedAt: record["updated_at"].Time(),
 	}, nil
 }
 

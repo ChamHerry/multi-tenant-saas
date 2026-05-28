@@ -1,19 +1,18 @@
-# RepoMind PostgreSQL dev image
+# SaaS template PostgreSQL dev image
 
-PostgreSQL 16 image with project-required extensions:
-
-- Apache AGE (`postgresql-16-age`)
-- pgvector (`postgresql-16-pgvector`)
+Plain PostgreSQL 16 image for local development. The multi-tenant SaaS template
+baseline does not require project-specific PostgreSQL extensions such as Apache
+AGE, pgvector, pg_trgm, or pgcrypto.
 
 Local container convention:
 
 ```bash
-docker build -t repomind-postgres:16-age-vector manifest/docker/postgres
-docker run -d --name repomind-pg \
-  -e POSTGRES_DB=repomind \
-  -e POSTGRES_USER=repomind \
+docker build -t saas-template-postgres:16 manifest/docker/postgres
+docker run -d --name saas-template-pg \
+  -e POSTGRES_DB=saas_template \
+  -e POSTGRES_USER=saas_template \
   -e POSTGRES_PASSWORD=secret \
   -p 55432:5432 \
-  -v repomind-pg-data:/var/lib/postgresql/data \
-  repomind-postgres:16-age-vector
+  -v saas-template-pg-data:/var/lib/postgresql/data \
+  saas-template-postgres:16
 ```

@@ -51,7 +51,7 @@ export function LoginPage() {
   return (
     <AuthShell>
       <Card className="mx-auto max-w-md bg-white/95 hover:border-line hover:shadow-soft">
-        <CardHeader title="登录 RepoMind" description="使用正式账号登录控制台。登录凭证由后端写入 HttpOnly Cookie，前端不会保存访问令牌。" />
+        <CardHeader title="登录 SaaS 控制台" description="使用正式账号登录控制台。登录凭证由后端写入 HttpOnly Cookie，前端不会保存访问令牌。" />
         <form className="space-y-4" onSubmit={submit}>
           <Input
             label="邮箱"

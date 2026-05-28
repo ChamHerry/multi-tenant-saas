@@ -20,8 +20,6 @@ import (
 	_ "repomind-temp/internal/logic/platformadmin"
 	_ "repomind-temp/internal/logic/quota"
 	_ "repomind-temp/internal/logic/rbac"
-	_ "repomind-temp/internal/logic/repository"
 	_ "repomind-temp/internal/logic/tenant"
-	_ "repomind-temp/internal/logic/tenantdb"
 	_ "repomind-temp/internal/logic/user"
 )

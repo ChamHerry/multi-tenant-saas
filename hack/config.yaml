@@ -15,7 +15,7 @@ gfcli:
 
   gen:
     dao:
-      - link: "pgsql:repomind:secret@tcp(127.0.0.1:55432)/repomind"
+      - link: "pgsql:saas_template:secret@tcp(127.0.0.1:55432)/saas_template"
         path: "./internal"
         group: "default"
         jsonCase: "Snake"

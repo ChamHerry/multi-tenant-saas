@@ -17,7 +17,7 @@ export function ApiKeysPage() {
   const createAPIKey = useCreateAPIKey(tenantId)
   const revokeAPIKey = useRevokeAPIKey(tenantId)
   const [name, setName] = useState('')
-  const [scopes, setScopes] = useState<string[]>(['tenant:read', 'graph:read'])
+  const [scopes, setScopes] = useState<string[]>(['tenant:read'])
   const [expiresAt, setExpiresAt] = useState('')
   const [rawKey, setRawKey] = useState('')
 

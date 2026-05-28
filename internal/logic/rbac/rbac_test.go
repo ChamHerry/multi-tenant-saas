@@ -18,10 +18,9 @@ func TestCanByRole(t *testing.T) {
 		{"owner", service.PermissionTenantManage, true},
 		{"admin", service.PermissionMemberManage, true},
 		{"admin", service.PermissionTenantManage, false},
-		{"member", service.PermissionAnalyzeRun, true},
 		{"member", service.PermissionMemberManage, false},
-		{"viewer", service.PermissionGraphRead, true},
-		{"viewer", service.PermissionRepoWrite, false},
+		{"viewer", service.PermissionTenantRead, true},
+		{"viewer", service.PermissionMemberRead, false},
 	}
 	for _, tt := range cases {
 		got := s.Can(ctx, &service.TenantContext{Role: tt.role}, tt.perm)
@@ -34,9 +33,9 @@ func TestCanByRole(t *testing.T) {
 func TestAPIKeyScopesIntersectRole(t *testing.T) {
 	s := &sRBAC{}
 	ctx := context.Background()
-	tc := &service.TenantContext{Role: "owner", AuthType: "api_key", Scopes: []string{string(service.PermissionGraphRead)}}
-	if !s.Can(ctx, tc, service.PermissionGraphRead) {
-		t.Fatal("api key with graph:read scope should allow graph:read")
+	tc := &service.TenantContext{Role: "owner", AuthType: "api_key", Scopes: []string{string(service.PermissionTenantRead)}}
+	if !s.Can(ctx, tc, service.PermissionTenantRead) {
+		t.Fatal("api key with tenant:read scope should allow tenant:read")
 	}
 	if s.Can(ctx, tc, service.PermissionTenantManage) {
 		t.Fatal("api key without tenant:manage scope should not allow tenant:manage")
@@ -46,7 +45,7 @@ func TestAPIKeyScopesIntersectRole(t *testing.T) {
 func TestPermissionsForRoleReturnsCopyInStableOrder(t *testing.T) {
 	s := &sRBAC{}
 	permissions := s.PermissionsForRole("viewer")
-	want := []service.Permission{service.PermissionTenantRead, service.PermissionGraphRead}
+	want := []service.Permission{service.PermissionTenantRead}
 	if len(permissions) != len(want) {
 		t.Fatalf("len=%d want %d", len(permissions), len(want))
 	}
@@ -64,10 +63,10 @@ func TestPermissionsForRoleReturnsCopyInStableOrder(t *testing.T) {
 func TestPermissionsForContextIntersectsAPIKeyScopes(t *testing.T) {
 	s := &sRBAC{}
 	ctx := context.Background()
-	tc := &service.TenantContext{Role: "owner", AuthType: "api_key", Scopes: []string{string(service.PermissionGraphRead)}}
+	tc := &service.TenantContext{Role: "owner", AuthType: "api_key", Scopes: []string{string(service.PermissionTenantRead)}}
 	permissions := s.PermissionsForContext(ctx, tc)
-	if len(permissions) != 1 || permissions[0] != service.PermissionGraphRead {
-		t.Fatalf("PermissionsForContext=%v want [graph:read]", permissions)
+	if len(permissions) != 1 || permissions[0] != service.PermissionTenantRead {
+		t.Fatalf("PermissionsForContext=%v want [tenant:read]", permissions)
 	}
 }
 

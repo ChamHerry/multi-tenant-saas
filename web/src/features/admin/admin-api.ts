@@ -63,6 +63,6 @@ export function updateAdminTenantPlan(tenantId: string, plan: string) {
   return apiRequest<{ ok: boolean }>(`/api/v1/admin/tenants/${tenantId}/plan`, { method: 'PATCH', skipTenant: true, body: { plan } })
 }
 
-export function updateAdminTenantQuota(tenantId: string, quota: { max_repos?: number; max_symbols?: number; max_storage_mb?: number }) {
+export function updateAdminTenantQuota(tenantId: string, quota: { max_members?: number; max_api_keys?: number }) {
   return apiRequest<{ ok: boolean }>(`/api/v1/admin/tenants/${tenantId}/quota`, { method: 'PATCH', skipTenant: true, body: quota })
 }

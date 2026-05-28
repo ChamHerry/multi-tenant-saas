@@ -4,9 +4,9 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 PGHOST="${PGHOST:-127.0.0.1}"
 PGPORT="${PGPORT:-55432}"
-PGUSER="${PGUSER:-repomind}"
+PGUSER="${PGUSER:-saas_template}"
 PGPASSWORD="${PGPASSWORD:-secret}"
-PGDATABASE="${PGDATABASE:-repomind}"
+PGDATABASE="${PGDATABASE:-saas_template}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -158,9 +158,9 @@ viewer_id="$(create_user "${viewer_email}")"
 log "[E2E] start server"
 start_server
 
-b="$(bodyfile)"; s="$(http_request GET / "" "${b}")"; assert_status SPA_ROOT 200 "${s}" "${b}"; assert_contains SPA_ROOT_HTML "${b}" "RepoMind Console"
-b="$(bodyfile)"; s="$(http_request GET /tenants "" "${b}")"; assert_status SPA_TENANTS_FALLBACK 200 "${s}" "${b}"; assert_contains SPA_TENANTS_HTML "${b}" "RepoMind Console"
-b="$(bodyfile)"; s="$(http_request GET /members "" "${b}")"; assert_status SPA_MEMBERS_FALLBACK 200 "${s}" "${b}"; assert_contains SPA_MEMBERS_HTML "${b}" "RepoMind Console"
+b="$(bodyfile)"; s="$(http_request GET / "" "${b}")"; assert_status SPA_ROOT 200 "${s}" "${b}"; assert_contains SPA_ROOT_HTML "${b}" "SaaS Template Console"
+b="$(bodyfile)"; s="$(http_request GET /tenants "" "${b}")"; assert_status SPA_TENANTS_FALLBACK 200 "${s}" "${b}"; assert_contains SPA_TENANTS_HTML "${b}" "SaaS Template Console"
+b="$(bodyfile)"; s="$(http_request GET /members "" "${b}")"; assert_status SPA_MEMBERS_FALLBACK 200 "${s}" "${b}"; assert_contains SPA_MEMBERS_HTML "${b}" "SaaS Template Console"
 b="$(bodyfile)"; s="$(http_request GET /assets/not-found.js "" "${b}")"; assert_status ASSET_MISSING_NOT_FALLBACK 404 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "${b}")"; assert_status API_NOT_FALLBACK 401 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /healthz "" "${b}")"; assert_status HEALTHZ_NOT_FALLBACK 200 "${s}" "${b}"
@@ -178,7 +178,7 @@ add_member_payload="{\"user_id\":\"${viewer_id}\",\"role\":\"viewer\",\"status\"
 b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/members" "${add_member_payload}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_ADD 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/members" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_LIST 200 "${s}" "${b}"
 
-b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{"name":"frontend-smoke","scopes":["tenant:read","graph:read"]}' "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_CREATE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{"name":"frontend-smoke","scopes":["tenant:read","member:read"]}' "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_CREATE 200 "${s}" "${b}"
 raw_key="$(json_value "${b}" 'j["data"]["raw_key"]')"
 if [[ "${raw_key}" != rpm_* ]]; then
   log "[FAIL] APIKEY_RAW_PREFIX: unexpected raw key ${raw_key}"

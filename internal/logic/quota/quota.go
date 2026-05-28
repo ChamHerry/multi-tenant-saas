@@ -33,7 +33,7 @@ func (s *sQuota) GetTenantQuota(ctx context.Context, tenantID string) (*service.
 	if err != nil {
 		return nil, err
 	}
-	metrics := []service.QuotaMetric{service.MetricRepoCount, service.MetricSymbolCount, service.MetricStorageMB, service.MetricAPIKeyCount, service.MetricMemberCount}
+	metrics := managedMetrics()
 	items := make([]service.QuotaUsage, 0, len(metrics))
 	for _, metric := range metrics {
 		used, err := currentUsage(ctx, tenantID, metric)
@@ -147,7 +147,7 @@ func (s *sQuota) Recalculate(ctx context.Context, tenantID string) error {
 	if err := validateInternalID(tenantID); err != nil {
 		return err
 	}
-	metrics := []service.QuotaMetric{service.MetricRepoCount, service.MetricSymbolCount, service.MetricStorageMB, service.MetricAPIKeyCount, service.MetricMemberCount}
+	metrics := managedMetrics()
 	for _, metric := range metrics {
 		used, err := currentUsage(ctx, tenantID, metric)
 		if err != nil {
@@ -251,22 +251,21 @@ func tenantPlanTx(ctx context.Context, tx gdb.TX, tenantID string) (string, erro
 	return record["plan"].String(), nil
 }
 
+func managedMetrics() []service.QuotaMetric {
+	return []service.QuotaMetric{service.MetricAPIKeyCount, service.MetricMemberCount}
+}
+
 func metricLimit(ctx context.Context, tenantID, plan string, metric service.QuotaMetric) (*int64, error) {
-	var column string
-	switch metric {
-	case service.MetricRepoCount:
-		column = "max_repos"
-	case service.MetricSymbolCount:
-		column = "max_symbols"
-	case service.MetricStorageMB:
-		column = "max_storage_mb"
+	column, err := quotaOverrideColumn(metric)
+	if err != nil {
+		return nil, err
 	}
 	if column != "" {
 		record, err := g.DB().GetOne(ctx, "SELECT "+column+" AS limit_value FROM public.tenant_quotas WHERE tenant_id=?", tenantID)
 		if err != nil {
 			return nil, gerror.Wrap(err, "select tenant quota")
 		}
-		if !record.IsEmpty() {
+		if !record.IsEmpty() && !record["limit_value"].IsNil() {
 			value := record["limit_value"].Int64()
 			return &value, nil
 		}
@@ -275,21 +274,16 @@ func metricLimit(ctx context.Context, tenantID, plan string, metric service.Quot
 }
 
 func metricLimitTx(ctx context.Context, tx gdb.TX, tenantID, plan string, metric service.QuotaMetric) (*int64, error) {
-	var column string
-	switch metric {
-	case service.MetricRepoCount:
-		column = "max_repos"
-	case service.MetricSymbolCount:
-		column = "max_symbols"
-	case service.MetricStorageMB:
-		column = "max_storage_mb"
+	column, err := quotaOverrideColumn(metric)
+	if err != nil {
+		return nil, err
 	}
 	if column != "" {
 		record, err := tx.Ctx(ctx).GetOne("SELECT "+column+" AS limit_value FROM public.tenant_quotas WHERE tenant_id=?", tenantID)
 		if err != nil {
 			return nil, gerror.Wrap(err, "select tenant quota")
 		}
-		if !record.IsEmpty() {
+		if !record.IsEmpty() && !record["limit_value"].IsNil() {
 			value := record["limit_value"].Int64()
 			return &value, nil
 		}
@@ -333,18 +327,23 @@ WHERE plan=? AND feature_key=? AND enabled=true`, plan, feature)
 
 func featureKey(metric service.QuotaMetric) string {
 	switch metric {
-	case service.MetricRepoCount:
-		return "repo.max_count"
-	case service.MetricSymbolCount:
-		return "symbol.max_count"
-	case service.MetricStorageMB:
-		return "storage.max_mb"
 	case service.MetricAPIKeyCount:
 		return "api_key.max_count"
 	case service.MetricMemberCount:
 		return "member.max_count"
 	default:
 		return ""
+	}
+}
+
+func quotaOverrideColumn(metric service.QuotaMetric) (string, error) {
+	switch metric {
+	case service.MetricAPIKeyCount:
+		return "max_api_keys", nil
+	case service.MetricMemberCount:
+		return "max_members", nil
+	default:
+		return "", gerror.NewCodef(gcode.CodeInvalidParameter, "unknown quota metric %s", metric)
 	}
 }
 
@@ -380,16 +379,10 @@ func currentUsageTx(ctx context.Context, tx gdb.TX, tenantID string, metric serv
 
 func usageQuery(metric service.QuotaMetric) (string, error) {
 	switch metric {
-	case service.MetricRepoCount:
-		return `SELECT count(*) AS used FROM public.tenant_repo_subscriptions WHERE tenant_id=? AND deleted_at IS NULL AND status='active'`, nil
 	case service.MetricAPIKeyCount:
 		return `SELECT count(*) AS used FROM public.api_keys WHERE tenant_id=? AND revoked_at IS NULL`, nil
 	case service.MetricMemberCount:
 		return `SELECT count(*) AS used FROM public.tenant_memberships WHERE tenant_id=? AND status='active' AND deleted_at IS NULL`, nil
-	case service.MetricSymbolCount:
-		return `SELECT current_symbols AS used FROM public.tenant_quotas WHERE tenant_id=?`, nil
-	case service.MetricStorageMB:
-		return `SELECT current_storage_mb AS used FROM public.tenant_quotas WHERE tenant_id=?`, nil
 	default:
 		return "", gerror.NewCodef(gcode.CodeInvalidParameter, "unknown quota metric %s", metric)
 	}

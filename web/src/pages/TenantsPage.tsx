@@ -78,7 +78,7 @@ export function TenantsPage() {
         </Card>
 
         <Card>
-          <CardHeader title="我的组织" description="选择一个组织后，成员、API Key、代码分析等功能会使用该上下文。" />
+          <CardHeader title="我的组织" description="选择一个组织后，成员、邀请、API Key、审计和配额功能会使用该上下文。" />
           <div className="overflow-x-auto">
             <Table>
               <thead>
@@ -135,10 +135,10 @@ function TenantCreateForm({ name, slug, plan, isLoading, onNameChange, onSlugCha
         label="组织名称"
         value={name}
         onChange={(event) => onNameChange(event.target.value)}
-        placeholder="RepoMind Demo"
+        placeholder="Acme Demo"
         required
       />
-      <Input label="Slug" value={slug} onChange={(event) => onSlugChange(event.target.value)} placeholder="repomind-demo" required />
+      <Input label="Slug" value={slug} onChange={(event) => onSlugChange(event.target.value)} placeholder="acme-demo" required />
       <Select label="套餐" value={plan} onChange={(event) => onPlanChange(event.target.value)}>
         <option value="free">free</option>
         <option value="pro">pro</option>

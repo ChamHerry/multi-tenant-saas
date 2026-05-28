@@ -6,9 +6,6 @@ export type Tenant = {
   slug: string
   plan: string
   status: string
-  max_repos: number
-  max_symbols: number
-  max_storage_mb: number
   owner_user_id?: string
   created_at: string
   updated_at: string
@@ -51,9 +48,6 @@ export type CreateTenantInput = {
   name: string
   slug: string
   plan?: string
-  max_repos?: number
-  max_symbols?: number
-  max_storage_mb?: number
 }
 
 export type UpdateTenantInput = Partial<CreateTenantInput>

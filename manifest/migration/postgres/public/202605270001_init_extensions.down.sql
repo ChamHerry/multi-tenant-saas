@@ -1,2 +1,2 @@
--- Intentionally do not drop shared extensions in application rollback.
+-- No project-owned extensions are installed by this migration.
 SELECT 1;

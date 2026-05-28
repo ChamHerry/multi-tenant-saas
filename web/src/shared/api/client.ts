@@ -14,7 +14,7 @@ export type ApiRequestOptions = Omit<RequestInit, 'body'> & {
 }
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
-const CSRF_COOKIE = import.meta.env.VITE_CSRF_COOKIE_NAME ?? 'repomind_csrf'
+const CSRF_COOKIE = import.meta.env.VITE_CSRF_COOKIE_NAME ?? 'saas_template_csrf'
 
 function buildUrl(path: string) {
   if (/^https?:\/\//i.test(path)) return path

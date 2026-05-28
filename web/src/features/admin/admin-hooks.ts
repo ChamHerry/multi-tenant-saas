@@ -80,7 +80,7 @@ export function useAdminBillingMutations() {
   return {
     updateTenantPlan: useMutation({ mutationFn: ({ tenantId, plan }: { tenantId: string; plan: string }) => updateAdminTenantPlan(tenantId, plan), onSuccess: invalidate }),
     updateTenantQuota: useMutation({
-      mutationFn: ({ tenantId, quota }: { tenantId: string; quota: { max_repos?: number; max_symbols?: number; max_storage_mb?: number } }) => updateAdminTenantQuota(tenantId, quota),
+      mutationFn: ({ tenantId, quota }: { tenantId: string; quota: { max_members?: number; max_api_keys?: number } }) => updateAdminTenantQuota(tenantId, quota),
       onSuccess: invalidate,
     }),
   }

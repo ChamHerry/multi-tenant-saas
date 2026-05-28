@@ -4,9 +4,9 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 PGHOST="${PGHOST:-127.0.0.1}"
 PGPORT="${PGPORT:-55432}"
-PGUSER="${PGUSER:-repomind}"
+PGUSER="${PGUSER:-saas_template}"
 PGPASSWORD="${PGPASSWORD:-secret}"
-PGDATABASE="${PGDATABASE:-repomind}"
+PGDATABASE="${PGDATABASE:-saas_template}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -179,7 +179,7 @@ b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/tenants/${tenant_id}" '{"name"
 b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/tenants/${tenant_id}" '{"name":"owner updated"}' "${b}" -H "X-User-ID: ${owner_id}")"; assert_status OWNER_TENANT_UPDATE 200 "${s}" "${b}"; assert_json_equals OWNER_TENANT_UPDATE_NAME "${b}" 'j["data"]["tenant"]["name"]' "owner updated"
 
 b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{"name":"bad-scope","scopes":["unknown"]}' "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_BAD_SCOPE 400 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{"name":"limited","scopes":["tenant:read","graph:read"]}' "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_CREATE_LIMITED 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys '{"name":"limited","scopes":["tenant:read","member:read"]}' "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status APIKEY_CREATE_LIMITED 200 "${s}" "${b}"
 raw_key="$(json_value "${b}" 'j["data"]["raw_key"]')"
 api_key_id="$(json_value "${b}" 'j["data"]["api_key"]["id"]')"
 

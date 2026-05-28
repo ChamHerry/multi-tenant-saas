@@ -7,14 +7,11 @@ import (
 )
 
 type CreateReq struct {
-	g.Meta       `path:"/tenants" tags:"Tenant" method:"post" summary:"Create tenant"`
-	Name         string         `json:"name" v:"required"`
-	Slug         string         `json:"slug" v:"required"`
-	Plan         string         `json:"plan"`
-	MaxRepos     int            `json:"max_repos"`
-	MaxSymbols   int            `json:"max_symbols"`
-	MaxStorageMB int            `json:"max_storage_mb"`
-	Metadata     map[string]any `json:"metadata"`
+	g.Meta   `path:"/tenants" tags:"Tenant" method:"post" summary:"Create tenant"`
+	Name     string         `json:"name" v:"required"`
+	Slug     string         `json:"slug" v:"required"`
+	Plan     string         `json:"plan"`
+	Metadata map[string]any `json:"metadata"`
 }
 
 type GetReq struct {
@@ -23,15 +20,12 @@ type GetReq struct {
 }
 
 type UpdateReq struct {
-	g.Meta       `path:"/tenants/{tenant}" tags:"Tenant" method:"patch" summary:"Update tenant"`
-	Tenant       string         `v:"required"`
-	Name         string         `json:"name"`
-	Slug         string         `json:"slug"`
-	Plan         string         `json:"plan"`
-	MaxRepos     int            `json:"max_repos"`
-	MaxSymbols   int            `json:"max_symbols"`
-	MaxStorageMB int            `json:"max_storage_mb"`
-	Metadata     map[string]any `json:"metadata"`
+	g.Meta   `path:"/tenants/{tenant}" tags:"Tenant" method:"patch" summary:"Update tenant"`
+	Tenant   string         `v:"required"`
+	Name     string         `json:"name"`
+	Slug     string         `json:"slug"`
+	Plan     string         `json:"plan"`
+	Metadata map[string]any `json:"metadata"`
 }
 
 type SuspendReq struct {

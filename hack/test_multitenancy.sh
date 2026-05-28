@@ -3,9 +3,9 @@ set -euo pipefail
 
 PGHOST="${PGHOST:-127.0.0.1}"
 PGPORT="${PGPORT:-55432}"
-PGUSER="${PGUSER:-repomind}"
+PGUSER="${PGUSER:-saas_template}"
 PGPASSWORD="${PGPASSWORD:-secret}"
-PGDATABASE="${PGDATABASE:-repomind}"
+PGDATABASE="${PGDATABASE:-saas_template}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
 need() {
@@ -59,7 +59,7 @@ if [[ "${dirty}" != "f" ]]; then
   exit 1
 fi
 
-invalid_constraints="$(psql_query "SELECT conname FROM pg_constraint WHERE conname IN ('api_keys_membership_fk','git_credentials_owner_membership_fk') AND NOT convalidated")"
+invalid_constraints="$(psql_query "SELECT conname FROM pg_constraint WHERE conname IN ('api_keys_membership_fk') AND NOT convalidated")"
 if [[ -n "${invalid_constraints}" ]]; then
   echo "constraints not validated: ${invalid_constraints}" >&2
   exit 1

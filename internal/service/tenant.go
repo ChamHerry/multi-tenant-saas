@@ -11,34 +11,25 @@ type CreateTenantInput struct {
 	OwnerUserID     string
 	SystemOwnerless bool
 	Plan            string
-	MaxRepos        int
-	MaxSymbols      int
-	MaxStorageMB    int
 	Metadata        map[string]any
 }
 
 type Tenant struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Slug         string    `json:"slug"`
-	Plan         string    `json:"plan"`
-	Status       string    `json:"status"`
-	MaxRepos     int       `json:"max_repos"`
-	MaxSymbols   int       `json:"max_symbols"`
-	MaxStorageMB int       `json:"max_storage_mb"`
-	OwnerUserID  string    `json:"owner_user_id,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Slug        string    `json:"slug"`
+	Plan        string    `json:"plan"`
+	Status      string    `json:"status"`
+	OwnerUserID string    `json:"owner_user_id,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type UpdateTenantInput struct {
-	Name         string
-	Slug         string
-	Plan         string
-	MaxRepos     int
-	MaxSymbols   int
-	MaxStorageMB int
-	Metadata     map[string]any
+	Name     string
+	Slug     string
+	Plan     string
+	Metadata map[string]any
 }
 
 type ITenantAdmin interface {

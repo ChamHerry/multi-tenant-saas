@@ -18,7 +18,7 @@ data:
 
     database:
       default:
-        link: "pgsql:repomind:secret@tcp(repomind-postgres:5432)/repomind"
+        link: "pgsql:saas_template:secret@tcp(repomind-postgres:5432)/saas_template"
         debug: false
         charset: "utf8"
         dryRun: false

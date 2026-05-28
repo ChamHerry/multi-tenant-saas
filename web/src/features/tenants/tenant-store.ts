@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { readStorage, writeStorage } from '@/shared/lib/storage'
 
-export const SELECTED_TENANT_ID_KEY = 'repomind.selectedTenantId'
+export const SELECTED_TENANT_ID_KEY = 'saas-template.selectedTenantId'
 
 export type TenantState = {
   currentTenantId?: string

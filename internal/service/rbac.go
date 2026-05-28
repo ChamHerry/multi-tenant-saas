@@ -13,9 +13,6 @@ const (
 	PermissionAuditRead        Permission = "tenant:audit:read"
 	PermissionBillingRead      Permission = "tenant:billing:read"
 	PermissionBillingManage    Permission = "tenant:billing:manage"
-	PermissionRepoWrite        Permission = "repo:write"
-	PermissionAnalyzeRun       Permission = "analyze:run"
-	PermissionGraphRead        Permission = "graph:read"
 	PermissionAPIKeyManage     Permission = "api_key:manage"
 )
 

@@ -4,9 +4,9 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 PGHOST="${PGHOST:-127.0.0.1}"
 PGPORT="${PGPORT:-55432}"
-PGUSER="${PGUSER:-repomind}"
+PGUSER="${PGUSER:-saas_template}"
 PGPASSWORD="${PGPASSWORD:-secret}"
-PGDATABASE="${PGDATABASE:-repomind}"
+PGDATABASE="${PGDATABASE:-saas_template}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -157,7 +157,7 @@ assert_json_equals ADMIN_HAS_MEMBER_MANAGE "${b}" '"member:manage" in j["data"][
 assert_json_equals ADMIN_NO_TENANT_MANAGE "${b}" '"tenant:manage" in j["data"]["tenants"][0]["permissions"]' false
 
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" -H "X-User-ID: ${viewer_id}")"; assert_status VIEWER_ACCESS 200 "${s}" "${b}"
-assert_json_equals VIEWER_HAS_GRAPH_READ "${b}" '"graph:read" in j["data"]["tenants"][0]["permissions"]' true
+assert_json_equals VIEWER_HAS_TENANT_READ "${b}" '"tenant:read" in j["data"]["tenants"][0]["permissions"]' true
 assert_json_equals VIEWER_NO_APIKEY_MANAGE "${b}" '"api_key:manage" in j["data"]["tenants"][0]["permissions"]' false
 
 b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "${b}" -H "X-User-ID: ${viewer_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status VIEWER_APIKEY_FORBIDDEN 403 "${s}" "${b}"

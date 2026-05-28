@@ -12,13 +12,9 @@ import (
 type TenantQuotas struct {
 	g.Meta            `orm:"table:tenant_quotas, do:true"`
 	TenantId          any //
-	MaxRepos          any //
-	MaxSymbols        any //
-	MaxStorageMb      any //
 	MaxDailyRequests  any //
 	MaxConcurrentJobs any //
-	CurrentRepos      any //
-	CurrentSymbols    any //
-	CurrentStorageMb  any //
+	MaxMembers        any //
+	MaxApiKeys        any //
 	UpdatedAt         any //
 }

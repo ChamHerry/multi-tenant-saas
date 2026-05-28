@@ -17,9 +17,6 @@ function TenantEditForm({ tenantId, tenant, canManage }: { tenantId: string; ten
   const [name, setName] = useState(tenant.name)
   const [slug, setSlug] = useState(tenant.slug)
   const [plan, setPlan] = useState(tenant.plan)
-  const [maxRepos, setMaxRepos] = useState(String(tenant.max_repos))
-  const [maxSymbols, setMaxSymbols] = useState(String(tenant.max_symbols))
-  const [maxStorage, setMaxStorage] = useState(String(tenant.max_storage_mb))
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -27,9 +24,6 @@ function TenantEditForm({ tenantId, tenant, canManage }: { tenantId: string; ten
       name: name.trim(),
       slug: slug.trim(),
       plan,
-      max_repos: Number(maxRepos) || undefined,
-      max_symbols: Number(maxSymbols) || undefined,
-      max_storage_mb: Number(maxStorage) || undefined,
     })
   }
 
@@ -44,9 +38,6 @@ function TenantEditForm({ tenantId, tenant, canManage }: { tenantId: string; ten
           <option value="pro">pro</option>
           <option value="enterprise">enterprise</option>
         </Select>
-        <Input label="Max Repos" type="number" value={maxRepos} onChange={(event) => setMaxRepos(event.target.value)} disabled={!canManage} />
-        <Input label="Max Symbols" type="number" value={maxSymbols} onChange={(event) => setMaxSymbols(event.target.value)} disabled={!canManage} />
-        <Input label="Max Storage MB" type="number" value={maxStorage} onChange={(event) => setMaxStorage(event.target.value)} disabled={!canManage} />
         <div className="sm:col-span-2">
           <Button type="submit" disabled={!canManage} isLoading={updateTenant.isPending} leftIcon={<Save className="size-4" />}>保存修改</Button>
         </div>
@@ -82,7 +73,7 @@ export function TenantDetailPage() {
         <div>
           <Badge tone="purple">Tenant Detail</Badge>
           <h1 className="mt-3 text-3xl font-black text-ink">{tenant?.name ?? tenantId}</h1>
-          <p className="mt-2 text-sm text-muted">查看/更新组织基础信息；底层仓库和索引统一存放在 public schema。</p>
+          <p className="mt-2 text-sm text-muted">查看/更新组织基础信息；组织是成员、API Key、审计和配额的隔离边界。</p>
         </div>
         <Button variant="secondary" onClick={() => navigate('/tenants')}>返回组织列表</Button>
       </div>
@@ -96,10 +87,10 @@ export function TenantDetailPage() {
         </Card>
 
         <Card>
-          <CardHeader title="共享仓库模型" description="组织只作为 RBAC、配额和审计边界；代码仓库和索引数据统一在 public schema 中共享。" />
+          <CardHeader title="模板能力边界" description="当前项目只保留通用多租户 SaaS 管理能力，不包含具体业务域数据模型。" />
           <div className="space-y-3 text-sm text-muted">
-            <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Public repo</span><p>公开仓库底层索引可被所有有登录上下文的组织复用，不再为每个组织创建 schema/graph。</p></div>
-            <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Private repo</span><p>私有仓库必须通过仓库授权策略裁剪，禁止绕过 repository access predicate 直查索引表。</p></div>
+            <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Access boundary</span><p>成员角色、API Key scope、平台管理员权限共同控制组织管理入口。</p></div>
+            <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Extension point</span><p>后续业务表应显式绑定 tenant_id，并复用现有 RBAC、审计和配额服务。</p></div>
           </div>
         </Card>
       </section>
