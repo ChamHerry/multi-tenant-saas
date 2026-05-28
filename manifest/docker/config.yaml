@@ -23,8 +23,8 @@ auth:
     absoluteTTL: "168h"
     idleTTL: "12h"
     cookie:
-      name: "repomind_session"
-      csrfName: "repomind_csrf"
+      name: "saas_template_session"
+      csrfName: "saas_template_csrf"
       path: "/"
 
 automigrate:
