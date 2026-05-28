@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
@@ -18,6 +19,8 @@ var (
 	slugPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$`)
 	internalIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
+
+const tenantSlugRuleMessage = "tenant slug must be 3-80 lowercase letters, numbers, or hyphens and must start/end with a letter or number"
 
 type sTenant struct{}
 
@@ -108,7 +111,7 @@ func (s *sTenant) UpdateTenant(ctx context.Context, tenantID string, in service.
 		return nil, err
 	}
 	if in.Slug != "" && !slugPattern.MatchString(in.Slug) {
-		return nil, gerror.Newf("invalid tenant slug %q", in.Slug)
+		return nil, invalidTenantSlugError(in.Slug)
 	}
 	if in.Name == "" && in.Slug == "" && in.Plan == "" && in.Metadata == nil {
 		return fetchTenant(ctx, tenantID)
@@ -219,7 +222,7 @@ func validateCreateTenantInput(in service.CreateTenantInput) error {
 		return gerror.New("tenant name is required")
 	}
 	if !slugPattern.MatchString(in.Slug) {
-		return gerror.Newf("invalid tenant slug %q", in.Slug)
+		return invalidTenantSlugError(in.Slug)
 	}
 	if in.OwnerUserID == "" && !in.SystemOwnerless {
 		return gerror.New("owner user id is required; pass SystemOwnerless only for explicit ops/system tenants")
@@ -228,6 +231,10 @@ func validateCreateTenantInput(in service.CreateTenantInput) error {
 		return validateInternalID(in.OwnerUserID)
 	}
 	return nil
+}
+
+func invalidTenantSlugError(slug string) error {
+	return gerror.NewCodef(gcode.CodeInvalidParameter, "%s: %q", tenantSlugRuleMessage, slug)
 }
 
 func validateInternalID(tenantID string) error {
