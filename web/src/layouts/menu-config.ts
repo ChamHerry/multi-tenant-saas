@@ -1,7 +1,5 @@
 import {
-  BarChart3,
   Building2,
-  CreditCard,
   Inbox,
   KeyRound,
   LayoutDashboard,
@@ -41,12 +39,6 @@ export const tenantNavItems: MenuItem[] = [
     requiredTenantPermissions: ["tenant:invitation:manage"],
   },
   {
-    to: "/usage",
-    label: "配额",
-    icon: BarChart3,
-    requiredTenantPermissions: ["tenant:billing:read"],
-  },
-  {
     to: "/audit-logs",
     label: "审计",
     icon: ScrollText,
@@ -75,11 +67,5 @@ export const platformNavItems: MenuItem[] = [
     label: "平台审计",
     icon: ScrollText,
     requiredPlatformPermissions: ["platform:audit:read"],
-  },
-  {
-    to: "/admin/plans",
-    label: "套餐配额",
-    icon: CreditCard,
-    requiredPlatformPermissions: ["platform:billing:manage"],
   },
 ];

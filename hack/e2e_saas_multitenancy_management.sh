@@ -42,9 +42,6 @@ cleanup() {
     wait "${server_pid}" >/dev/null 2>&1 || true
   fi
   lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null | xargs -r kill >/dev/null 2>&1 || true
-  if [[ -n "${ORIGINAL_PRO_MEMBER_LIMIT:-}" ]]; then
-    psql_query "UPDATE public.plan_entitlements SET limit_value=${ORIGINAL_PRO_MEMBER_LIMIT}, updated_at=now() WHERE plan='pro' AND feature_key='member.max_count'" >/dev/null 2>&1 || true
-  fi
 }
 trap cleanup EXIT
 
@@ -133,7 +130,6 @@ owner_id="$(create_user "${owner_tag}")"
 invitee_id="$(create_user "${invitee_tag}")"
 outsider_id="$(create_user "${outsider_tag}")"
 psql_query "INSERT INTO public.platform_admins(user_id, role, status, created_at, updated_at) VALUES ('${owner_id}', 'super_admin', 'active', now(), now()) ON CONFLICT (user_id) DO UPDATE SET role='super_admin', status='active', updated_at=now()" >/dev/null
-ORIGINAL_PRO_MEMBER_LIMIT="$(psql_query "SELECT COALESCE(limit_value, 25) FROM public.plan_entitlements WHERE plan='pro' AND feature_key='member.max_count' LIMIT 1")"
 
 log "[E2E] start server"
 start_server
@@ -160,18 +156,15 @@ assert_json_equals INVITE_ACCEPT_ROLE "${b}" 'j["data"]["member"]["role"]' membe
 b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "X-User-ID: ${invitee_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITEE_TENANT_CONTEXT 200 "${s}" "${b}"
 assert_json_equals INVITEE_ROLE "${b}" 'j["data"]["tenant_context"]["role"]' member
 
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/quota" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status QUOTA_GET 200 "${s}" "${b}"
-assert_json_equals QUOTA_TENANT "${b}" 'j["data"]["quota"]["tenant_id"]' "${tenant_id}"
-
 b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/audit-logs" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status AUDIT_GET 200 "${s}" "${b}"
 
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "${b}" -H "X-User-ID: ${outsider_id}")"; assert_status ADMIN_FORBIDDEN 403 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANTS 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/session "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_SESSION 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_PLANS 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/plan" "{\"plan\":\"pro\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_PLAN 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/quota" "{\"max_members\":7}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_QUOTA 200 "${s}" "${b}"
-psql_query "UPDATE public.tenant_quotas SET max_members=NULL, updated_at=now() WHERE tenant_id='${tenant_id}'" >/dev/null
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_PLANS_REMOVED 404 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/plan" "{\"plan\":\"pro\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_PLAN_REMOVED 404 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/quota" "{\"max_members\":7}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_QUOTA_REMOVED 404 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/quota" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_QUOTA_REMOVED 404 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/users/${outsider_id}/status" "{\"status\":\"disabled\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_USER_DISABLE 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/users/${outsider_id}/status" "{\"status\":\"active\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_USER_ENABLE 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/platform-admins "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_LIST_PLATFORM_ADMINS 200 "${s}" "${b}"
@@ -190,8 +183,6 @@ b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitation
 b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/audit-logs/export" "{\"action\":\"tenant.invitation.create\"}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status AUDIT_EXPORT 200 "${s}" "${b}"
 assert_json_equals AUDIT_EXPORT_STATUS "${b}" 'j["data"]["job"]["status"]' succeeded
 
-psql_query "UPDATE public.plan_entitlements SET limit_value=2, updated_at=now() WHERE plan='pro' AND feature_key='member.max_count'" >/dev/null
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations" "{\"invitee_email\":\"quota-${outsider_tag}@example.test\",\"role\":\"viewer\"}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_QUOTA_EXCEEDED 429 "${s}" "${b}"
-psql_query "UPDATE public.plan_entitlements SET limit_value=${ORIGINAL_PRO_MEMBER_LIMIT}, updated_at=now() WHERE plan='pro' AND feature_key='member.max_count'" >/dev/null
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations" "{\"invitee_email\":\"extra-${outsider_tag}@example.test\",\"role\":\"viewer\"}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_CREATE_WITHOUT_MEMBER_LIMIT 200 "${s}" "${b}"
 
 log "[E2E] all SaaS multitenancy management scenarios passed tenant=${tenant_id} owner=${owner_id} invitee=${invitee_id}"

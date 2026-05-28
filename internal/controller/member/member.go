@@ -37,9 +37,6 @@ func (c *ControllerV1) Add(ctx context.Context, req *v1.AddReq) (res *v1.MemberR
 	if err != nil {
 		return nil, err
 	}
-	if err = service.Quota().Require(ctx, tc.TenantID, service.MetricMemberCount, 1); err != nil {
-		return nil, err
-	}
 	member, err := service.TenantMembershipService().AddMember(ctx, service.AddTenantMemberInput{
 		TenantID:        tc.TenantID,
 		UserID:          req.UserID,

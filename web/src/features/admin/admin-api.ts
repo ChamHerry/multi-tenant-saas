@@ -1,5 +1,5 @@
 import { apiRequest } from '@/shared/api/client'
-import type { AdminAuditListResponse, AdminPlanListResponse, AdminTenantListResponse, AdminUserListResponse, PlatformAdminListResponse, PlatformSessionResponse } from './admin-types'
+import type { AdminAuditListResponse, AdminTenantListResponse, AdminUserListResponse, PlatformAdminListResponse, PlatformSessionResponse } from './admin-types'
 import type { Tenant } from '@/features/tenants/tenant-types'
 
 function qs(params: Record<string, string | number | undefined>) {
@@ -53,16 +53,4 @@ export function revokePlatformAdmin(userId: string) {
 
 export function listAdminAuditLogs(params: Record<string, string | number | undefined> = {}) {
   return apiRequest<AdminAuditListResponse>(`/api/v1/admin/audit-logs${qs(params)}`, { skipTenant: true })
-}
-
-export function listAdminPlans(params: Record<string, string | number | undefined> = {}) {
-  return apiRequest<AdminPlanListResponse>(`/api/v1/admin/plans${qs(params)}`, { skipTenant: true })
-}
-
-export function updateAdminTenantPlan(tenantId: string, plan: string) {
-  return apiRequest<{ ok: boolean }>(`/api/v1/admin/tenants/${tenantId}/plan`, { method: 'PATCH', skipTenant: true, body: { plan } })
-}
-
-export function updateAdminTenantQuota(tenantId: string, quota: { max_members?: number }) {
-  return apiRequest<{ ok: boolean }>(`/api/v1/admin/tenants/${tenantId}/quota`, { method: 'PATCH', skipTenant: true, body: quota })
 }

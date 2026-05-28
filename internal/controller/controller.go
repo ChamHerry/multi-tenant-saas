@@ -15,7 +15,6 @@ import (
 	"repomind-temp/internal/controller/invitation"
 	"repomind-temp/internal/controller/me"
 	"repomind-temp/internal/controller/member"
-	"repomind-temp/internal/controller/quota"
 	"repomind-temp/internal/controller/tenant"
 	"repomind-temp/internal/middleware"
 	"repomind-temp/internal/service"
@@ -74,7 +73,6 @@ func getAllRoutes() []RouteConfig {
 				member.NewV1(),
 				invitation.NewV1(),
 				audit.NewV1(),
-				quota.NewV1(),
 				apikey.NewV1(),
 			},
 		},

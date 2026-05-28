@@ -15,7 +15,6 @@ type Tenants struct {
 	Id        any         //
 	Name      any         //
 	Slug      any         //
-	Plan      any         //
 	Status    any         //
 	Metadata  *gjson.Json //
 	CreatedAt any         //

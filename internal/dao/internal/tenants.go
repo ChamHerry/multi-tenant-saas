@@ -24,7 +24,6 @@ type TenantsColumns struct {
 	Id        string //
 	Name      string //
 	Slug      string //
-	Plan      string //
 	Status    string //
 	Metadata  string //
 	CreatedAt string //
@@ -37,7 +36,6 @@ var tenantsColumns = TenantsColumns{
 	Id:        "id",
 	Name:      "name",
 	Slug:      "slug",
-	Plan:      "plan",
 	Status:    "status",
 	Metadata:  "metadata",
 	CreatedAt: "created_at",

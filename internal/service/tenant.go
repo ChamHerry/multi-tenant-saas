@@ -10,7 +10,6 @@ type CreateTenantInput struct {
 	Slug            string
 	OwnerUserID     string
 	SystemOwnerless bool
-	Plan            string
 	Metadata        map[string]any
 }
 
@@ -18,7 +17,6 @@ type Tenant struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Slug        string    `json:"slug"`
-	Plan        string    `json:"plan"`
 	Status      string    `json:"status"`
 	OwnerUserID string    `json:"owner_user_id,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -28,7 +26,6 @@ type Tenant struct {
 type UpdateTenantInput struct {
 	Name     string
 	Slug     string
-	Plan     string
 	Metadata map[string]any
 }
 

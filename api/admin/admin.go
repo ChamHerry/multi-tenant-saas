@@ -18,7 +18,4 @@ type IAdminV1 interface {
 	GrantPlatformAdmin(ctx context.Context, req *v1.GrantPlatformAdminReq) (res *v1.ActionRes, err error)
 	RevokePlatformAdmin(ctx context.Context, req *v1.RevokePlatformAdminReq) (res *v1.ActionRes, err error)
 	ListAuditLogs(ctx context.Context, req *v1.ListAuditLogsReq) (res *v1.AuditListRes, err error)
-	ListPlans(ctx context.Context, req *v1.ListPlansReq) (res *v1.PlanListRes, err error)
-	UpdateTenantPlan(ctx context.Context, req *v1.UpdateTenantPlanReq) (res *v1.ActionRes, err error)
-	UpdateTenantQuota(ctx context.Context, req *v1.UpdateTenantQuotaReq) (res *v1.ActionRes, err error)
 }

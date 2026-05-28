@@ -38,9 +38,6 @@ func (c *ControllerV1) Create(ctx context.Context, req *v1.CreateReq) (res *v1.C
 	if err != nil {
 		return nil, err
 	}
-	if err = service.Quota().Require(ctx, tc.TenantID, service.MetricMemberCount, 1); err != nil {
-		return nil, err
-	}
 	expires := time.Duration(req.ExpiresHours) * time.Hour
 	created, err := service.TenantInvitationService().Create(ctx, service.CreateTenantInvitationInput{TenantID: tc.TenantID, InviteeEmail: req.InviteeEmail, Role: req.Role, Message: req.Message, InvitedByUserID: tc.UserID, ExpiresIn: expires})
 	if err != nil {

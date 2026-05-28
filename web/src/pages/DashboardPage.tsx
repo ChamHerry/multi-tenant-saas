@@ -79,7 +79,6 @@ export function DashboardPage() {
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               {Object.entries({
                 tenant_slug: tenantContext.data.tenant_context.tenant_slug,
-                tenant_plan: tenantContext.data.tenant_context.tenant_plan,
                 role: tenantContext.data.tenant_context.role,
                 auth_type: tenantContext.data.tenant_context.auth_type,
               }).map(([key, value]) => (

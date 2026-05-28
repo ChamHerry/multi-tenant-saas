@@ -4,15 +4,12 @@ import {
   getPlatformSession,
   grantPlatformAdmin,
   listAdminAuditLogs,
-  listAdminPlans,
   listAdminTenants,
   listAdminUsers,
   listPlatformAdmins,
   restoreAdminTenant,
   revokePlatformAdmin,
   suspendAdminTenant,
-  updateAdminTenantPlan,
-  updateAdminTenantQuota,
   updateAdminUserStatus,
 } from './admin-api'
 
@@ -22,7 +19,6 @@ export const adminKeys = {
   users: (params: Record<string, string | number | undefined> = {}) => ['admin', 'users', params] as const,
   platformAdmins: (params: Record<string, string | number | undefined> = {}) => ['admin', 'platform-admins', params] as const,
   audit: (params: Record<string, string | number | undefined> = {}) => ['admin', 'audit', params] as const,
-  plans: (params: Record<string, string | number | undefined> = {}) => ['admin', 'plans', params] as const,
 }
 
 export function usePlatformSession() {
@@ -66,22 +62,4 @@ export function usePlatformAdminMutations(params: Record<string, string | number
 
 export function useAdminAuditLogs(params: Record<string, string | number | undefined> = {}) {
   return useQuery({ queryKey: adminKeys.audit(params), queryFn: () => listAdminAuditLogs(params), retry: false })
-}
-
-export function useAdminPlans(params: Record<string, string | number | undefined> = {}) {
-  return useQuery({ queryKey: adminKeys.plans(params), queryFn: () => listAdminPlans(params), retry: false })
-}
-
-export function useAdminBillingMutations() {
-  const queryClient = useQueryClient()
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['admin'] })
-  }
-  return {
-    updateTenantPlan: useMutation({ mutationFn: ({ tenantId, plan }: { tenantId: string; plan: string }) => updateAdminTenantPlan(tenantId, plan), onSuccess: invalidate }),
-    updateTenantQuota: useMutation({
-      mutationFn: ({ tenantId, quota }: { tenantId: string; quota: { max_members?: number } }) => updateAdminTenantQuota(tenantId, quota),
-      onSuccess: invalidate,
-    }),
-  }
 }

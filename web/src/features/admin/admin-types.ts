@@ -21,16 +21,6 @@ export type PlatformAdmin = {
   updated_at: string
 }
 
-export type PlanEntitlement = {
-  plan: string
-  feature_key: string
-  enabled: boolean
-  limit_value?: number
-  metadata: Record<string, unknown>
-  created_at: string
-  updated_at: string
-}
-
 export type PlatformSessionResponse = {
   platform_admin: PlatformAdminContext
 }
@@ -52,10 +42,5 @@ export type PlatformAdminListResponse = {
 
 export type AdminAuditListResponse = {
   logs: AuditLog[]
-  total: number
-}
-
-export type AdminPlanListResponse = {
-  items: PlanEntitlement[]
   total: number
 }

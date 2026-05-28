@@ -10,13 +10,11 @@ import { MembersPage } from "@/pages/MembersPage";
 import { PersonalApiKeysPage } from "@/pages/PersonalApiKeysPage";
 import { TenantInvitationsPage } from "@/pages/TenantInvitationsPage";
 import { MyInvitationsPage } from "@/pages/MyInvitationsPage";
-import { TenantUsagePage } from "@/pages/TenantUsagePage";
 import { TenantAuditPage } from "@/pages/TenantAuditPage";
 import { SecurityEventsPage } from "@/pages/SecurityEventsPage";
 import { AdminTenantsPage } from "@/pages/AdminTenantsPage";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
 import { AdminAuditPage } from "@/pages/AdminAuditPage";
-import { AdminPlansPage } from "@/pages/AdminPlansPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export const router = createBrowserRouter([
@@ -65,15 +63,6 @@ export const router = createBrowserRouter([
       { path: "me/security", element: <SecurityEventsPage />, handle: { title: "我的安全事件" } },
       { path: "api-keys", element: <PersonalApiKeysPage />, handle: { title: "个人 API Key" } },
       {
-        path: "usage",
-        handle: { title: "配额与用量" },
-        element: (
-          <RequirePermission tenant={["tenant:billing:read"]}>
-            <TenantUsagePage />
-          </RequirePermission>
-        ),
-      },
-      {
         path: "audit-logs",
         handle: { title: "组织审计日志" },
         element: (
@@ -106,15 +95,6 @@ export const router = createBrowserRouter([
         element: (
           <RequirePermission platform={["platform:audit:read"]}>
             <AdminAuditPage />
-          </RequirePermission>
-        ),
-      },
-      {
-        path: "admin/plans",
-        handle: { title: "套餐与配额管理" },
-        element: (
-          <RequirePermission platform={["platform:billing:manage"]}>
-            <AdminPlansPage />
           </RequirePermission>
         ),
       },

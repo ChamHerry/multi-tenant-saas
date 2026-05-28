@@ -147,36 +147,3 @@ func (c *ControllerV1) ListAuditLogs(ctx context.Context, req *v1.ListAuditLogsR
 	}
 	return &v1.AuditListRes{Logs: logs.Logs, Total: logs.Total}, nil
 }
-
-func (c *ControllerV1) ListPlans(ctx context.Context, req *v1.ListPlansReq) (res *v1.PlanListRes, err error) {
-	if err = service.PlatformAdminService().Require(ctx, service.PlatformPermissionBillingManage); err != nil {
-		return nil, err
-	}
-	items, err := service.PlatformAdminService().ListPlans(ctx, service.PlanEntitlementFilter{Plan: req.Plan, FeatureKey: req.FeatureKey, Limit: req.Limit, Offset: req.Offset})
-	if err != nil {
-		return nil, err
-	}
-	return &v1.PlanListRes{Items: items.Items, Total: items.Total}, nil
-}
-
-func (c *ControllerV1) UpdateTenantPlan(ctx context.Context, req *v1.UpdateTenantPlanReq) (res *v1.ActionRes, err error) {
-	if err = service.PlatformAdminService().Require(ctx, service.PlatformPermissionBillingManage); err != nil {
-		return nil, err
-	}
-	pac, _ := service.PlatformAdminContextFromCtx(ctx)
-	if err = service.PlatformAdminService().UpdateTenantPlan(ctx, pac.UserID, req.Tenant, req.Plan); err != nil {
-		return nil, err
-	}
-	return &v1.ActionRes{OK: true}, nil
-}
-
-func (c *ControllerV1) UpdateTenantQuota(ctx context.Context, req *v1.UpdateTenantQuotaReq) (res *v1.ActionRes, err error) {
-	if err = service.PlatformAdminService().Require(ctx, service.PlatformPermissionBillingManage); err != nil {
-		return nil, err
-	}
-	pac, _ := service.PlatformAdminContextFromCtx(ctx)
-	if err = service.PlatformAdminService().UpdateTenantQuota(ctx, pac.UserID, req.Tenant, service.UpdateTenantQuotaInput{MaxMembers: req.MaxMembers}); err != nil {
-		return nil, err
-	}
-	return &v1.ActionRes{OK: true}, nil
-}

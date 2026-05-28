@@ -80,26 +80,6 @@ type ListAuditLogsReq struct {
 	Offset       int    `json:"offset"`
 }
 
-type ListPlansReq struct {
-	g.Meta     `path:"/admin/plans" tags:"Admin" method:"get" summary:"List plan entitlements"`
-	Plan       string `json:"plan"`
-	FeatureKey string `json:"feature_key"`
-	Limit      int    `json:"limit"`
-	Offset     int    `json:"offset"`
-}
-
-type UpdateTenantPlanReq struct {
-	g.Meta `path:"/admin/tenants/{tenant}/plan" tags:"Admin" method:"patch" summary:"Update tenant plan"`
-	Tenant string `v:"required"`
-	Plan   string `json:"plan" v:"required"`
-}
-
-type UpdateTenantQuotaReq struct {
-	g.Meta     `path:"/admin/tenants/{tenant}/quota" tags:"Admin" method:"patch" summary:"Update tenant quota"`
-	Tenant     string `v:"required"`
-	MaxMembers int    `json:"max_members"`
-}
-
 type SessionRes struct {
 	PlatformAdmin *service.PlatformAdminContext `json:"platform_admin"`
 }
@@ -126,11 +106,6 @@ type PlatformAdminListRes struct {
 type AuditListRes struct {
 	Logs  []service.AuditLog `json:"logs"`
 	Total int                `json:"total"`
-}
-
-type PlanListRes struct {
-	Items []service.PlanEntitlement `json:"items"`
-	Total int                       `json:"total"`
 }
 
 type ActionRes struct {
