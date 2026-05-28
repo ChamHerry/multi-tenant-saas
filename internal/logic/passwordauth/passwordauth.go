@@ -16,6 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"repomind-temp/internal/service"
+	"repomind-temp/utility/uuid"
 )
 
 const (
@@ -25,6 +26,10 @@ const (
 	defaultBcryptCost     = 12
 	defaultLockThreshold  = 10
 	defaultLockDuration   = 15 * time.Minute
+
+	firstPlatformAdminLockKey = "multi-tenant-saas:first-platform-admin-bootstrap"
+	platformSuperAdminRole    = "super_admin"
+	platformAdminBootstrapLog = "platform_admin.bootstrap_first_user"
 )
 
 var (
@@ -109,12 +114,63 @@ func (s *sPasswordAuth) RegisterPasswordUser(ctx context.Context, in service.Reg
 	if exists {
 		return nil, registrationConflictError(email)
 	}
-	return s.CreatePasswordUser(ctx, service.CreatePasswordUserInput{
-		Email:         email,
-		Password:      in.Password,
-		DisplayName:   in.DisplayName,
-		EmailVerified: false,
+	hash, err := s.hashPassword(ctx, in.Password)
+	if err != nil {
+		return nil, err
+	}
+	userID := uuid.GenerateV4()
+	identityID := uuid.GenerateV4()
+	if err = validateInternalID(userID); err != nil {
+		return nil, err
+	}
+	if err = validateInternalID(identityID); err != nil {
+		return nil, err
+	}
+	rawProfile, err := marshalJSONString(map[string]any{"source": "password"}, "marshal raw identity profile")
+	if err != nil {
+		return nil, err
+	}
+	metadata, err := marshalJSONString(map[string]any{}, "marshal user metadata")
+	if err != nil {
+		return nil, err
+	}
+	displayName := strings.TrimSpace(in.DisplayName)
+	hashCost := passwordCost(ctx)
+
+	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		if err := lockFirstPlatformAdminBootstrap(ctx, tx); err != nil {
+			return err
+		}
+		exists, err := passwordIdentityExistsTx(ctx, tx, email)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return registrationConflictError(email)
+		}
+		userCount, err := tx.Model("users").Schema("public").Ctx(ctx).Count()
+		if err != nil {
+			return gerror.Wrap(err, "count public users")
+		}
+		if err := insertPasswordUserTx(ctx, tx, passwordRegistrationInsert{
+			UserID:       userID,
+			IdentityID:   identityID,
+			Email:        email,
+			DisplayName:  displayName,
+			Metadata:     metadata,
+			RawProfile:   rawProfile,
+			PasswordHash: string(hash),
+			HashCost:     hashCost,
+		}); err != nil {
+			return err
+		}
+		_, err = bootstrapFirstPlatformAdminIfNeeded(ctx, tx, userID, userCount)
+		return err
 	})
+	if err != nil {
+		return nil, err
+	}
+	return service.UserService().GetUser(ctx, userID)
 }
 
 func passwordIdentityExists(ctx context.Context, email string) (bool, error) {
@@ -132,6 +188,128 @@ LIMIT 1`, email)
 
 func registrationConflictError(email string) error {
 	return gerror.NewCodef(codeConflict, "email %s is already registered", email)
+}
+
+type passwordRegistrationInsert struct {
+	UserID       string
+	IdentityID   string
+	Email        string
+	DisplayName  string
+	Metadata     string
+	RawProfile   string
+	PasswordHash string
+	HashCost     int
+}
+
+func lockFirstPlatformAdminBootstrap(ctx context.Context, tx gdb.TX) error {
+	_, err := tx.Ctx(ctx).Exec(
+		`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`,
+		firstPlatformAdminLockKey,
+	)
+	return gerror.Wrap(err, "lock first platform admin bootstrap")
+}
+
+func passwordIdentityExistsTx(ctx context.Context, tx gdb.TX, email string) (bool, error) {
+	count, err := tx.Model("user_identities", "i").
+		Schema("public").
+		InnerJoin("users", "u", "u.id = i.user_id").
+		Ctx(ctx).
+		Where("i.provider=? AND lower(i.auth_id)=? AND u.deleted_at IS NULL", passwordProvider, email).
+		Count()
+	if err != nil {
+		return false, gerror.Wrap(err, "count password identity")
+	}
+	return count > 0, nil
+}
+
+func insertPasswordUserTx(ctx context.Context, tx gdb.TX, in passwordRegistrationInsert) error {
+	if _, err := tx.Ctx(ctx).Exec(`
+INSERT INTO public.users(id, email, display_name, avatar_url, status, metadata, last_login_at, created_at, updated_at)
+VALUES (?, ?, ?, NULL, 'active', ?::jsonb, now(), now(), now())`,
+		in.UserID, in.Email, nilIfEmptyString(in.DisplayName), in.Metadata); err != nil {
+		return gerror.Wrap(err, "insert public user")
+	}
+	if _, err := tx.Ctx(ctx).Exec(`
+INSERT INTO public.user_identities(
+    id, user_id, provider, auth_id, email, email_verified, raw_profile, last_login_at, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, false, ?::jsonb, now(), now(), now())`,
+		in.IdentityID, in.UserID, passwordProvider, in.Email, in.Email, in.RawProfile); err != nil {
+		return gerror.Wrap(err, "insert user identity")
+	}
+	if err := upsertCredentialTx(ctx, tx, in.UserID, in.PasswordHash, in.HashCost); err != nil {
+		return err
+	}
+	return nil
+}
+
+func upsertCredentialTx(ctx context.Context, tx gdb.TX, userID, passwordHash string, cost int) error {
+	if err := validateInternalID(userID); err != nil {
+		return err
+	}
+	_, err := tx.Ctx(ctx).Exec(`
+INSERT INTO public.user_password_credentials(user_id, password_hash, hash_alg, hash_cost, password_changed_at, created_at, updated_at)
+VALUES (?, ?, 'bcrypt', ?, now(), now(), now())
+ON CONFLICT (user_id) DO UPDATE
+SET password_hash=EXCLUDED.password_hash,
+    hash_alg='bcrypt',
+    hash_cost=EXCLUDED.hash_cost,
+    password_changed_at=now(),
+    updated_at=now()`, userID, passwordHash, cost)
+	return gerror.Wrap(err, "upsert password credential")
+}
+
+func bootstrapFirstPlatformAdminIfNeeded(ctx context.Context, tx gdb.TX, userID string, userCount int) (bool, error) {
+	if !shouldBootstrapFirstPlatformAdmin(userCount) {
+		return false, nil
+	}
+	if err := validateInternalID(userID); err != nil {
+		return false, err
+	}
+	_, err := tx.Ctx(ctx).Exec(`
+INSERT INTO public.platform_admins(user_id, role, status, created_by_user_id, created_at, updated_at)
+VALUES (?, ?, 'active', ?, now(), now())
+ON CONFLICT (user_id) DO NOTHING`, userID, platformSuperAdminRole, userID)
+	if err != nil {
+		return false, gerror.Wrap(err, "bootstrap first platform admin")
+	}
+	if err = insertBootstrapAuditTx(ctx, tx, userID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func shouldBootstrapFirstPlatformAdmin(userCount int) bool {
+	return userCount == 0
+}
+
+func insertBootstrapAuditTx(ctx context.Context, tx gdb.TX, userID string) error {
+	metadata, err := marshalJSONString(map[string]any{
+		"role":   platformSuperAdminRole,
+		"source": "first_user_registration",
+	}, "marshal platform admin bootstrap metadata")
+	if err != nil {
+		return err
+	}
+	_, err = tx.Ctx(ctx).Exec(`
+INSERT INTO public.audit_logs(tenant_id, user_id, action, resource_type, resource_id, metadata, created_at)
+VALUES (NULL, ?, ?, 'platform_admin', ?, ?::jsonb, now())`,
+		userID, platformAdminBootstrapLog, userID, metadata)
+	return gerror.Wrap(err, "insert platform admin bootstrap audit log")
+}
+
+func marshalJSONString(in map[string]any, message string) (string, error) {
+	payload, err := json.Marshal(in)
+	if err != nil {
+		return "", gerror.Wrap(err, message)
+	}
+	return string(payload), nil
+}
+
+func nilIfEmptyString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 func (s *sPasswordAuth) CreatePasswordUser(ctx context.Context, in service.CreatePasswordUserInput) (*service.User, error) {

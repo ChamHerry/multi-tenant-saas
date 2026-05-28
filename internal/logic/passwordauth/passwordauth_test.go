@@ -20,3 +20,14 @@ func TestValidatePassword(t *testing.T) {
 		t.Fatal("validatePassword >72 bytes expected error")
 	}
 }
+
+func TestShouldBootstrapFirstPlatformAdmin(t *testing.T) {
+	if !shouldBootstrapFirstPlatformAdmin(0) {
+		t.Fatal("empty users table should trigger first platform admin bootstrap")
+	}
+	for _, count := range []int{-1, 1, 2, 100} {
+		if shouldBootstrapFirstPlatformAdmin(count) {
+			t.Fatalf("user count %d should not trigger bootstrap", count)
+		}
+	}
+}
