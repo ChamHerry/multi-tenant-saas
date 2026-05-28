@@ -1,0 +1,31 @@
+
+# CLI tool, only in development environment.
+# https://goframe.org/docs/cli
+gfcli:
+  build:
+    name: "repomind"
+    arch: "amd64"
+    system: "linux"
+    path: "./bin"
+    mod: "none"
+    cgo: false
+    packSrc: "manifest/config,manifest/i18n,resource/public,resource/template"
+    packDst: "internal/packed/build_pack_data.go"
+    exitWhenError: true
+
+  gen:
+    dao:
+      - link: "pgsql:repomind:secret@tcp(127.0.0.1:55432)/repomind"
+        path: "./internal"
+        group: "default"
+        jsonCase: "Snake"
+        stdTime: true
+        gJsonSupport: true
+        descriptionTag: true
+        genTable: true
+        tablesEx: "schema_migrations"
+
+  docker:
+    build: "-a amd64 -s linux -p temp -ew"
+    tagPrefixes:
+      - my.image.pub/my-app

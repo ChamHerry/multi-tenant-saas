@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+
+  --color-page: #f5f6fa;
+  --color-ink: #1a1a2e;
+  --color-muted: #64748b;
+  --color-subtle: #94a3b8;
+  --color-line: #e2e8f0;
+  --color-line-soft: #e8ecf1;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f8fafc;
+
+  --color-brand: #1761ff;
+  --color-brand-hover: #1250e0;
+  --color-brand-soft: #f0f5ff;
+  --color-brand-ring: #a3c4ff;
+  --color-accent-purple: #7c3aed;
+  --color-accent-purple-soft: #f4f0ff;
+  --color-success: #10b981;
+  --color-success-strong: #059669;
+  --color-success-soft: #f0f9f5;
+  --color-warning: #ea580c;
+  --color-warning-strong: #b45309;
+  --color-warning-soft: #fff6f0;
+  --color-danger: #ef4444;
+
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --radius-card: 14px;
+
+  --shadow-soft: 0 1px 3px rgba(0,0,0,.04);
+  --shadow-brand: 0 4px 20px rgba(23,97,255,.08), 0 1px 3px rgba(0,0,0,.04);
+}
+
+:root {
+  color-scheme: light;
+  font-family: var(--font-sans);
+}
+
+body {
+  @apply min-h-screen bg-page text-ink antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, #1761ff, #7c3aed);
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg,#eff4fa 0%,#f0f5fc 40%,#f4f0fa 70%,#f0f9f5 100%);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #1761ff, #7c3aed);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
