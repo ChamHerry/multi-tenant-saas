@@ -2,26 +2,28 @@ import { FormEvent, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Inbox } from 'lucide-react'
 import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/features/invitations/invitation-hooks'
-import { Badge } from '@/shared/ui/Badge'
-import { Button } from '@/shared/ui/Button'
-import { Card, CardHeader } from '@/shared/ui/Card'
-import { Dialog } from '@/shared/ui/Dialog'
-import { EmptyState } from '@/shared/ui/EmptyState'
-import { Input } from '@/shared/ui/Input'
-import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
-import { Table, Td, Th } from '@/shared/ui/Table'
+import { acceptInvitationTokenSchema } from '@/features/invitations/invitation-types'
+import { Badge, Button, Card, CardHeader, Dialog, EmptyState, Input, ErrorView, LoadingView, Table, Td, Th } from '@/shared/ui'
+import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 
 export function MyInvitationsPage() {
   const [searchParams] = useSearchParams()
   const [token, setToken] = useState(searchParams.get('token') ?? '')
   const [isAcceptTokenOpen, setIsAcceptTokenOpen] = useState(Boolean(searchParams.get('token')))
+  const [errors, setErrors] = useState<FieldErrors>({})
   const invitations = useMyInvitations('pending')
   const acceptInvitation = useAcceptInvitation()
   const declineInvitation = useDeclineInvitation()
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    acceptInvitation.mutate(token.trim(), {
+    const result = validateForm(acceptInvitationTokenSchema, { token: token.trim() })
+    if (result.errors) {
+      setErrors(result.errors)
+      return
+    }
+    setErrors({})
+    acceptInvitation.mutate(result.data.token, {
       onSuccess: () => {
         setToken('')
         setIsAcceptTokenOpen(false)
@@ -39,7 +41,7 @@ export function MyInvitationsPage() {
 
       <Dialog open={isAcceptTokenOpen} title="通过 Token 接受邀请" onClose={() => setIsAcceptTokenOpen(false)}>
         <form className="space-y-4" onSubmit={submit}>
-          <Input value={token} onChange={(event) => setToken(event.target.value)} placeholder="邀请 token" required />
+          <Input value={token} onChange={(event) => setToken(event.target.value)} placeholder="邀请 token" error={errors.token} />
           <Button type="submit" isLoading={acceptInvitation.isPending} leftIcon={<Inbox className="size-4" />}>接受邀请</Button>
         </form>
       </Dialog>

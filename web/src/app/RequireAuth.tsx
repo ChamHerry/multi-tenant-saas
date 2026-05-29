@@ -2,7 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { AppShell } from '@/layouts/AppShell'
 import { useMe } from '@/features/auth/auth-hooks'
 import { ApiError } from '@/shared/api/errors'
-import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
+import { ErrorView, LoadingView } from '@/shared/ui'
 
 export function RequireAuth() {
   const location = useLocation()

@@ -5,11 +5,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AuthShell } from '@/layouts/AuthShell'
 import { accessKeys } from '@/features/access/access-hooks'
 import { authKeys, useRegisterMutation } from '@/features/auth/auth-hooks'
+import { registerPayloadSchema } from '@/features/auth/auth-types'
 import { useAuthStore } from '@/features/auth/auth-store'
-import { Button } from '@/shared/ui/Button'
-import { Card, CardHeader } from '@/shared/ui/Card'
-import { Input } from '@/shared/ui/Input'
-import { Toast } from '@/shared/ui/Toast'
+import { Button, Card, CardHeader, Input, Toast } from '@/shared/ui'
+import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 import { errorMessage } from '@/shared/api/errors'
 
 type RegisterLocationState = {
@@ -29,7 +28,7 @@ export function RegisterPage() {
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [clientError, setClientError] = useState<string>()
+  const [errors, setErrors] = useState<FieldErrors>({})
   const from = useMemo(() => {
     const state = location.state as RegisterLocationState | null
     const path = state?.from?.pathname && !['/login', '/register', '/'].includes(state.from.pathname) ? state.from.pathname : '/tenants'
@@ -38,19 +37,23 @@ export function RegisterPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    setClientError(undefined)
-    const normalizedEmail = email.trim()
-    const normalizedDisplayName = displayName.trim()
-    if (password !== confirmPassword) {
-      setClientError('两次输入的密码不一致')
+    const result = validateForm(registerPayloadSchema, {
+      email: email.trim(),
+      password,
+      confirmPassword,
+      display_name: displayName.trim() || undefined,
+    })
+    if (result.errors) {
+      setErrors(result.errors)
       return
     }
+    setErrors({})
     await registerMutation.mutateAsync({
-      email: normalizedEmail,
-      password,
-      display_name: normalizedDisplayName || undefined,
+      email: result.data.email,
+      password: result.data.password,
+      display_name: result.data.display_name,
     })
-    setLastLoginEmail(normalizedEmail)
+    setLastLoginEmail(result.data.email)
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: authKeys.me }),
       queryClient.invalidateQueries({ queryKey: authKeys.tenants }),
@@ -73,7 +76,7 @@ export function RegisterPage() {
             placeholder="admin@example.com"
             autoComplete="email"
             autoFocus
-            required
+            error={errors.email}
           />
           <Input
             label="显示名称"
@@ -81,6 +84,7 @@ export function RegisterPage() {
             onChange={(event) => setDisplayName(event.target.value)}
             placeholder="Admin"
             autoComplete="name"
+            error={errors.display_name}
           />
           <Input
             label="密码"
@@ -89,7 +93,7 @@ export function RegisterPage() {
             onChange={(event) => setPassword(event.target.value)}
             placeholder="至少 15 个字符"
             autoComplete="new-password"
-            required
+            error={errors.password}
           />
           <Input
             label="确认密码"
@@ -98,12 +102,12 @@ export function RegisterPage() {
             onChange={(event) => setConfirmPassword(event.target.value)}
             placeholder="再次输入密码"
             autoComplete="new-password"
-            required
+            error={errors.confirmPassword}
           />
           <Button className="w-full" type="submit" isLoading={registerMutation.isPending} leftIcon={<UserPlus className="size-4" />}>
             注册并进入控制台
           </Button>
-          <Toast tone="red" message={clientError ?? (registerMutation.isError ? errorMessage(registerMutation.error) : undefined)} />
+          <Toast tone="red" message={registerMutation.isError ? errorMessage(registerMutation.error) : undefined} />
         </form>
         <div className="mt-5 rounded-panel border border-line bg-surface-soft p-3 text-xs leading-6 text-muted">
           <div className="font-bold text-ink">已有账号？</div>

@@ -2,19 +2,13 @@ import { FormEvent, useState } from 'react'
 import { UserPlus } from 'lucide-react'
 import { useCanTenant } from '@/features/access/access-hooks'
 import { useAddMember, useMembers, useRemoveMember, useUpdateMember } from '@/features/members/member-hooks'
-import type { TenantRole } from '@/features/tenants/tenant-types'
+import { addMemberInputSchema } from '@/features/members/member-types'
+import { tenantRoleSchema, type TenantRole } from '@/features/tenants/tenant-types'
 import { useTenantStore } from '@/features/tenants/tenant-store'
-import { Badge } from '@/shared/ui/Badge'
-import { Button } from '@/shared/ui/Button'
-import { Card, CardHeader } from '@/shared/ui/Card'
-import { Dialog } from '@/shared/ui/Dialog'
-import { EmptyState } from '@/shared/ui/EmptyState'
-import { Input } from '@/shared/ui/Input'
-import { Select } from '@/shared/ui/Select'
-import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
-import { Table, Td, Th } from '@/shared/ui/Table'
+import { Badge, Button, Card, CardHeader, Dialog, EmptyState, Input, Select, ErrorView, LoadingView, Table, Td, Th } from '@/shared/ui'
+import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 
-const roles: TenantRole[] = ['owner', 'admin', 'member', 'viewer']
+const roles = tenantRoleSchema.options
 const statuses = ['active', 'invited', 'suspended', 'removed']
 
 export function MembersPage() {
@@ -28,20 +22,28 @@ export function MembersPage() {
   const [role, setRole] = useState<TenantRole>('viewer')
   const [status, setStatus] = useState('active')
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
+  const [errors, setErrors] = useState<FieldErrors>({})
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    addMember.mutate(
-      { user_id: userId.trim(), role, status },
-      {
-        onSuccess: () => {
-          setUserId('')
-          setRole('viewer')
-          setStatus('active')
-          setIsAddMemberOpen(false)
-        },
+    const result = validateForm(addMemberInputSchema, {
+      user_id: userId.trim(),
+      role,
+      status,
+    })
+    if (result.errors) {
+      setErrors(result.errors)
+      return
+    }
+    setErrors({})
+    addMember.mutate(result.data, {
+      onSuccess: () => {
+        setUserId('')
+        setRole('viewer')
+        setStatus('active')
+        setIsAddMemberOpen(false)
       },
-    )
+    })
   }
 
   if (!tenantId) {
@@ -62,7 +64,7 @@ export function MembersPage() {
 
       <Dialog open={isAddMemberOpen} title="添加成员" onClose={() => setIsAddMemberOpen(false)}>
         <form className="space-y-4" onSubmit={submit}>
-          <Input label="User ID" value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="用户 UUID" required />
+          <Input label="User ID" value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="用户 UUID" error={errors.user_id} />
           <Select label="角色" value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
             {roles.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>

@@ -1,107 +1,106 @@
-import { FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
-import { Building2, Plus } from "lucide-react";
-import TinyPinyin from "tiny-pinyin";
-import { useMyTenants } from "@/features/auth/auth-hooks";
-import { useCreateTenant } from "@/features/tenants/tenant-hooks";
-import { useTenantStore } from "@/features/tenants/tenant-store";
-import { Badge } from "@/shared/ui/Badge";
-import { Button } from "@/shared/ui/Button";
-import { Card, CardHeader } from "@/shared/ui/Card";
-import { Dialog } from "@/shared/ui/Dialog";
-import { Input } from "@/shared/ui/Input";
-import { ErrorView, LoadingView } from "@/shared/ui/StatusView";
-import { Table, Td, Th } from "@/shared/ui/Table";
+import { FormEvent, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Building2, Plus } from 'lucide-react'
+import TinyPinyin from 'tiny-pinyin'
+import { useMyTenants } from '@/features/auth/auth-hooks'
+import { useCreateTenant } from '@/features/tenants/tenant-hooks'
+import { createTenantInputSchema, TENANT_SLUG_MAX_LENGTH } from '@/features/tenants/tenant-types'
+import { useTenantStore } from '@/features/tenants/tenant-store'
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Dialog,
+  Input,
+  ErrorView,
+  LoadingView,
+  Table,
+  Td,
+  Th,
+} from '@/shared/ui'
+import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 
-const TENANT_SLUG_MAX_LENGTH = 80;
-const TENANT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$/;
-const TENANT_SLUG_ERROR =
-  "Slug 需为 3-80 位小写字母、数字或短横线，且首尾必须是字母或数字";
-const CJK_TEXT_PATTERN = /[\u3400-\u9fff\uf900-\ufaff]+/g;
+const CJK_TEXT_PATTERN = /[㐀-鿿豈-﫿]+/g
 
 function slugifyTenantSlug(value: string) {
   return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
     .replace(CJK_TEXT_PATTERN, (text) =>
-      TinyPinyin.convertToPinyin(text, "-", true),
+      TinyPinyin.convertToPinyin(text, '-', true),
     )
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
     .slice(0, TENANT_SLUG_MAX_LENGTH)
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-+|-+$/g, '')
 }
 
 export function TenantsPage() {
-  const tenants = useMyTenants();
-  const createTenant = useCreateTenant();
-  const currentTenantId = useTenantStore((state) => state.currentTenantId);
+  const tenants = useMyTenants()
+  const createTenant = useCreateTenant()
+  const currentTenantId = useTenantStore((state) => state.currentTenantId)
   const setCurrentTenantId = useTenantStore(
     (state) => state.setCurrentTenantId,
-  );
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
-
-  const trimmedName = name.trim();
-  const trimmedSlug = slug.trim();
-  const slugError =
-    trimmedName && !trimmedSlug
-      ? "Slug 不能为空；请使用英文小写字母、数字或短横线"
-      : trimmedSlug && !TENANT_SLUG_PATTERN.test(trimmedSlug)
-        ? TENANT_SLUG_ERROR
-        : undefined;
-  const canSubmitCreateTenant =
-    Boolean(trimmedName) && TENANT_SLUG_PATTERN.test(trimmedSlug);
+  )
+  const [name, setName] = useState('')
+  const [slug, setSlug] = useState('')
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false)
+  const [errors, setErrors] = useState<FieldErrors>({})
 
   const resetCreateTenantForm = () => {
-    setName("");
-    setSlug("");
-    setIsSlugManuallyEdited(false);
-  };
+    setName('')
+    setSlug('')
+    setIsSlugManuallyEdited(false)
+    setErrors({})
+  }
 
   const closeCreateDialog = () => {
-    setIsCreateOpen(false);
-    resetCreateTenantForm();
-  };
+    setIsCreateOpen(false)
+    resetCreateTenantForm()
+  }
 
   const handleNameChange = (value: string) => {
-    setName(value);
+    setName(value)
     if (!isSlugManuallyEdited) {
-      setSlug(slugifyTenantSlug(value));
+      setSlug(slugifyTenantSlug(value))
     }
-  };
+  }
 
   const handleSlugChange = (value: string) => {
-    setIsSlugManuallyEdited(true);
-    setSlug(slugifyTenantSlug(value));
-  };
+    setIsSlugManuallyEdited(true)
+    setSlug(slugifyTenantSlug(value))
+  }
 
   const regenerateSlug = () => {
-    setIsSlugManuallyEdited(false);
-    setSlug(slugifyTenantSlug(name));
-  };
+    setIsSlugManuallyEdited(false)
+    setSlug(slugifyTenantSlug(name))
+  }
 
   const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!canSubmitCreateTenant) return;
-
-    createTenant.mutate(
-      { name: trimmedName, slug: trimmedSlug },
-      {
-        onSuccess: () => {
-          resetCreateTenantForm();
-          setIsCreateOpen(false);
-        },
+    event.preventDefault()
+    const result = validateForm(createTenantInputSchema, {
+      name: name.trim(),
+      slug: slug.trim(),
+    })
+    if (result.errors) {
+      setErrors(result.errors)
+      return
+    }
+    setErrors({})
+    createTenant.mutate(result.data, {
+      onSuccess: () => {
+        resetCreateTenantForm()
+        setIsCreateOpen(false)
       },
-    );
-  };
+    })
+  }
 
-  if (tenants.isLoading) return <LoadingView label="加载组织列表..." />;
+  if (tenants.isLoading) return <LoadingView label="加载组织列表..." />
 
   return (
     <div className="space-y-6">
@@ -128,7 +127,7 @@ export function TenantsPage() {
             value={name}
             onChange={(event) => handleNameChange(event.target.value)}
             placeholder="Acme Demo"
-            required
+            error={errors.name}
           />
           <div className="space-y-2">
             <Input
@@ -136,8 +135,7 @@ export function TenantsPage() {
               value={slug}
               onChange={(event) => handleSlugChange(event.target.value)}
               placeholder="acme-demo"
-              required
-              error={slugError}
+              error={errors.slug}
               hint="用于组织 URL/API 标识；中文名称会自动转为拼音，可手动修改。"
             />
             <div className="flex justify-end">
@@ -153,7 +151,6 @@ export function TenantsPage() {
           </div>
           <Button
             type="submit"
-            disabled={!canSubmitCreateTenant}
             isLoading={createTenant.isPending}
             leftIcon={<Plus className="size-4" />}
           >
@@ -192,11 +189,11 @@ export function TenantsPage() {
                     <Td>
                       <Badge
                         tone={
-                          tenant.role === "owner"
-                            ? "green"
-                            : tenant.role === "viewer"
-                              ? "gray"
-                              : "purple"
+                          tenant.role === 'owner'
+                            ? 'green'
+                            : tenant.role === 'viewer'
+                              ? 'gray'
+                              : 'purple'
                         }
                       >
                         {tenant.role}
@@ -205,7 +202,7 @@ export function TenantsPage() {
                     <Td>
                       <Badge
                         tone={
-                          tenant.tenant_status === "active" ? "green" : "orange"
+                          tenant.tenant_status === 'active' ? 'green' : 'orange'
                         }
                       >
                         {tenant.tenant_status}
@@ -217,14 +214,14 @@ export function TenantsPage() {
                           size="sm"
                           variant={
                             currentTenantId === tenant.tenant_id
-                              ? "primary"
-                              : "secondary"
+                              ? 'primary'
+                              : 'secondary'
                           }
                           onClick={() => setCurrentTenantId(tenant.tenant_id)}
                         >
                           {currentTenantId === tenant.tenant_id
-                            ? "当前"
-                            : "切换"}
+                            ? '当前'
+                            : '切换'}
                         </Button>
                         <Link
                           to={`/tenant/settings?tenantId=${tenant.tenant_id}`}
@@ -247,5 +244,5 @@ export function TenantsPage() {
         </Card>
       </section>
     </div>
-  );
+  )
 }

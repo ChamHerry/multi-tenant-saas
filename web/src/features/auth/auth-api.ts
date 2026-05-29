@@ -1,12 +1,18 @@
 import { apiRequest } from '@/shared/api/client'
-import type { ActionResponse, AuthSessionResponse, ChangePasswordPayload, LoginPayload, MeResponse, RegisterPayload } from './auth-types'
+import type { ActionResponse, AuthSessionResponse, ChangePasswordPayload, LoginPayload, MeResponse } from './auth-types'
 import type { TenantMembershipWithTenant } from '@/features/tenants/tenant-types'
+
+export type RegisterBody = {
+  email: string
+  password: string
+  display_name?: string
+}
 
 export function login(payload: LoginPayload) {
   return apiRequest<MeResponse>('/api/v1/auth/login', { method: 'POST', body: payload, skipAuth: true, skipTenant: true })
 }
 
-export function register(payload: RegisterPayload) {
+export function register(payload: RegisterBody) {
   return apiRequest<MeResponse>('/api/v1/auth/register', { method: 'POST', body: payload, skipAuth: true, skipTenant: true })
 }
 
@@ -18,7 +24,7 @@ export function getAuthSession() {
   return apiRequest<AuthSessionResponse>('/api/v1/auth/session', { skipTenant: true })
 }
 
-export function changePassword(payload: ChangePasswordPayload) {
+export function changePassword(payload: Omit<ChangePasswordPayload, 'confirm_new_password'>) {
   return apiRequest<ActionResponse>('/api/v1/auth/password/change', { method: 'POST', body: payload, skipTenant: true })
 }
 

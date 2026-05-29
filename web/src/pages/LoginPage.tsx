@@ -5,11 +5,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AuthShell } from '@/layouts/AuthShell'
 import { accessKeys } from '@/features/access/access-hooks'
 import { authKeys, useLoginMutation } from '@/features/auth/auth-hooks'
+import { loginPayloadSchema } from '@/features/auth/auth-types'
 import { useAuthStore } from '@/features/auth/auth-store'
-import { Button } from '@/shared/ui/Button'
-import { Card, CardHeader } from '@/shared/ui/Card'
-import { Input } from '@/shared/ui/Input'
-import { Toast } from '@/shared/ui/Toast'
+import { Button, Card, CardHeader, Input, Toast } from '@/shared/ui'
+import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 import { errorMessage } from '@/shared/api/errors'
 
 type LoginLocationState = {
@@ -28,6 +27,7 @@ export function LoginPage() {
   const setLastLoginEmail = useAuthStore((state) => state.setLastLoginEmail)
   const [email, setEmail] = useState(lastLoginEmail ?? '')
   const [password, setPassword] = useState('')
+  const [errors, setErrors] = useState<FieldErrors>({})
   const from = useMemo(() => {
     const state = location.state as LoginLocationState | null
     const path = state?.from?.pathname && state.from.pathname !== '/login' ? state.from.pathname : '/'
@@ -36,9 +36,14 @@ export function LoginPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const normalizedEmail = email.trim()
-    setLastLoginEmail(normalizedEmail)
-    await loginMutation.mutateAsync({ email: normalizedEmail, password })
+    const result = validateForm(loginPayloadSchema, { email: email.trim(), password })
+    if (result.errors) {
+      setErrors(result.errors)
+      return
+    }
+    setErrors({})
+    setLastLoginEmail(result.data.email)
+    await loginMutation.mutateAsync({ email: result.data.email, password: result.data.password })
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: authKeys.me }),
       queryClient.invalidateQueries({ queryKey: authKeys.tenants }),
@@ -61,7 +66,7 @@ export function LoginPage() {
             placeholder="admin@example.com"
             autoComplete="email"
             autoFocus
-            required
+            error={errors.email}
           />
           <Input
             label="密码"
@@ -70,7 +75,7 @@ export function LoginPage() {
             onChange={(event) => setPassword(event.target.value)}
             placeholder="至少 15 个字符"
             autoComplete="current-password"
-            required
+            error={errors.password}
           />
           <Button className="w-full" type="submit" isLoading={loginMutation.isPending} leftIcon={<LogIn className="size-4" />}>
             登录控制台
