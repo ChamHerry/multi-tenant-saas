@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useMatches, useNavigate } from 'react-router-dom'
 import { Building2, LogOut } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -7,7 +7,6 @@ import { useLogoutMutation, useMe } from '@/features/auth/auth-hooks'
 import { useTenantStore } from '@/features/tenants/tenant-store'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
-import { Select } from '@/shared/ui/Select'
 import { ErrorView } from '@/shared/ui/StatusView'
 import { cn } from '@/shared/lib/cn'
 import { buildScopeNavSections } from './scope-nav'
@@ -31,8 +30,13 @@ export function AppShell() {
   const currentTenantId = useTenantStore((state) => state.currentTenantId)
   const setCurrentTenantId = useTenantStore((state) => state.setCurrentTenantId)
   const [pageTitleOverride, setPageTitleOverride] = useState<string>()
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [isTenantMenuOpen, setIsTenantMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+  const tenantMenuRef = useRef<HTMLDivElement>(null)
   const tenants = useMemo(() => access?.tenants ?? [], [access?.tenants])
   const currentMembership = tenants.find((tenant) => tenant.tenant_id === currentTenantId)
+  const currentUserLabel = me?.user.display_name || me?.user.email || 'Dev User'
   const routeTitle = getRouteTitle(matches)
   const setPageTitle = useCallback((title?: string) => {
     setPageTitleOverride(title?.trim() || undefined)
@@ -65,6 +69,36 @@ export function AppShell() {
     }
   }, [currentTenantId, setCurrentTenantId, tenants])
 
+  useEffect(() => {
+    if (!isUserMenuOpen && !isTenantMenuOpen) {
+      return
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (!userMenuRef.current?.contains(target) && !tenantMenuRef.current?.contains(target)) {
+        setIsUserMenuOpen(false)
+        setIsTenantMenuOpen(false)
+      }
+    }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false)
+        setIsTenantMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isTenantMenuOpen, isUserMenuOpen])
+
+  const chooseTenant = (tenantId: string) => {
+    setCurrentTenantId(tenantId)
+    setIsTenantMenuOpen(false)
+  }
+
   const logout = async () => {
     try {
       await logoutMutation.mutateAsync()
@@ -88,29 +122,49 @@ export function AppShell() {
 
         <div className="mt-6 rounded-card border border-line bg-surface p-4 shadow-soft">
           <div className="text-xs font-bold uppercase tracking-wide text-subtle">当前组织</div>
-          <div className="mt-3">
-            <Select
-              value={currentTenantId ?? ''}
-              onChange={(event) => setCurrentTenantId(event.target.value || undefined)}
-              className="bg-white"
-              aria-label="切换当前组织"
-              disabled={tenants.length === 0}
-            >
-              <option value="">{tenants.length === 0 ? '暂无组织' : '选择组织'}</option>
-              {tenants.map((tenant) => (
-                <option key={tenant.tenant_id} value={tenant.tenant_id}>
-                  {tenant.tenant_name}
-                </option>
-              ))}
-            </Select>
-          </div>
           {currentMembership ? (
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-panel bg-surface-soft px-3 py-2 text-sm">
-              <div className="min-w-0">
-                <div className="truncate font-bold text-ink">{currentMembership.tenant_name}</div>
-                <div className="truncate text-xs text-subtle">{currentMembership.tenant_slug}</div>
-              </div>
-              <Badge tone="green">{currentMembership.role}</Badge>
+            <div ref={tenantMenuRef} className="relative mt-3">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-panel bg-surface-soft px-3 py-2 text-left text-sm transition hover:bg-brand-soft"
+                onClick={() => {
+                  setIsTenantMenuOpen((current) => !current)
+                  setIsUserMenuOpen(false)
+                }}
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-bold text-ink">{currentMembership.tenant_name}</div>
+                  <div className="truncate text-xs text-subtle">{currentMembership.tenant_slug}</div>
+                </div>
+                <Badge tone="green">{currentMembership.role}</Badge>
+              </button>
+              {isTenantMenuOpen ? (
+                <div className="absolute inset-x-0 top-full z-20 mt-2 rounded-card border border-line bg-white p-2 shadow-brand">
+                  <div className="px-2 py-1 text-xs font-bold uppercase tracking-wide text-subtle">选择组织</div>
+                  <div className="mt-1 space-y-1">
+                    {tenants.map((tenant) => {
+                      const isCurrent = tenant.tenant_id === currentTenantId
+                      return (
+                        <button
+                          key={tenant.tenant_id}
+                          type="button"
+                          className={cn(
+                            'flex w-full items-center justify-between gap-2 rounded-panel px-3 py-2 text-left text-sm transition hover:bg-brand-soft',
+                            isCurrent && 'bg-brand-soft',
+                          )}
+                          onClick={() => chooseTenant(tenant.tenant_id)}
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-bold text-ink">{tenant.tenant_name}</div>
+                            <div className="truncate text-xs text-subtle">{tenant.tenant_slug}</div>
+                          </div>
+                          {isCurrent ? <Badge tone="green">当前</Badge> : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="mt-3 rounded-panel bg-surface-soft px-3 py-3 text-sm text-muted">
@@ -127,7 +181,7 @@ export function AppShell() {
           )}
         </div>
 
-        <nav className="mt-6 space-y-5 pb-32">
+        <nav className="mt-6 space-y-5">
           {scopeSections.map((section) => (
             <div key={section.title}>
               <div className="px-3 pb-2 text-xs font-black uppercase tracking-wide text-subtle">{section.title}</div>
@@ -163,11 +217,6 @@ export function AppShell() {
           ))}
         </nav>
 
-        <div className="absolute inset-x-4 bottom-5 rounded-card border border-line bg-surface-soft p-4">
-          <div className="text-xs font-bold uppercase tracking-wide text-subtle">当前用户</div>
-          <div className="mt-2 truncate text-sm font-bold text-ink">{me?.user.display_name || me?.user.email || 'Dev User'}</div>
-          <div className="mt-1 truncate text-xs text-muted">{me?.user.id}</div>
-        </div>
       </aside>
 
       <div className="lg:pl-[18rem]">
@@ -181,19 +230,31 @@ export function AppShell() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                {currentMembership ? (
-                  <div className="rounded-panel bg-white px-3 py-2 text-sm text-muted shadow-soft">
-                    当前组织：<span className="font-bold text-ink">{currentMembership.tenant_name}</span>
-                  </div>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  onClick={() => void logout()}
-                  isLoading={logoutMutation.isPending}
-                  leftIcon={<LogOut className="size-4" />}
-                >
-                  退出
-                </Button>
+                <div ref={userMenuRef} className="relative">
+                  <button
+                    type="button"
+                    className="max-w-[16rem] rounded-panel bg-transparent px-3 py-2 text-sm font-bold text-ink shadow-soft transition hover:bg-brand-soft hover:text-brand"
+                    onClick={() => {
+                      setIsUserMenuOpen((current) => !current)
+                      setIsTenantMenuOpen(false)
+                    }}
+                  >
+                    <span className="block truncate">{currentUserLabel}</span>
+                  </button>
+                  {isUserMenuOpen ? (
+                    <div className="absolute right-0 top-full z-20 mt-2 min-w-[12rem] rounded-card border border-line bg-white p-2 shadow-brand">
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3 rounded-panel px-3 py-2 text-left text-sm font-bold text-muted transition hover:bg-brand-soft hover:text-brand disabled:cursor-not-allowed disabled:opacity-55"
+                        onClick={() => void logout()}
+                        disabled={logoutMutation.isPending}
+                      >
+                        <LogOut className="size-4" />
+                        <span>{logoutMutation.isPending ? '退出中…' : '退出'}</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </header>
