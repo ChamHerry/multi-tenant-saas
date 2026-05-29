@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Save, ShieldAlert } from 'lucide-react'
 import { useCanTenant } from '@/features/access/access-hooks'
 import { useTenantAction, useTenantDetail, useUpdateTenant } from '@/features/tenants/tenant-hooks'
@@ -10,6 +10,7 @@ import { Card, CardHeader } from '@/shared/ui/Card'
 import { Dialog } from '@/shared/ui/Dialog'
 import { usePageTitle } from '@/layouts/page-title'
 import { Input } from '@/shared/ui/Input'
+import { EmptyState } from '@/shared/ui/EmptyState'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 
 function TenantEditForm({ tenantId, tenant, canManage, onSaved }: { tenantId: string; tenant: Tenant; canManage: boolean; onSaved?: () => void }) {
@@ -43,16 +44,19 @@ function TenantEditForm({ tenantId, tenant, canManage, onSaved }: { tenantId: st
 }
 
 export function TenantDetailPage() {
-  const { tenantId = '' } = useParams()
+  const params = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const currentTenantId = useTenantStore((state) => state.currentTenantId)
   const setCurrentTenantId = useTenantStore((state) => state.setCurrentTenantId)
+  const tenantId = params.tenantId ?? searchParams.get('tenantId') ?? currentTenantId ?? ''
   const detail = useTenantDetail(tenantId)
   const actions = useTenantAction(tenantId)
   const canManageTenant = useCanTenant('tenant:manage', tenantId)
   const tenant = detail.data?.tenant
   const [isEditOpen, setIsEditOpen] = useState(false)
 
-  usePageTitle(tenant?.name ?? tenantId ?? '组织详情')
+  usePageTitle(tenant?.name ?? '组织设置')
 
   useEffect(() => {
     if (tenantId) setCurrentTenantId(tenantId)
@@ -63,14 +67,22 @@ export function TenantDetailPage() {
     [actions.remove.error, actions.restore.error, actions.suspend.error, detail.error],
   )
 
-  if (!tenantId) return <ErrorView title="缺少组织 ID" error="URL 中没有组织 ID" />
+  if (!tenantId) {
+    return (
+      <EmptyState
+        title="请先选择组织"
+        description="组织设置需要当前组织上下文。可以先前往“我的组织”选择已有组织。"
+        action={<Link to="/tenants"><Button variant="secondary">前往我的组织</Button></Link>}
+      />
+    )
+  }
   if (detail.isLoading) return <LoadingView label="加载组织详情..." />
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-end gap-2">
         <Button disabled={!tenant || !canManageTenant} onClick={() => setIsEditOpen(true)}>编辑基础信息</Button>
-        <Button variant="secondary" onClick={() => navigate('/tenants')}>返回组织列表</Button>
+        <Button variant="secondary" onClick={() => navigate('/tenants')}>返回我的组织</Button>
       </div>
 
       {firstError ? <ErrorView error={firstError} title="组织操作失败" /> : null}
@@ -83,7 +95,7 @@ export function TenantDetailPage() {
         <Card>
           <CardHeader title="模板能力边界" description="当前项目只保留通用多租户 SaaS 管理能力，不包含具体业务域数据模型。" />
           <div className="space-y-3 text-sm text-muted">
-            <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Access boundary</span><p>成员角色、API Key scope、平台管理员权限共同控制组织管理入口。</p></div>
+            <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Access boundary</span><p>成员角色、组织 API Key scope、平台管理员权限共同控制后台入口。</p></div>
             <div className="rounded-panel bg-surface-soft p-3"><span className="font-bold text-ink">Extension point</span><p>后续业务表应显式绑定 tenant_id，并复用现有 RBAC 和审计服务。</p></div>
           </div>
         </Card>

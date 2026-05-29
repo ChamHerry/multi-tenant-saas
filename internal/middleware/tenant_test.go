@@ -4,10 +4,12 @@ import "testing"
 
 func TestTenantFromPath(t *testing.T) {
 	cases := map[string]string{
-		"/api/v1/tenants/acme":            "acme",
-		"/api/v1/tenants/acme/members/u1": "acme",
-		"/api/v1/api-keys":                "",
-		"/api/v1/tenants/123/members/u1":  "123",
+		"/api/v1/tenants/acme":                    "acme",
+		"/api/v1/tenants/acme/members/u1":         "acme",
+		"/api/v1/tenants/acme/api-keys":           "acme",
+		"/api/v1/api-keys":                        "",
+		"/api/v1/tenants/123/members/u1":          "123",
+		"/api/v1/tenants/123/api-keys/abc-key-id": "123",
 	}
 	for input, want := range cases {
 		if got := tenantFromPath(input); got != want {
@@ -40,20 +42,20 @@ func TestIntersectScopesUsesKeyAndGrantIntersection(t *testing.T) {
 	if len(got) != 1 || got[0] != "tenant:read" {
 		t.Fatalf("intersectScopes star key=%v want [tenant:read]", got)
 	}
-	got = intersectScopes([]string{"tenant:read"}, nil)
-	if len(got) != 1 || got[0] != "tenant:read" {
+	got = intersectScopes([]string{"user:read"}, nil)
+	if len(got) != 1 || got[0] != "user:read" {
 		t.Fatalf("intersectScopes empty grant=%v want key scopes", got)
 	}
 }
 
-func TestTenantOptionalRouteIncludesPersonalAPIKeys(t *testing.T) {
-	if !tenantOptionalPath("/api/v1/api-keys", "GET") || !tenantOptionalPath("/api/v1/api-keys", "POST") {
-		t.Fatal("/api/v1/api-keys should not require tenant selector")
+func TestTenantOptionalRouteExcludesTenantScopedAPIKeys(t *testing.T) {
+	if tenantOptionalPath("/api/v1/tenants/123e4567-e89b-12d3-a456-426614174000/api-keys", "GET") {
+		t.Fatal("tenant-scoped GET /api/v1/tenants/{tenant}/api-keys should require tenant selector")
 	}
-	if !tenantOptionalPath("/api/v1/api-keys/123e4567-e89b-12d3-a456-426614174000", "DELETE") {
-		t.Fatal("DELETE /api/v1/api-keys/{id} should not require tenant selector")
+	if tenantOptionalPath("/api/v1/tenants/123e4567-e89b-12d3-a456-426614174000/api-keys", "POST") {
+		t.Fatal("tenant-scoped POST /api/v1/tenants/{tenant}/api-keys should require tenant selector")
 	}
-	if tenantOptionalPath("/api/v1/me/api-keys", "GET") {
-		t.Fatal("/api/v1/me/api-keys should not remain a personal api key route")
+	if tenantOptionalPath("/api/v1/tenants/123e4567-e89b-12d3-a456-426614174000/api-keys/123e4567-e89b-12d3-a456-426614174000", "DELETE") {
+		t.Fatal("tenant-scoped DELETE /api/v1/tenants/{tenant}/api-keys/{id} should require tenant selector")
 	}
 }

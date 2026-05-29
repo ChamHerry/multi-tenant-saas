@@ -88,10 +88,6 @@ func tenantOptionalPath(rawPath, method string) bool {
 		return true
 	case path == "/api/v1/me/access" && method == http.MethodGet:
 		return true
-	case path == "/api/v1/api-keys" && (method == http.MethodGet || method == http.MethodPost):
-		return true
-	case strings.HasPrefix(path, "/api/v1/api-keys/") && method == http.MethodDelete:
-		return true
 	case path == "/api/v1/me/invitations" && method == http.MethodGet:
 		return true
 	case strings.HasPrefix(path, "/api/v1/me/invitations/") && strings.HasSuffix(path, "/decline") && method == http.MethodPost:

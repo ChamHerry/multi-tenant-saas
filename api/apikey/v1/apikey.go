@@ -7,19 +7,21 @@ import (
 )
 
 type CreatePersonalReq struct {
-	g.Meta    `path:"/api-keys" tags:"APIKey" method:"post" summary:"Create personal API key"`
-	Name      string                                 `json:"name" v:"required"`
-	Scopes    []string                               `json:"scopes" v:"required"`
-	Grants    []service.CreateAPIKeyTenantGrantInput `json:"grants"`
-	ExpiresAt string                                 `json:"expires_at"`
+	g.Meta    `path:"/tenants/{tenant}/api-keys" tags:"APIKey" method:"post" summary:"Create tenant-scoped API key"`
+	Tenant    string   `v:"required"`
+	Name      string   `json:"name" v:"required"`
+	Scopes    []string `json:"scopes" v:"required"`
+	ExpiresAt string   `json:"expires_at"`
 }
 
 type ListPersonalReq struct {
-	g.Meta `path:"/api-keys" tags:"APIKey" method:"get" summary:"List my personal API keys"`
+	g.Meta `path:"/tenants/{tenant}/api-keys" tags:"APIKey" method:"get" summary:"List my tenant-scoped API keys"`
+	Tenant string `v:"required"`
 }
 
 type RevokePersonalReq struct {
-	g.Meta `path:"/api-keys/{apiKey}" tags:"APIKey" method:"delete" summary:"Revoke my personal API key"`
+	g.Meta `path:"/tenants/{tenant}/api-keys/{apiKey}" tags:"APIKey" method:"delete" summary:"Revoke my tenant-scoped API key"`
+	Tenant string `v:"required"`
 	APIKey string `v:"required"`
 }
 

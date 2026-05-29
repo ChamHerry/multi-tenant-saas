@@ -105,17 +105,21 @@ RETURNING id, api_key_id, tenant_id, scopes, status, granted_by_user_id, revoked
 	return &service.CreatedAPIKey{APIKey: *created, RawKey: rawKey}, nil
 }
 
-func (s *sAPIKey) ListPersonal(ctx context.Context, userID string) ([]service.APIKey, error) {
+func (s *sAPIKey) ListPersonal(ctx context.Context, userID, tenantID string) ([]service.APIKey, error) {
 	if err := validateInternalID(userID); err != nil {
 		return nil, err
 	}
+	if err := validateInternalID(tenantID); err != nil {
+		return nil, err
+	}
 	result, err := g.DB().GetAll(ctx, `
-SELECT id, tenant_id, user_id, name, key_type, key_prefix, scopes, last_used_at, expires_at, created_at, revoked_at, created_by_user_id
-FROM public.api_keys
-WHERE user_id=? AND key_type=?
-ORDER BY created_at DESC`, userID, service.APIKeyTypePersonal)
+SELECT DISTINCT ak.id, ak.tenant_id, ak.user_id, ak.name, ak.key_type, ak.key_prefix, ak.scopes, ak.last_used_at, ak.expires_at, ak.created_at, ak.revoked_at, ak.created_by_user_id
+FROM public.api_keys ak
+JOIN public.api_key_tenant_grants g ON g.api_key_id = ak.id
+WHERE ak.user_id=? AND ak.key_type=? AND g.tenant_id=?
+ORDER BY ak.created_at DESC`, userID, service.APIKeyTypePersonal, tenantID)
 	if err != nil {
-		return nil, gerror.Wrap(err, "list personal api keys")
+		return nil, gerror.Wrap(err, "list tenant-scoped api keys")
 	}
 	items := make([]service.APIKey, 0, len(result))
 	for _, record := range result {
@@ -123,7 +127,7 @@ ORDER BY created_at DESC`, userID, service.APIKeyTypePersonal)
 		if err != nil {
 			return nil, err
 		}
-		grants, err := listKeyGrants(ctx, item.ID)
+		grants, err := listKeyGrantsForTenant(ctx, item.ID, tenantID)
 		if err != nil {
 			return nil, err
 		}
@@ -133,8 +137,11 @@ ORDER BY created_at DESC`, userID, service.APIKeyTypePersonal)
 	return items, nil
 }
 
-func (s *sAPIKey) RevokePersonal(ctx context.Context, userID, apiKeyID string) error {
+func (s *sAPIKey) RevokePersonal(ctx context.Context, userID, tenantID, apiKeyID string) error {
 	if err := validateInternalID(userID); err != nil {
+		return err
+	}
+	if err := validateInternalID(tenantID); err != nil {
 		return err
 	}
 	if err := validateInternalID(apiKeyID); err != nil {
@@ -144,19 +151,26 @@ func (s *sAPIKey) RevokePersonal(ctx context.Context, userID, apiKeyID string) e
 		result, err := tx.Ctx(ctx).Exec(`
 UPDATE public.api_keys
 SET revoked_at=COALESCE(revoked_at, now())
-WHERE user_id=? AND id=? AND revoked_at IS NULL`, userID, apiKeyID)
+WHERE user_id=?
+  AND id=?
+  AND revoked_at IS NULL
+  AND id IN (
+    SELECT g.api_key_id
+    FROM public.api_key_tenant_grants g
+    WHERE g.api_key_id=? AND g.tenant_id=?
+  )`, userID, apiKeyID, apiKeyID, tenantID)
 		if err != nil {
-			return gerror.Wrap(err, "revoke personal api key")
+			return gerror.Wrap(err, "revoke tenant-scoped api key")
 		}
 		rows, _ := result.RowsAffected()
 		if rows == 0 {
-			return gerror.Newf("personal api key %s not found for user %s", apiKeyID, userID)
+			return gerror.Newf("tenant-scoped api key %s not found for user %s in tenant %s", apiKeyID, userID, tenantID)
 		}
 		_, err = tx.Ctx(ctx).Exec(`
 UPDATE public.api_key_tenant_grants
 SET status='revoked', revoked_at=COALESCE(revoked_at, now()), revoked_by_user_id=?, updated_at=now()
 WHERE api_key_id=? AND revoked_at IS NULL`, userID, apiKeyID)
-		return gerror.Wrap(err, "revoke personal api key grants")
+		return gerror.Wrap(err, "revoke tenant-scoped api key grants")
 	})
 }
 
@@ -411,6 +425,39 @@ WHERE g.api_key_id=?
 ORDER BY g.created_at DESC`, apiKeyID)
 	if err != nil {
 		return nil, gerror.Wrap(err, "list api key grants")
+	}
+	items := make([]service.APIKeyTenantGrant, 0, len(result))
+	for _, record := range result {
+		item, err := mapAPIKeyGrant(record)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	return items, nil
+}
+
+func listKeyGrantsForTenant(ctx context.Context, apiKeyID, tenantID string) ([]service.APIKeyTenantGrant, error) {
+	result, err := g.DB().GetAll(ctx, `
+SELECT
+    g.id,
+    g.api_key_id,
+    g.tenant_id,
+    g.scopes,
+    g.status,
+    g.granted_by_user_id,
+    g.revoked_by_user_id,
+    g.created_at,
+    g.updated_at,
+    g.revoked_at,
+    t.slug AS tenant_slug,
+    t.name AS tenant_name
+FROM public.api_key_tenant_grants g
+JOIN public.tenants t ON t.id = g.tenant_id
+WHERE g.api_key_id=? AND g.tenant_id=?
+ORDER BY g.created_at DESC`, apiKeyID, tenantID)
+	if err != nil {
+		return nil, gerror.Wrap(err, "list tenant api key grants")
 	}
 	items := make([]service.APIKeyTenantGrant, 0, len(result))
 	for _, record := range result {
