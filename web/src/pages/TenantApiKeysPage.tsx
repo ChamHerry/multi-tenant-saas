@@ -7,19 +7,27 @@ import {
   useTenantAPIKeys,
 } from "@/features/tenant-api-keys/tenant-api-key-hooks";
 import {
+  createTenantAPIKeyInputSchema,
   knownScopes,
   tenantScopes,
   type TenantAPIKey,
 } from "@/features/tenant-api-keys/tenant-api-key-types";
 import { useTenantStore } from "@/features/tenants/tenant-store";
-import { Badge } from "@/shared/ui/Badge";
-import { Button } from "@/shared/ui/Button";
-import { Card, CardHeader } from "@/shared/ui/Card";
-import { Dialog } from "@/shared/ui/Dialog";
-import { EmptyState } from "@/shared/ui/EmptyState";
-import { Input } from "@/shared/ui/Input";
-import { ErrorView, LoadingView } from "@/shared/ui/StatusView";
-import { Table, Td, Th } from "@/shared/ui/Table";
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Dialog,
+  EmptyState,
+  Input,
+  ErrorView,
+  LoadingView,
+  Table,
+  Td,
+  Th,
+} from "@/shared/ui";
+import { validateForm, type FieldErrors } from "@/shared/lib/validate";
 
 const defaultScopes = ["user:read", "user:tenant:read", "tenant:read"];
 
@@ -38,6 +46,7 @@ export function TenantApiKeysPage() {
   const [expiresAt, setExpiresAt] = useState("");
   const [rawKey, setRawKey] = useState("");
   const [isCreateKeyOpen, setIsCreateKeyOpen] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const tenantScopeSet = useMemo(() => new Set<string>(tenantScopes), []);
   const allowedTenantScopeSet = useMemo(
     () =>
@@ -80,21 +89,24 @@ export function TenantApiKeysPage() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    createAPIKey.mutate(
-      {
-        name: name.trim(),
-        scopes: selectedScopes,
-        expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+    const result = validateForm(createTenantAPIKeyInputSchema, {
+      name: name.trim(),
+      scopes: selectedScopes,
+      expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+    });
+    if (result.errors) {
+      setErrors(result.errors);
+      return;
+    }
+    setErrors({});
+    createAPIKey.mutate(result.data, {
+      onSuccess: (data) => {
+        setRawKey(data.raw_key);
+        setName("");
+        setExpiresAt("");
+        setIsCreateKeyOpen(false);
       },
-      {
-        onSuccess: (data) => {
-          setRawKey(data.raw_key);
-          setName("");
-          setExpiresAt("");
-          setIsCreateKeyOpen(false);
-        },
-      },
-    );
+    });
   };
 
   if (!tenantId) {
@@ -157,7 +169,7 @@ export function TenantApiKeysPage() {
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="tenant-automation"
-            required
+            error={errors.name}
           />
           <Input
             label="过期时间，可选"
@@ -165,6 +177,9 @@ export function TenantApiKeysPage() {
             value={expiresAt}
             onChange={(event) => setExpiresAt(event.target.value)}
           />
+          {errors.scopes ? (
+            <span className="text-xs text-danger">{errors.scopes}</span>
+          ) : null}
           <div>
             <div className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
               Scopes

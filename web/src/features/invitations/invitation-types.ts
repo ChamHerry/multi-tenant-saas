@@ -1,4 +1,6 @@
-import type { TenantMembership, TenantRole } from '@/features/tenants/tenant-types'
+import { z } from 'zod'
+import { tenantRoleSchema } from '@/features/tenants/tenant-types'
+import type { TenantMembership } from '@/features/tenants/tenant-types'
 
 export type TenantInvitation = {
   id: string
@@ -7,7 +9,7 @@ export type TenantInvitation = {
   tenant_slug?: string
   invitee_email: string
   invitee_user_id?: string
-  role: TenantRole
+  role: z.infer<typeof tenantRoleSchema>
   status: 'pending' | 'accepted' | 'declined' | 'revoked' | 'expired'
   invited_by_user_id?: string
   accepted_by_user_id?: string
@@ -26,12 +28,13 @@ export type InvitationListResponse = {
   total: number
 }
 
-export type CreateInvitationInput = {
-  invitee_email: string
-  role: TenantRole
-  message?: string
-  expires_hours?: number
-}
+export const createInvitationSchema = z.object({
+  invitee_email: z.string().min(1, '请输入邮箱').email('邮箱格式不正确'),
+  role: tenantRoleSchema,
+  message: z.string().max(500, '留言最多 500 字符').optional(),
+  expires_hours: z.number().int().min(1).max(720).optional(),
+})
+export type CreateInvitationInput = z.infer<typeof createInvitationSchema>
 
 export type CreateInvitationResponse = {
   invitation: TenantInvitation
@@ -42,3 +45,7 @@ export type CreateInvitationResponse = {
 export type AcceptInvitationResponse = {
   member: TenantMembership
 }
+
+export const acceptInvitationTokenSchema = z.object({
+  token: z.string().min(1, '请输入邀请 token'),
+})

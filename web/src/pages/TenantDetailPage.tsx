@@ -3,38 +3,39 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Save, ShieldAlert } from 'lucide-react'
 import { useCanTenant } from '@/features/access/access-hooks'
 import { useTenantAction, useTenantDetail, useUpdateTenant } from '@/features/tenants/tenant-hooks'
+import { updateTenantInputSchema } from '@/features/tenants/tenant-types'
 import { useTenantStore } from '@/features/tenants/tenant-store'
 import type { Tenant } from '@/features/tenants/tenant-types'
-import { Button } from '@/shared/ui/Button'
-import { Card, CardHeader } from '@/shared/ui/Card'
-import { Dialog } from '@/shared/ui/Dialog'
+import { Button, Card, CardHeader, Dialog, EmptyState, Input, ErrorView, LoadingView } from '@/shared/ui'
+import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 import { usePageTitle } from '@/layouts/page-title'
-import { Input } from '@/shared/ui/Input'
-import { EmptyState } from '@/shared/ui/EmptyState'
-import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 
 function TenantEditForm({ tenantId, tenant, canManage, onSaved }: { tenantId: string; tenant: Tenant; canManage: boolean; onSaved?: () => void }) {
   const updateTenant = useUpdateTenant(tenantId)
   const [name, setName] = useState(tenant.name)
   const [slug, setSlug] = useState(tenant.slug)
+  const [errors, setErrors] = useState<FieldErrors>({})
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    updateTenant.mutate(
-      {
-        name: name.trim(),
-        slug: slug.trim(),
-      },
-      { onSuccess: onSaved },
-    )
+    const result = validateForm(updateTenantInputSchema, {
+      name: name.trim(),
+      slug: slug.trim(),
+    })
+    if (result.errors) {
+      setErrors(result.errors)
+      return
+    }
+    setErrors({})
+    updateTenant.mutate(result.data, { onSuccess: onSaved })
   }
 
   return (
     <>
       {updateTenant.error ? <ErrorView error={updateTenant.error} title="组织更新失败" /> : null}
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={submit}>
-        <Input label="名称" value={name} onChange={(event) => setName(event.target.value)} disabled={!canManage} />
-        <Input label="Slug" value={slug} onChange={(event) => setSlug(event.target.value)} disabled={!canManage} />
+        <Input label="名称" value={name} onChange={(event) => setName(event.target.value)} disabled={!canManage} error={canManage ? errors.name : undefined} />
+        <Input label="Slug" value={slug} onChange={(event) => setSlug(event.target.value)} disabled={!canManage} error={canManage ? errors.slug : undefined} />
         <div className="sm:col-span-2">
           <Button type="submit" disabled={!canManage} isLoading={updateTenant.isPending} leftIcon={<Save className="size-4" />}>保存修改</Button>
         </div>
@@ -71,7 +72,7 @@ export function TenantDetailPage() {
     return (
       <EmptyState
         title="请先选择组织"
-        description="组织设置需要当前组织上下文。可以先前往“我的组织”选择已有组织。"
+        description='组织设置需要当前组织上下文。可以先前往「我的组织」选择已有组织。'
         action={<Link to="/tenants"><Button variant="secondary">前往我的组织</Button></Link>}
       />
     )

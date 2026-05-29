@@ -1,19 +1,13 @@
 import { FormEvent, useState } from 'react'
 import { Copy, MailPlus } from 'lucide-react'
 import { useCreateInvitation, useResendInvitation, useRevokeInvitation, useTenantInvitations } from '@/features/invitations/invitation-hooks'
-import type { TenantRole } from '@/features/tenants/tenant-types'
+import { createInvitationSchema } from '@/features/invitations/invitation-types'
+import { tenantRoleSchema, type TenantRole } from '@/features/tenants/tenant-types'
 import { useTenantStore } from '@/features/tenants/tenant-store'
-import { Badge } from '@/shared/ui/Badge'
-import { Button } from '@/shared/ui/Button'
-import { Card, CardHeader } from '@/shared/ui/Card'
-import { Dialog } from '@/shared/ui/Dialog'
-import { EmptyState } from '@/shared/ui/EmptyState'
-import { Input } from '@/shared/ui/Input'
-import { Select } from '@/shared/ui/Select'
-import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
-import { Table, Td, Th } from '@/shared/ui/Table'
+import { Badge, Button, Card, CardHeader, Dialog, EmptyState, Input, Select, ErrorView, LoadingView, Table, Td, Th } from '@/shared/ui'
+import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 
-const roles: TenantRole[] = ['admin', 'member', 'viewer', 'owner']
+const roles = tenantRoleSchema.options
 
 export function TenantInvitationsPage() {
   const tenantId = useTenantStore((state) => state.currentTenantId)
@@ -26,21 +20,29 @@ export function TenantInvitationsPage() {
   const [message, setMessage] = useState('')
   const [latestToken, setLatestToken] = useState('')
   const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [errors, setErrors] = useState<FieldErrors>({})
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    createInvitation.mutate(
-      { invitee_email: email.trim(), role, message: message.trim() || undefined },
-      {
-        onSuccess: (data) => {
-          setLatestToken(data.accept_url || data.token || '')
-          setEmail('')
-          setMessage('')
-          setRole('viewer')
-          setIsInviteOpen(false)
-        },
+    const result = validateForm(createInvitationSchema, {
+      invitee_email: email.trim(),
+      role,
+      message: message.trim() || undefined,
+    })
+    if (result.errors) {
+      setErrors(result.errors)
+      return
+    }
+    setErrors({})
+    createInvitation.mutate(result.data, {
+      onSuccess: (data) => {
+        setLatestToken(data.accept_url || data.token || '')
+        setEmail('')
+        setMessage('')
+        setRole('viewer')
+        setIsInviteOpen(false)
       },
-    )
+    })
   }
 
   if (!tenantId) return <EmptyState title="请先选择组织" description="邀请成员需要当前组织上下文。" />
@@ -64,11 +66,11 @@ export function TenantInvitationsPage() {
 
       <Dialog open={isInviteOpen} title="邀请成员" onClose={() => setIsInviteOpen(false)}>
         <form className="space-y-4" onSubmit={submit}>
-          <Input label="邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="member@example.com" />
+          <Input label="邮箱" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="member@example.com" error={errors.invitee_email} />
           <Select label="角色" value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
             {roles.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>
-          <Input label="留言，可选" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="欢迎加入我们的组织" />
+          <Input label="留言，可选" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="欢迎加入我们的组织" error={errors.message} />
           <Button type="submit" isLoading={createInvitation.isPending} leftIcon={<MailPlus className="size-4" />}>发送邀请</Button>
         </form>
       </Dialog>

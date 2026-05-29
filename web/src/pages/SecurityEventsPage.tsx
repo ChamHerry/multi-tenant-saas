@@ -1,9 +1,5 @@
 import { useSecurityEvents } from '@/features/audit/audit-hooks'
-import { Badge } from '@/shared/ui/Badge'
-import { Card, CardHeader } from '@/shared/ui/Card'
-import { EmptyState } from '@/shared/ui/EmptyState'
-import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
-import { Table, Td, Th } from '@/shared/ui/Table'
+import { Badge, Card, CardHeader, EmptyState, ErrorView, LoadingView, Table, Td, Th } from '@/shared/ui'
 
 export function SecurityEventsPage() {
   const logs = useSecurityEvents({ limit: 100 })
