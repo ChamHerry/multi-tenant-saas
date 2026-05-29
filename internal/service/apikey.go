@@ -63,8 +63,8 @@ type CreatedAPIKey struct {
 
 type IAPIKey interface {
 	CreatePersonal(ctx context.Context, in CreatePersonalAPIKeyInput) (*CreatedAPIKey, error)
-	ListPersonal(ctx context.Context, userID string) ([]APIKey, error)
-	RevokePersonal(ctx context.Context, userID, apiKeyID string) error
+	ListPersonal(ctx context.Context, userID, tenantID string) ([]APIKey, error)
+	RevokePersonal(ctx context.Context, userID, tenantID, apiKeyID string) error
 	ResolveTenantGrant(ctx context.Context, apiKeyID, tenantID string) (*APIKeyTenantGrant, error)
 
 	Authenticate(ctx context.Context, rawKey string) (*AuthIdentity, error)

@@ -37,7 +37,7 @@ export function DashboardPage() {
   const currentTenantId = useTenantStore((state) => state.currentTenantId)
   const displayName = me.data?.user.display_name || me.data?.user.email || 'Dev User'
 
-  usePageTitle(me.data ? `欢迎，${displayName}` : '仪表盘')
+  usePageTitle(me.data ? `欢迎，${displayName}` : '组织概览')
 
   if (me.isLoading) return <LoadingView label="加载当前用户..." />
 
@@ -45,13 +45,17 @@ export function DashboardPage() {
     <div className="space-y-6">
       <section className="hero-gradient rounded-[28px] border border-white p-6 shadow-soft sm:p-8">
         <div className="flex flex-wrap gap-3">
-          <Link to="/tenants"><Button>{(tenants.data?.tenants.length ?? 0) === 0 ? '创建第一个组织' : '管理组织'}</Button></Link>
-          {(tenants.data?.tenants.length ?? 0) > 0 ? <Link to="/members"><Button variant="secondary">成员管理</Button></Link> : null}
+          <Link to="/tenants"><Button>{(tenants.data?.tenants.length ?? 0) === 0 ? '创建第一个组织' : '管理我的组织'}</Button></Link>
+          {(tenants.data?.tenants.length ?? 0) > 0 ? (
+            <Link to="/tenant/access?tab=members">
+              <Button variant="secondary">进入用户与访问</Button>
+            </Link>
+          ) : null}
         </div>
         {(tenants.data?.tenants.length ?? 0) === 0 ? (
           <div className="mt-5 rounded-card border border-warning/20 bg-white/80 p-4 text-sm leading-6 text-muted">
-            <div className="font-bold text-ink">还没有选择组织</div>
-            <p className="mt-1">请进入“组织”页面创建或选择组织。后端会在需要时自动准备运行环境。</p>
+            <div className="font-bold text-ink">还没有可用组织</div>
+            <p className="mt-1">请进入“我的组织”创建或加入组织。之后左侧顶部组织切换器会自动同步当前组织上下文。</p>
           </div>
         ) : null}
       </section>
@@ -60,12 +64,12 @@ export function DashboardPage() {
         <SystemCard title="HTTP Health" query={health} icon={<Server className="size-5" />} />
         <SystemCard title="DB Ready" query={ready} icon={<DatabaseZap className="size-5" />} />
         <Card>
-          <div className="rounded-panel bg-accent-purple-soft p-2 text-accent-purple w-fit"><Users className="size-5" /></div>
+          <div className="w-fit rounded-panel bg-accent-purple-soft p-2 text-accent-purple"><Users className="size-5" /></div>
           <h3 className="mt-4 text-lg font-black text-ink">我的组织</h3>
           <p className="mt-2 text-3xl font-black text-brand">{tenants.data?.tenants.length ?? 0}</p>
         </Card>
         <Card>
-          <div className="rounded-panel bg-success-soft p-2 text-success-strong w-fit"><Activity className="size-5" /></div>
+          <div className="w-fit rounded-panel bg-success-soft p-2 text-success-strong"><Activity className="size-5" /></div>
           <h3 className="mt-4 text-lg font-black text-ink">当前组织角色</h3>
           <p className="mt-2 text-sm font-bold text-muted">{currentTenantId ? tenantContext.data?.tenant_context.role ?? '解析中' : '未选择组织'}</p>
         </Card>
@@ -73,7 +77,7 @@ export function DashboardPage() {
 
       <section className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
         <Card>
-          <CardHeader title="当前组织信息" description="API client 会自动使用已选择的组织。" />
+          <CardHeader title="当前组织信息" description="组织管理页面和组织 API Keys 会自动使用已选择的组织。" />
           {tenantContext.isError ? <ErrorView error={tenantContext.error} title="组织信息加载失败" /> : null}
           {tenantContext.data ? (
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
@@ -91,11 +95,12 @@ export function DashboardPage() {
           ) : currentTenantId ? <LoadingView label="加载组织信息..." /> : <p className="text-sm text-muted">请先选择或创建一个组织。</p>}
         </Card>
         <Card>
-          <CardHeader title="快捷入口" description="覆盖当前已经实现的组织级 HTTP 能力。" />
+          <CardHeader title="快捷入口" description="覆盖当前已经实现的组织级管理能力。" />
           <div className="space-y-3">
             {[
-              { to: '/tenants', label: '创建/更新组织', icon: <ArrowRight className="size-4" /> },
-              { to: '/members', label: '添加/更新/移除组织成员', icon: <Users className="size-4" /> },
+              { to: '/tenant/settings', label: '组织设置', icon: <ArrowRight className="size-4" /> },
+              { to: '/tenant/access?tab=members', label: '用户与访问', icon: <Users className="size-4" /> },
+              { to: '/tenant/api-keys', label: '组织 API Keys', icon: <ArrowRight className="size-4" /> },
             ].map((item) => (
               <Link key={item.to} to={item.to} className="flex items-center justify-between rounded-panel border border-line bg-surface-soft p-4 text-sm font-bold text-ink transition hover:border-brand-ring hover:bg-brand-soft hover:text-brand">
                 {item.label}
