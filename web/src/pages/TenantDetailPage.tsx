@@ -55,10 +55,11 @@ export function TenantDetailPage() {
   const actions = useTenantAction(tenantId)
   const canManageTenant = useCanTenant('tenant:manage', tenantId)
   const tenant = detail.data?.tenant
+  const tenantName = tenant?.name
   const [isEditOpen, setIsEditOpen] = useState(false)
   const tenantPageTitle = useMemo(
-    () => (tenant?.name ? pageTitle('routes.tenantSettings.dynamic', { name: tenant.name }) : pageTitle('routes.tenantSettings.title')),
-    [tenant?.name],
+    () => (tenantName ? pageTitle('routes.tenantSettings.dynamic', { name: tenantName }) : pageTitle('routes.tenantSettings.title')),
+    [tenantName],
   )
 
   usePageTitle(tenantPageTitle)
