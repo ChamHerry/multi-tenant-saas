@@ -1,4 +1,4 @@
-export const LANGUAGE_STORAGE_KEY = 'saas-template:language'
+export const LANGUAGE_STORAGE_KEY = 'saas-template.locale'
 
 export const defaultLanguage = 'zh-CN'
 
