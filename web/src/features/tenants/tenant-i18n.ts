@@ -9,13 +9,18 @@ export type SchemaTranslator = (key: string, fallback: string, params?: SchemaMe
 export const TENANT_LOCALE_STORAGE_KEY = 'saas-template.locale'
 export const TENANT_LOCALE_CHANGE_EVENT = 'saas-template:locale-change'
 
-const tenantLocaleResources = {
+type LocaleShape<T> = {
+  readonly [K in keyof T]: T[K] extends string ? string : LocaleShape<T[K]>
+}
+
+export type TenantLocale = 'en-US' | 'zh-CN'
+export type TenantMessages = LocaleShape<typeof tenantEnUS>
+
+const tenantLocaleResources: Record<TenantLocale, TenantMessages> = {
   'en-US': tenantEnUS,
   'zh-CN': tenantZhCN,
-} as const
+}
 
-export type TenantLocale = keyof typeof tenantLocaleResources
-export type TenantMessages = typeof tenantEnUS
 export type TenantValidationKey = keyof TenantMessages['validation']
 export type TenantRoleKey = keyof TenantMessages['roles']
 export type TenantStatusKey = keyof TenantMessages['tenantStatuses']

@@ -1,5 +1,9 @@
 import type { tenantEnUS } from './en-US'
 
+type LocaleShape<T> = {
+  readonly [K in keyof T]: T[K] extends string ? string : LocaleShape<T[K]>
+}
+
 export const tenantZhCN = {
   validation: {
     tenantNameRequired: '请输入组织名称',
@@ -177,4 +181,4 @@ export const tenantZhCN = {
     restore: '恢复组织',
     delete: '软删除组织',
   },
-} as const satisfies typeof tenantEnUS
+} as const satisfies LocaleShape<typeof tenantEnUS>

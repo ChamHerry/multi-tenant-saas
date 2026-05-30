@@ -8,9 +8,7 @@ import { useTenantStore } from '@/features/tenants/tenant-store'
 import { Button } from '@/shared/ui/Button'
 import { EmptyState } from '@/shared/ui/EmptyState'
 
-const tabLabels = ['members', 'invitations'] as const
-
-type TenantAccessTab = (typeof tabLabels)[number]
+type TenantAccessTab = 'members' | 'invitations'
 
 export function TenantAccessPage() {
   const tenantId = useTenantStore((state) => state.currentTenantId)
