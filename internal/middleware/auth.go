@@ -14,6 +14,11 @@ func Auth(r *ghttp.Request) {
 		writeError(r, http.StatusUnauthorized, "UNAUTHENTICATED", err)
 		return
 	}
-	r.SetCtx(service.WithAuthIdentity(r.GetCtx(), identity))
+	ctx := service.WithAuthIdentity(r.GetCtx(), identity)
+
+	// Also populate BizContext.
+	service.BizCtx().SetIdentity(ctx, identity)
+
+	r.SetCtx(ctx)
 	r.Middleware.Next()
 }

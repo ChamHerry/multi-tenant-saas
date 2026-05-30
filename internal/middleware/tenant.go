@@ -68,7 +68,12 @@ func TenantResolver(r *ghttp.Request) {
 	}
 	tc.RequestID = service.RequestIDFromCtx(r.GetCtx())
 	tc.Permissions = service.RBAC().PermissionsForContext(r.GetCtx(), tc)
-	r.SetCtx(service.WithTenantContext(r.GetCtx(), tc))
+	ctx := service.WithTenantContext(r.GetCtx(), tc)
+
+	// Also populate BizContext.
+	service.BizCtx().SetTenant(ctx, tc)
+
+	r.SetCtx(ctx)
 	r.Middleware.Next()
 }
 

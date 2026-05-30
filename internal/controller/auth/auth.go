@@ -28,17 +28,17 @@ func (c *PublicControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *
 	if !g.Cfg().MustGet(ctx, "auth.password.enabled", true).Bool() {
 		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "password login is disabled")
 	}
-	r := ghttp.RequestFromCtx(ctx)
+	// IP and UserAgent are now auto-filled from BizContext in Audit.Write.
 	login, err := service.PasswordAuth().Login(ctx, service.PasswordLoginInput{
 		Email:     req.Email,
 		Password:  req.Password,
-		IP:        requestIP(r),
-		UserAgent: requestUserAgent(r),
+		IP:        service.BizCtx().GetClientIP(ctx),
+		UserAgent: service.BizCtx().GetUserAgent(ctx),
 	})
 	if err != nil {
 		return nil, err
 	}
-	setAuthCookies(r, login.Cookies)
+	setAuthCookies(ghttp.RequestFromCtx(ctx), login.Cookies)
 	return &v1.AuthUserRes{User: login.User}, nil
 }
 
@@ -60,8 +60,8 @@ func (c *PublicControllerV1) Register(ctx context.Context, req *v1.RegisterReq) 
 	login, err := service.PasswordAuth().Login(ctx, service.PasswordLoginInput{
 		Email:     req.Email,
 		Password:  req.Password,
-		IP:        requestIP(ghttp.RequestFromCtx(ctx)),
-		UserAgent: requestUserAgent(ghttp.RequestFromCtx(ctx)),
+		IP:        service.BizCtx().GetClientIP(ctx),
+		UserAgent: service.BizCtx().GetUserAgent(ctx),
 	})
 	if err == nil {
 		setAuthCookies(ghttp.RequestFromCtx(ctx), login.Cookies)
@@ -95,7 +95,8 @@ func (c *ControllerV1) Logout(ctx context.Context, req *v1.LogoutReq) (res *v1.A
 		if err = service.AuthSessionService().Revoke(ctx, identity.SessionID, "logout"); err != nil {
 			return nil, err
 		}
-		_ = service.Audit().Write(ctx, service.AuditLogInput{UserID: identity.UserID, Action: "auth.logout", ResourceType: "auth_session", ResourceID: identity.SessionID, IP: requestIP(ghttp.RequestFromCtx(ctx)), UserAgent: requestUserAgent(ghttp.RequestFromCtx(ctx))})
+		// IP and UserAgent auto-filled from BizContext.
+		_ = service.Audit().Write(ctx, service.AuditLogInput{UserID: identity.UserID, Action: "auth.logout", ResourceType: "auth_session", ResourceID: identity.SessionID})
 	}
 	setAuthCookies(ghttp.RequestFromCtx(ctx), service.AuthSessionService().ClearCookies(ctx))
 	return &v1.ActionRes{OK: true}, nil
@@ -122,18 +123,4 @@ func setAuthCookies(r *ghttp.Request, cookies *service.AuthSessionCookies) {
 	if cookies.CSRF != nil {
 		r.Cookie.SetHttpCookie(cookies.CSRF)
 	}
-}
-
-func requestIP(r *ghttp.Request) string {
-	if r == nil {
-		return ""
-	}
-	return r.GetClientIp()
-}
-
-func requestUserAgent(r *ghttp.Request) string {
-	if r == nil {
-		return ""
-	}
-	return r.Header.Get("User-Agent")
 }

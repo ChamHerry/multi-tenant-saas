@@ -7,6 +7,7 @@ package logic
 
 import (
 	_ "multi-tenant-saas/internal/logic/access"
+	_ "multi-tenant-saas/internal/logic/bizctx"
 	_ "multi-tenant-saas/internal/logic/apikey"
 	_ "multi-tenant-saas/internal/logic/audit"
 	_ "multi-tenant-saas/internal/logic/auditquery"
