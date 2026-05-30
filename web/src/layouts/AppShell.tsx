@@ -110,18 +110,9 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-page">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[18rem] border-r border-line bg-white/85 px-4 py-5 shadow-soft backdrop-blur lg:block">
-        <Link to="/" className="flex items-center gap-3 rounded-card bg-brand-soft p-3">
-          <div className="brand-gradient grid size-10 place-items-center rounded-panel text-sm font-black text-white">MT</div>
-          <div>
-            <div className="text-base font-black text-ink">SaaS Template</div>
-            <div className="text-xs font-semibold text-brand">Scope-aware Console</div>
-          </div>
-        </Link>
 
-        <div className="mt-6 rounded-card border border-line bg-surface p-4 shadow-soft">
-          <div className="text-xs font-bold uppercase tracking-wide text-subtle">当前组织</div>
           {currentMembership ? (
-            <div ref={tenantMenuRef} className="relative mt-3">
+            <div ref={tenantMenuRef} className="relative">
               <button
                 type="button"
                 className="flex w-full items-center justify-between gap-2 rounded-panel bg-surface-soft px-3 py-2 text-left text-sm transition hover:bg-brand-soft"
@@ -177,7 +168,6 @@ export function AppShell() {
               </div>
             </div>
           )}
-        </div>
 
         <nav className="mt-6 space-y-5">
           {scopeSections.map((section) => (
@@ -224,7 +214,6 @@ export function AppShell() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-black text-ink">{pageTitle}</h1>
-                  {currentMembership ? <Badge tone="green">{currentMembership.role}</Badge> : <Badge tone="orange">无组织上下文</Badge>}
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
