@@ -7,7 +7,7 @@ ALTER TABLE IF EXISTS public.audit_logs RENAME TO audit_logs_legacy;
 
 -- 2. Create partitioned table with same schema
 CREATE TABLE IF NOT EXISTS public.audit_logs (
-    id UUID NOT NULL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
     tenant_id UUID,
     user_id UUID,
     action VARCHAR(255) NOT NULL,
