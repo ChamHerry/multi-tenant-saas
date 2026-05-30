@@ -16,7 +16,7 @@ export type PermissionMode = 'all' | 'any'
 
 export type MenuItem = {
   to: string
-  label: string
+  labelKey: string
   icon: LucideIcon
   requiredTenantPermissions?: TenantPermission[]
   requiredPlatformPermissions?: PlatformPermission[]
@@ -24,35 +24,35 @@ export type MenuItem = {
 }
 
 export const accountNavItems: MenuItem[] = [
-  { to: '/me/invitations', label: '我的邀请', icon: Inbox },
-  { to: '/me/security', label: '安全事件', icon: ShieldCheck },
+  { to: '/me/invitations', labelKey: 'nav.items.myInvitations', icon: Inbox },
+  { to: '/me/security', labelKey: 'nav.items.securityEvents', icon: ShieldCheck },
 ]
 
 export const tenantNavItems: MenuItem[] = [
-  { to: '/', label: '组织概览', icon: LayoutDashboard },
-  { to: '/tenants', label: '我的组织', icon: Building2 },
+  { to: '/', labelKey: 'nav.items.dashboard', icon: LayoutDashboard },
+  { to: '/tenants', labelKey: 'nav.items.tenants', icon: Building2 },
   {
     to: '/tenant/settings',
-    label: '组织设置',
+    labelKey: 'nav.items.tenantSettings',
     icon: Settings2,
     requiredTenantPermissions: ['tenant:read'],
   },
   {
     to: '/tenant/access?tab=members',
-    label: '用户与访问',
+    labelKey: 'nav.items.tenantAccess',
     icon: Users,
     requiredTenantPermissions: ['member:read', 'tenant:invitation:manage'],
     permissionMode: 'any',
   },
   {
     to: '/tenant/api-keys',
-    label: '组织 API Keys',
+    labelKey: 'nav.items.tenantApiKeys',
     icon: KeyRound,
     requiredTenantPermissions: ['tenant:read'],
   },
   {
     to: '/tenant/audit-logs',
-    label: '组织审计',
+    labelKey: 'nav.items.tenantAudit',
     icon: ScrollText,
     requiredTenantPermissions: ['tenant:audit:read'],
   },
@@ -61,19 +61,19 @@ export const tenantNavItems: MenuItem[] = [
 export const platformNavItems: MenuItem[] = [
   {
     to: '/admin/tenants',
-    label: '平台组织',
+    labelKey: 'nav.items.platformTenants',
     icon: ShieldCheck,
     requiredPlatformPermissions: ['platform:tenant:read'],
   },
   {
     to: '/admin/users',
-    label: '平台用户与管理员',
+    labelKey: 'nav.items.platformUsers',
     icon: UserCog,
     requiredPlatformPermissions: ['platform:user:read'],
   },
   {
     to: '/admin/audit-logs',
-    label: '平台审计',
+    labelKey: 'nav.items.platformAudit',
     icon: ScrollText,
     requiredPlatformPermissions: ['platform:audit:read'],
   },

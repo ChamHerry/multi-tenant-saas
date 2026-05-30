@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, createBrowserRouter } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { RequireAuth } from './RequireAuth'
 import { RequirePermission } from '@/features/access/RequirePermission'
 
@@ -25,9 +26,11 @@ const AdminUsersPage = lazy(() => import('@/pages/AdminUsersPage').then(m => ({ 
 const AdminAuditPage = lazy(() => import('@/pages/AdminAuditPage').then(m => ({ default: m.AdminAuditPage })))
 
 function LoadingFallback() {
+  const { t } = useTranslation()
+
   return (
     <div className="flex h-full items-center justify-center">
-      <div className="text-muted-foreground text-sm">Loading…</div>
+      <div className="text-muted-foreground text-sm">{t('common.loading')}</div>
     </div>
   )
 }
@@ -49,11 +52,11 @@ export const router = createBrowserRouter([
     path: '/',
     element: <RequireAuth />,
     children: [
-      { index: true, element: <Lazy><DashboardPage /></Lazy>, handle: { title: '组织概览' } },
-      { path: 'tenants', element: <Lazy><TenantsPage /></Lazy>, handle: { title: '我的组织' } },
+      { index: true, element: <Lazy><DashboardPage /></Lazy>, handle: { titleKey: 'routes.dashboard.title' } },
+      { path: 'tenants', element: <Lazy><TenantsPage /></Lazy>, handle: { titleKey: 'routes.tenants.title' } },
       {
         path: 'tenant/settings',
-        handle: { title: '组织设置' },
+        handle: { titleKey: 'routes.tenantSettings.title' },
         element: (
           <Lazy>
             <RequirePermission tenant={['tenant:read']}>
@@ -64,7 +67,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'tenants/:tenantId',
-        handle: { title: '组织设置' },
+        handle: { titleKey: 'routes.tenantSettings.title' },
         element: (
           <Lazy>
             <RequirePermission tenant={['tenant:read']}>
@@ -75,7 +78,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'tenant/access',
-        handle: { title: '用户与访问' },
+        handle: { titleKey: 'routes.tenantAccess.title' },
         element: (
           <Lazy>
             <RequirePermission tenant={['member:read', 'tenant:invitation:manage']} mode="any">
@@ -93,11 +96,11 @@ export const router = createBrowserRouter([
             </RequirePermission>
           </Lazy>
         ),
-        handle: { title: '组织 API Keys' },
+        handle: { titleKey: 'routes.tenantApiKeys.title' },
       },
       {
         path: 'tenant/audit-logs',
-        handle: { title: '组织审计' },
+        handle: { titleKey: 'routes.tenantAudit.title' },
         element: (
           <Lazy>
             <RequirePermission tenant={['tenant:audit:read']}>
@@ -106,15 +109,15 @@ export const router = createBrowserRouter([
           </Lazy>
         ),
       },
-      { path: 'me/invitations', element: <Lazy><MyInvitationsPage /></Lazy>, handle: { title: '我的邀请' } },
-      { path: 'me/security', element: <Lazy><SecurityEventsPage /></Lazy>, handle: { title: '安全事件' } },
-      { path: 'api-keys', element: <Lazy><PersonalApiKeysPage /></Lazy>, handle: { title: '组织 API Keys' } },
-      { path: 'members', element: <Navigate to="/tenant/access?tab=members" replace />, handle: { title: '用户与访问' } },
-      { path: 'invitations', element: <Navigate to="/tenant/access?tab=invitations" replace />, handle: { title: '用户与访问' } },
-      { path: 'audit-logs', element: <Navigate to="/tenant/audit-logs" replace />, handle: { title: '组织审计' } },
+      { path: 'me/invitations', element: <Lazy><MyInvitationsPage /></Lazy>, handle: { titleKey: 'routes.myInvitations.title' } },
+      { path: 'me/security', element: <Lazy><SecurityEventsPage /></Lazy>, handle: { titleKey: 'routes.securityEvents.title' } },
+      { path: 'api-keys', element: <Lazy><PersonalApiKeysPage /></Lazy>, handle: { titleKey: 'routes.tenantApiKeys.title' } },
+      { path: 'members', element: <Navigate to="/tenant/access?tab=members" replace />, handle: { titleKey: 'routes.tenantAccess.title' } },
+      { path: 'invitations', element: <Navigate to="/tenant/access?tab=invitations" replace />, handle: { titleKey: 'routes.tenantAccess.title' } },
+      { path: 'audit-logs', element: <Navigate to="/tenant/audit-logs" replace />, handle: { titleKey: 'routes.tenantAudit.title' } },
       {
         path: 'admin/tenants',
-        handle: { title: '平台组织' },
+        handle: { titleKey: 'routes.platformTenants.title' },
         element: (
           <Lazy>
             <RequirePermission platform={['platform:tenant:read']}>
@@ -125,7 +128,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin/users',
-        handle: { title: '平台用户与管理员' },
+        handle: { titleKey: 'routes.platformUsers.title' },
         element: (
           <Lazy>
             <RequirePermission platform={['platform:user:read']}>
@@ -136,7 +139,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin/audit-logs',
-        handle: { title: '平台审计' },
+        handle: { titleKey: 'routes.platformAudit.title' },
         element: (
           <Lazy>
             <RequirePermission platform={['platform:audit:read']}>
@@ -145,7 +148,7 @@ export const router = createBrowserRouter([
           </Lazy>
         ),
       },
-      { path: '*', element: <NotFoundPage />, handle: { title: '页面不存在' } },
+      { path: '*', element: <NotFoundPage />, handle: { titleKey: 'routes.notFound.title' } },
     ],
   },
 ])
