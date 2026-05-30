@@ -1,4 +1,4 @@
-module repomind-temp
+module multi-tenant-saas
 
 go 1.23.0
 

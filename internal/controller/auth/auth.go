@@ -8,9 +8,9 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	authapi "repomind-temp/api/auth"
-	"repomind-temp/api/auth/v1"
-	"repomind-temp/internal/service"
+	authapi "multi-tenant-saas/api/auth"
+	"multi-tenant-saas/api/auth/v1"
+	"multi-tenant-saas/internal/service"
 )
 
 type PublicControllerV1 struct{}

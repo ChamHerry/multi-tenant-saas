@@ -3,9 +3,9 @@ package me
 import (
 	"context"
 
-	apime "repomind-temp/api/me"
-	"repomind-temp/api/me/v1"
-	"repomind-temp/internal/service"
+	apime "multi-tenant-saas/api/me"
+	"multi-tenant-saas/api/me/v1"
+	"multi-tenant-saas/internal/service"
 )
 
 type ControllerV1 struct{}
@@ -72,4 +72,23 @@ func (c *ControllerV1) TenantContext(ctx context.Context, req *v1.TenantContextR
 		return nil, err
 	}
 	return &v1.TenantContextRes{TenantContext: tc}, nil
+}
+
+func (c *ControllerV1) UpdateMe(ctx context.Context, req *v1.UpdateMeReq) (res *v1.UpdateMeRes, err error) {
+	if err = service.RBAC().RequireAuthScope(ctx, service.PermissionUserRead); err != nil {
+		return nil, err
+	}
+	identity, err := service.MustAuthIdentity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	user, err := service.UserService().UpdateProfile(ctx, service.UpdateProfileInput{
+		UserID:      identity.UserID,
+		DisplayName: req.DisplayName,
+		AvatarURL:   req.AvatarURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &v1.UpdateMeRes{User: user}, nil
 }

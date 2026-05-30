@@ -5,7 +5,7 @@
 package dao
 
 import (
-	"repomind-temp/internal/dao/internal"
+	"multi-tenant-saas/internal/dao/internal"
 )
 
 // apiKeyTenantGrantsDao is the data access object for the table api_key_tenant_grants.

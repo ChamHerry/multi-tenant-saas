@@ -3,7 +3,7 @@ package v1
 import (
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 type CreatePersonalReq struct {

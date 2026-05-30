@@ -3,7 +3,7 @@ package invitation
 import (
 	"context"
 
-	"repomind-temp/api/invitation/v1"
+	"multi-tenant-saas/api/invitation/v1"
 )
 
 type IInvitationV1 interface {
@@ -14,4 +14,5 @@ type IInvitationV1 interface {
 	ListMine(ctx context.Context, req *v1.ListMineReq) (res *v1.ListRes, err error)
 	Accept(ctx context.Context, req *v1.AcceptReq) (res *v1.AcceptRes, err error)
 	Decline(ctx context.Context, req *v1.DeclineReq) (res *v1.ActionRes, err error)
+	BatchCreate(ctx context.Context, req *v1.BatchCreateReq) (res *v1.BatchCreateRes, err error)
 }

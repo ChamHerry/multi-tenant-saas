@@ -7,7 +7,7 @@ import (
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 func TestValidateCreateTenantInputRequiresOwnerOrSystem(t *testing.T) {

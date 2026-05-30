@@ -13,12 +13,12 @@ import (
 
 // Tenants is the golang structure for table tenants.
 type Tenants struct {
-	Id        uuid.UUID   `json:"id"             orm:"id"             description:""` //
-	Name      string      `json:"name"           orm:"name"           description:""` //
-	Slug      string      `json:"slug"           orm:"slug"           description:""` //
-	Status    string      `json:"status"         orm:"status"         description:""` //
-	Metadata  *gjson.Json `json:"metadata"       orm:"metadata"       description:""` //
-	CreatedAt time.Time   `json:"created_at"     orm:"created_at"     description:""` //
-	UpdatedAt time.Time   `json:"updated_at"     orm:"updated_at"     description:""` //
-	DeletedAt time.Time   `json:"deleted_at"     orm:"deleted_at"     description:""` //
+	Id        uuid.UUID   `json:"id"         orm:"id"         description:""` //
+	Name      string      `json:"name"       orm:"name"       description:""` //
+	Slug      string      `json:"slug"       orm:"slug"       description:""` //
+	Status    string      `json:"status"     orm:"status"     description:""` //
+	Metadata  *gjson.Json `json:"metadata"   orm:"metadata"   description:""` //
+	CreatedAt time.Time   `json:"created_at" orm:"created_at" description:""` //
+	UpdatedAt time.Time   `json:"updated_at" orm:"updated_at" description:""` //
+	DeletedAt time.Time   `json:"deleted_at" orm:"deleted_at" description:""` //
 }

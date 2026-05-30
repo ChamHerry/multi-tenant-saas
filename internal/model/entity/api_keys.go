@@ -17,7 +17,6 @@ type ApiKeys struct {
 	UserId          uuid.UUID `json:"user_id"            orm:"user_id"            description:""` //
 	Name            string    `json:"name"               orm:"name"               description:""` //
 	KeyHash         string    `json:"key_hash"           orm:"key_hash"           description:""` //
-	KeyType         string    `json:"key_type"           orm:"key_type"           description:""` //
 	Scopes          []string  `json:"scopes"             orm:"scopes"             description:""` //
 	LastUsedAt      time.Time `json:"last_used_at"       orm:"last_used_at"       description:""` //
 	ExpiresAt       time.Time `json:"expires_at"         orm:"expires_at"         description:""` //
@@ -25,4 +24,6 @@ type ApiKeys struct {
 	RevokedAt       time.Time `json:"revoked_at"         orm:"revoked_at"         description:""` //
 	KeyPrefix       string    `json:"key_prefix"         orm:"key_prefix"         description:""` //
 	CreatedByUserId uuid.UUID `json:"created_by_user_id" orm:"created_by_user_id" description:""` //
+	KeyType         string    `json:"key_type"           orm:"key_type"           description:""` //
+	UpdatedAt       time.Time `json:"updated_at"         orm:"updated_at"         description:""` //
 }

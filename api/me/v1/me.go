@@ -3,7 +3,7 @@ package v1
 import (
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 type MeReq struct {
@@ -38,4 +38,14 @@ type TenantContextReq struct {
 
 type TenantContextRes struct {
 	TenantContext *service.TenantContext `json:"tenant_context"`
+}
+
+type UpdateMeReq struct {
+	g.Meta      `path:"/me" tags:"Me" method:"patch" summary:"Update current user profile"`
+	DisplayName string `json:"display_name" v:"required|length:1,100" dc:"Display name"`
+	AvatarURL   string `json:"avatar_url" v:"url" dc:"Avatar URL"`
+}
+
+type UpdateMeRes struct {
+	User *service.User `json:"user"`
 }

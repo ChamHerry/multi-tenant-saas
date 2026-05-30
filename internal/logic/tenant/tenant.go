@@ -10,8 +10,9 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/service"
-	"repomind-temp/utility/uuid"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/uuid"
 )
 
 var (
@@ -53,13 +54,17 @@ func (s *sTenant) CreateTenant(ctx context.Context, in service.CreateTenantInput
 	}
 	now := time.Now()
 
-	db := g.DB()
-	if _, err = db.Exec(ctx, `
-INSERT INTO public.tenants(
-    id, name, slug, status, metadata, created_at, updated_at
-) VALUES (
-    ?, ?, ?, 'active', ?::jsonb, now(), now()
-)`, tenantID, in.Name, in.Slug, string(metadata)); err != nil {
+	cols := dao.Tenants.Columns()
+	_, err = dao.Tenants.Ctx(ctx).Data(g.Map{
+		cols.Id:        tenantID,
+		cols.Name:      in.Name,
+		cols.Slug:      in.Slug,
+		cols.Status:    "active",
+		cols.Metadata:  string(metadata),
+		cols.CreatedAt: "now()",
+		cols.UpdatedAt: "now()",
+	}).Insert()
+	if err != nil {
 		return nil, gerror.Wrap(err, "insert public tenant metadata")
 	}
 
@@ -118,16 +123,24 @@ func (s *sTenant) UpdateTenant(ctx context.Context, tenantID string, in service.
 		}
 		metadata = string(payload)
 	}
-	_, err := g.DB().Exec(ctx, `
-UPDATE public.tenants
-SET name=COALESCE(NULLIF(?, ''), name),
-    slug=COALESCE(NULLIF(?, ''), slug),
-    metadata=COALESCE(NULLIF(?, '')::jsonb, metadata),
-    updated_at=now()
-WHERE id=? AND deleted_at IS NULL`,
-		in.Name, in.Slug,
-		metadata,
-		tenantID)
+
+	cols := dao.Tenants.Columns()
+	data := g.Map{cols.UpdatedAt: "now()"}
+	if in.Name != "" {
+		data[cols.Name] = in.Name
+	}
+	if in.Slug != "" {
+		data[cols.Slug] = in.Slug
+	}
+	if metadata != "" {
+		data[cols.Metadata] = metadata
+	}
+
+	_, err := dao.Tenants.Ctx(ctx).
+		Where(cols.Id, tenantID).
+		Where("deleted_at IS NULL").
+		Data(data).
+		Update()
 	if err != nil {
 		return nil, gerror.Wrap(err, "update tenant")
 	}
@@ -143,10 +156,14 @@ func (s *sTenant) SuspendTenant(ctx context.Context, tenantID, actorUserID strin
 			return err
 		}
 	}
-	result, err := g.DB().Exec(ctx, `
-UPDATE public.tenants
-SET status='suspended', updated_at=now()
-WHERE id=? AND deleted_at IS NULL AND status <> 'deleted'`, tenantID)
+
+	cols := dao.Tenants.Columns()
+	result, err := dao.Tenants.Ctx(ctx).
+		Where(cols.Id, tenantID).
+		Where("deleted_at IS NULL").
+		Where(cols.Status+" <> ?", "deleted").
+		Data(g.Map{cols.Status: "suspended", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "suspend tenant")
 	}
@@ -166,10 +183,14 @@ func (s *sTenant) RestoreTenant(ctx context.Context, tenantID, actorUserID strin
 			return err
 		}
 	}
-	result, err := g.DB().Exec(ctx, `
-UPDATE public.tenants
-SET status='active', updated_at=now()
-WHERE id=? AND deleted_at IS NULL AND status <> 'deleted'`, tenantID)
+
+	cols := dao.Tenants.Columns()
+	result, err := dao.Tenants.Ctx(ctx).
+		Where(cols.Id, tenantID).
+		Where("deleted_at IS NULL").
+		Where(cols.Status+" <> ?", "deleted").
+		Data(g.Map{cols.Status: "active", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "restore tenant")
 	}
@@ -189,10 +210,13 @@ func (s *sTenant) DeleteTenant(ctx context.Context, tenantID, actorUserID string
 			return err
 		}
 	}
-	result, err := g.DB().Exec(ctx, `
-UPDATE public.tenants
-SET status='deleted', deleted_at=COALESCE(deleted_at, now()), updated_at=now()
-WHERE id=? AND deleted_at IS NULL`, tenantID)
+
+	cols := dao.Tenants.Columns()
+	result, err := dao.Tenants.Ctx(ctx).
+		Where(cols.Id, tenantID).
+		Where("deleted_at IS NULL").
+		Data(g.Map{cols.Status: "deleted", cols.DeletedAt: "now()", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "delete tenant")
 	}
@@ -245,11 +269,12 @@ func fetchTenant(ctx context.Context, tenantID string) (*service.Tenant, error) 
 }
 
 func fetchTenantByWhere(ctx context.Context, where string, arg any) (*service.Tenant, error) {
-	record, err := g.DB().GetOne(ctx, `
-SELECT id, name, slug, status, created_at, updated_at
-FROM public.tenants
-WHERE `+where+` AND deleted_at IS NULL
-LIMIT 1`, arg)
+	cols := dao.Tenants.Columns()
+	record, err := dao.Tenants.Ctx(ctx).
+		Fields(cols.Id, cols.Name, cols.Slug, cols.Status, cols.CreatedAt, cols.UpdatedAt).
+		Where(where, arg).
+		Where("deleted_at IS NULL").
+		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select tenant")
 	}

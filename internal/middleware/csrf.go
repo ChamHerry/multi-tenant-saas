@@ -7,7 +7,7 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 const csrfHeader = "X-CSRF-Token"

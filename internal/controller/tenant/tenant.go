@@ -3,9 +3,9 @@ package tenant
 import (
 	"context"
 
-	apitenant "repomind-temp/api/tenant"
-	"repomind-temp/api/tenant/v1"
-	"repomind-temp/internal/service"
+	apitenant "multi-tenant-saas/api/tenant"
+	"multi-tenant-saas/api/tenant/v1"
+	"multi-tenant-saas/internal/service"
 )
 
 type ControllerV1 struct{}

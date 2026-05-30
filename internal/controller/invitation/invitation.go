@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	apiinvitation "repomind-temp/api/invitation"
-	"repomind-temp/api/invitation/v1"
-	"repomind-temp/internal/service"
+	apiinvitation "multi-tenant-saas/api/invitation"
+	"multi-tenant-saas/api/invitation/v1"
+	"multi-tenant-saas/internal/service"
 )
 
 type ControllerV1 struct{}
@@ -112,4 +112,33 @@ func (c *ControllerV1) Decline(ctx context.Context, req *v1.DeclineReq) (res *v1
 		return nil, err
 	}
 	return &v1.ActionRes{OK: true}, nil
+}
+
+func (c *ControllerV1) BatchCreate(ctx context.Context, req *v1.BatchCreateReq) (res *v1.BatchCreateRes, err error) {
+	if err = service.RBAC().Require(ctx, service.PermissionInvitationManage); err != nil {
+		return nil, err
+	}
+	tc, err := service.MustTenantContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	created := 0
+	var results []service.TenantInvitation
+	var errs []v1.BatchCreateError
+	for _, inv := range req.Invitations {
+		item, createErr := service.TenantInvitationService().Create(ctx, service.CreateTenantInvitationInput{
+			TenantID:        tc.TenantID,
+			InviteeEmail:    inv.InviteeEmail,
+			Role:            inv.Role,
+			Message:         inv.Message,
+			InvitedByUserID: tc.UserID,
+		})
+		if createErr != nil {
+			errs = append(errs, v1.BatchCreateError{InviteeEmail: inv.InviteeEmail, Error: createErr.Error()})
+		} else {
+			created++
+			results = append(results, item.Invitation)
+		}
+	}
+	return &v1.BatchCreateRes{Created: created, Results: results, Errors: errs}, nil
 }

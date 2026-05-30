@@ -11,7 +11,8 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
 )
 
 var internalIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -72,11 +73,11 @@ func (s *sPlatformAdmin) PermissionsForRole(role string) []service.PlatformPermi
 }
 
 func (s *sPlatformAdmin) resolveActive(ctx context.Context, userID string) (*service.PlatformAdminContext, error) {
-	record, err := g.DB().GetOne(ctx, `
-SELECT user_id, role, status
-FROM public.platform_admins
-WHERE user_id=? AND status='active'
-LIMIT 1`, userID)
+	cols := dao.PlatformAdmins.Columns()
+	record, err := dao.PlatformAdmins.Ctx(ctx).
+		Where(cols.UserId, userID).
+		Where(cols.Status, "active").
+		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select platform admin")
 	}
@@ -123,17 +124,20 @@ func (s *sPlatformAdmin) ListTenants(ctx context.Context, filter service.Platfor
 	}
 	limit, offset := normalizeLimitOffset(filter.Limit, filter.Offset)
 	whereSQL := strings.Join(where, " AND ")
-	countRecord, err := g.DB().GetOne(ctx, "SELECT count(*) AS total FROM public.tenants WHERE "+whereSQL, args...)
+
+	cols := dao.Tenants.Columns()
+	total, err := dao.Tenants.Ctx(ctx).Where(whereSQL, args...).Count()
 	if err != nil {
 		return nil, gerror.Wrap(err, "count platform tenants")
 	}
-	rowsArgs := append(append([]any{}, args...), limit, offset)
-	rows, err := g.DB().GetAll(ctx, `
-SELECT id, name, slug, status, created_at, updated_at
-FROM public.tenants
-WHERE `+whereSQL+`
-ORDER BY created_at DESC
-LIMIT ? OFFSET ?`, rowsArgs...)
+
+	rows, err := dao.Tenants.Ctx(ctx).
+		Fields(cols.Id, cols.Name, cols.Slug, cols.Status, cols.CreatedAt, cols.UpdatedAt).
+		Where(whereSQL, args...).
+		OrderDesc(cols.CreatedAt).
+		Limit(limit).
+		Offset(offset).
+		All()
 	if err != nil {
 		return nil, gerror.Wrap(err, "list platform tenants")
 	}
@@ -145,7 +149,7 @@ LIMIT ? OFFSET ?`, rowsArgs...)
 		}
 		items = append(items, *item)
 	}
-	return &service.PlatformTenantList{Items: items, Total: countRecord["total"].Int()}, nil
+	return &service.PlatformTenantList{Items: items, Total: total}, nil
 }
 
 func (s *sPlatformAdmin) ListUsers(ctx context.Context, filter service.PlatformUserFilter) (*service.PlatformUserList, error) {
@@ -162,17 +166,20 @@ func (s *sPlatformAdmin) ListUsers(ctx context.Context, filter service.PlatformU
 	}
 	limit, offset := normalizeLimitOffset(filter.Limit, filter.Offset)
 	whereSQL := strings.Join(where, " AND ")
-	countRecord, err := g.DB().GetOne(ctx, "SELECT count(*) AS total FROM public.users WHERE "+whereSQL, args...)
+
+	cols := dao.Users.Columns()
+	total, err := dao.Users.Ctx(ctx).Where(whereSQL, args...).Count()
 	if err != nil {
 		return nil, gerror.Wrap(err, "count platform users")
 	}
-	rowsArgs := append(append([]any{}, args...), limit, offset)
-	rows, err := g.DB().GetAll(ctx, `
-SELECT id, email, display_name, avatar_url, status, last_login_at, metadata, created_at, updated_at
-FROM public.users
-WHERE `+whereSQL+`
-ORDER BY created_at DESC
-LIMIT ? OFFSET ?`, rowsArgs...)
+
+	rows, err := dao.Users.Ctx(ctx).
+		Fields(cols.Id, cols.Email, cols.DisplayName, cols.AvatarUrl, cols.Status, cols.LastLoginAt, cols.Metadata, cols.CreatedAt, cols.UpdatedAt).
+		Where(whereSQL, args...).
+		OrderDesc(cols.CreatedAt).
+		Limit(limit).
+		Offset(offset).
+		All()
 	if err != nil {
 		return nil, gerror.Wrap(err, "list platform users")
 	}
@@ -184,7 +191,7 @@ LIMIT ? OFFSET ?`, rowsArgs...)
 		}
 		items = append(items, *item)
 	}
-	return &service.PlatformUserList{Items: items, Total: countRecord["total"].Int()}, nil
+	return &service.PlatformUserList{Items: items, Total: total}, nil
 }
 
 func (s *sPlatformAdmin) UpdateUserStatus(ctx context.Context, actorUserID, targetUserID, status string) error {
@@ -198,10 +205,13 @@ func (s *sPlatformAdmin) UpdateUserStatus(ctx context.Context, actorUserID, targ
 	if status != "active" && status != "disabled" {
 		return gerror.NewCodef(gcode.CodeInvalidParameter, "invalid user status %q", status)
 	}
-	result, err := g.DB().Exec(ctx, `
-UPDATE public.users
-SET status=?, updated_at=now()
-WHERE id=? AND deleted_at IS NULL`, status, targetUserID)
+
+	userCols := dao.Users.Columns()
+	result, err := dao.Users.Ctx(ctx).
+		Where(userCols.Id, targetUserID).
+		Where("deleted_at IS NULL").
+		Data(g.Map{userCols.Status: status, userCols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "update platform user status")
 	}
@@ -216,36 +226,38 @@ func (s *sPlatformAdmin) ListPlatformAdmins(ctx context.Context, filter service.
 	where := []string{"1=1"}
 	args := []any{}
 	if status := strings.TrimSpace(filter.Status); status != "" {
-		where = append(where, "pa.status=?")
+		where = append(where, "platform_admins.status=?")
 		args = append(args, status)
 	}
 	if role := strings.TrimSpace(filter.Role); role != "" {
-		where = append(where, "pa.role=?")
+		where = append(where, "platform_admins.role=?")
 		args = append(args, role)
 	}
 	if query := strings.TrimSpace(filter.Query); query != "" {
-		where = append(where, "(u.email ILIKE ? OR u.display_name ILIKE ? OR pa.user_id::text = ?)")
+		where = append(where, "(u.email ILIKE ? OR u.display_name ILIKE ? OR platform_admins.user_id::text = ?)")
 		like := "%" + query + "%"
 		args = append(args, like, like, query)
 	}
 	limit, offset := normalizeLimitOffset(filter.Limit, filter.Offset)
 	whereSQL := strings.Join(where, " AND ")
-	countRecord, err := g.DB().GetOne(ctx, `
-SELECT count(*) AS total
-FROM public.platform_admins pa
-JOIN public.users u ON u.id=pa.user_id
-WHERE `+whereSQL, args...)
+
+	cols := dao.PlatformAdmins.Columns()
+	total, err := dao.PlatformAdmins.Ctx(ctx).
+		LeftJoin("users u", "u.id = platform_admins.user_id").
+		Where(whereSQL, args...).
+		Count()
 	if err != nil {
 		return nil, gerror.Wrap(err, "count platform admins")
 	}
-	rowsArgs := append(append([]any{}, args...), limit, offset)
-	rows, err := g.DB().GetAll(ctx, `
-SELECT pa.user_id, pa.role, pa.status, pa.created_by_user_id, pa.created_at, pa.updated_at
-FROM public.platform_admins pa
-JOIN public.users u ON u.id=pa.user_id
-WHERE `+whereSQL+`
-ORDER BY pa.created_at DESC
-LIMIT ? OFFSET ?`, rowsArgs...)
+
+	rows, err := dao.PlatformAdmins.Ctx(ctx).
+		LeftJoin("users u", "u.id = platform_admins.user_id").
+		Fields("platform_admins.*").
+		Where(whereSQL, args...).
+		OrderDesc(cols.CreatedAt).
+		Limit(limit).
+		Offset(offset).
+		All()
 	if err != nil {
 		return nil, gerror.Wrap(err, "list platform admins")
 	}
@@ -253,7 +265,7 @@ LIMIT ? OFFSET ?`, rowsArgs...)
 	for _, row := range rows {
 		items = append(items, mapPlatformAdmin(row))
 	}
-	return &service.PlatformAdminList{Items: items, Total: countRecord["total"].Int()}, nil
+	return &service.PlatformAdminList{Items: items, Total: total}, nil
 }
 
 func (s *sPlatformAdmin) Grant(ctx context.Context, actorUserID, targetUserID, role string) error {
@@ -266,11 +278,34 @@ func (s *sPlatformAdmin) Grant(ctx context.Context, actorUserID, targetUserID, r
 	if _, ok := rolePermissions[role]; !ok {
 		return gerror.NewCodef(gcode.CodeInvalidParameter, "invalid platform admin role %q", role)
 	}
-	_, err := g.DB().Exec(ctx, `
-INSERT INTO public.platform_admins(user_id, role, status, created_by_user_id, created_at, updated_at)
-VALUES (?, ?, 'active', ?, now(), now())
-ON CONFLICT (user_id) DO UPDATE
-SET role=EXCLUDED.role, status='active', updated_at=now()`, targetUserID, role, actorUserID)
+
+	cols := dao.PlatformAdmins.Columns()
+	now := time.Now()
+
+	// Check existing admin record, then Insert or Update
+	existing, err := dao.PlatformAdmins.Ctx(ctx).Where(cols.UserId, targetUserID).One()
+	if err != nil {
+		return gerror.Wrap(err, "select platform admin")
+	}
+
+	if existing.IsEmpty() {
+		_, err = dao.PlatformAdmins.Ctx(ctx).Data(g.Map{
+			cols.UserId:          targetUserID,
+			cols.Role:            role,
+			cols.Status:          "active",
+			cols.CreatedByUserId: actorUserID,
+			cols.CreatedAt:       now,
+			cols.UpdatedAt:       now,
+		}).Insert()
+	} else {
+		_, err = dao.PlatformAdmins.Ctx(ctx).
+			Where(cols.UserId, targetUserID).
+			Data(g.Map{
+				cols.Role:      role,
+				cols.Status:    "active",
+				cols.UpdatedAt: now,
+			}).Update()
+	}
 	if err != nil {
 		return gerror.Wrap(err, "grant platform admin")
 	}
@@ -284,7 +319,13 @@ func (s *sPlatformAdmin) Revoke(ctx context.Context, actorUserID, targetUserID s
 	if err := validateInternalID(targetUserID); err != nil {
 		return err
 	}
-	result, err := g.DB().Exec(ctx, `UPDATE public.platform_admins SET status='suspended', updated_at=now() WHERE user_id=?`, targetUserID)
+
+	cols := dao.PlatformAdmins.Columns()
+	result, err := dao.PlatformAdmins.Ctx(ctx).
+		Where(cols.UserId, targetUserID).
+		Where(cols.Status, "active").
+		Data(g.Map{cols.Status: "suspended", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "revoke platform admin")
 	}

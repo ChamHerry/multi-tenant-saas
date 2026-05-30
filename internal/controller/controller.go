@@ -7,17 +7,17 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"repomind-temp/internal/controller/admin"
-	"repomind-temp/internal/controller/apikey"
-	"repomind-temp/internal/controller/audit"
-	authcontroller "repomind-temp/internal/controller/auth"
-	"repomind-temp/internal/controller/hello"
-	"repomind-temp/internal/controller/invitation"
-	"repomind-temp/internal/controller/me"
-	"repomind-temp/internal/controller/member"
-	"repomind-temp/internal/controller/tenant"
-	"repomind-temp/internal/middleware"
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/controller/admin"
+	"multi-tenant-saas/internal/controller/apikey"
+	"multi-tenant-saas/internal/controller/audit"
+	authcontroller "multi-tenant-saas/internal/controller/auth"
+	"multi-tenant-saas/internal/controller/hello"
+	"multi-tenant-saas/internal/controller/invitation"
+	"multi-tenant-saas/internal/controller/me"
+	"multi-tenant-saas/internal/controller/member"
+	"multi-tenant-saas/internal/controller/tenant"
+	"multi-tenant-saas/internal/middleware"
+	"multi-tenant-saas/internal/service"
 )
 
 // RouteConfig describes one route group and its shared middleware chain.
@@ -50,11 +50,13 @@ func getAllRoutes() []RouteConfig {
 	return []RouteConfig{
 		{
 			Prefix:      "",
+			Middlewares: []ghttp.HandlerFunc{middleware.RateLimit},
 			Controllers: []interface{}{authcontroller.NewPublicV1()},
 		},
 		{
 			Prefix: "",
 			Middlewares: []ghttp.HandlerFunc{
+				middleware.RateLimit,
 				middleware.Auth,
 				middleware.CSRF,
 			},
@@ -63,6 +65,7 @@ func getAllRoutes() []RouteConfig {
 		{
 			Prefix: "",
 			Middlewares: []ghttp.HandlerFunc{
+				middleware.RateLimit,
 				middleware.Auth,
 				middleware.CSRF,
 				middleware.TenantResolver,
@@ -79,6 +82,7 @@ func getAllRoutes() []RouteConfig {
 		{
 			Prefix: "",
 			Middlewares: []ghttp.HandlerFunc{
+				middleware.RateLimit,
 				middleware.Auth,
 				middleware.CSRF,
 				middleware.PlatformAdmin,
@@ -95,11 +99,18 @@ func registerHealthRoutes(group *ghttp.RouterGroup) {
 		r.Response.WriteJsonExit(g.Map{"ok": true})
 	})
 	group.GET("/readyz", func(r *ghttp.Request) {
-		version, dirty, err := service.AutoMigrate().Status(r.GetCtx())
+		ctx := r.GetCtx()
+		version, dirty, err := service.AutoMigrate().Status(ctx)
 		if err != nil || dirty {
 			r.Response.Status = http.StatusServiceUnavailable
 			r.Response.WriteJsonExit(g.Map{"ok": false, "version": version, "dirty": dirty, "error": err})
+			return
 		}
-		r.Response.WriteJsonExit(g.Map{"ok": true, "version": version, "dirty": dirty})
+		if _, err := g.DB().GetOne(ctx, "SELECT 1"); err != nil {
+			r.Response.Status = http.StatusServiceUnavailable
+			r.Response.WriteJsonExit(g.Map{"ok": false, "version": version, "db": err.Error()})
+			return
+		}
+		r.Response.WriteJsonExit(g.Map{"ok": true, "version": version, "dirty": dirty, "db": "ok"})
 	})
 }

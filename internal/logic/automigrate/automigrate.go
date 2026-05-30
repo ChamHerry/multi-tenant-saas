@@ -7,8 +7,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/golang-migrate/migrate/v4"
 
-	"repomind-temp/internal/service"
-	migrationfiles "repomind-temp/manifest/migration"
+	"multi-tenant-saas/internal/service"
+	migrationfiles "multi-tenant-saas/manifest/migration"
 )
 
 type sAutoMigrate struct{}

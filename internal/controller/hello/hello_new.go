@@ -5,7 +5,7 @@
 package hello
 
 import (
-	"repomind-temp/api/hello"
+	"multi-tenant-saas/api/hello"
 )
 
 type ControllerV1 struct{}

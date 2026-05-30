@@ -1,6 +1,9 @@
 package passwordauth
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestNormalizeEmail(t *testing.T) {
 	if got := normalizeEmail("  User@Example.COM "); got != "user@example.com" {
@@ -9,14 +12,15 @@ func TestNormalizeEmail(t *testing.T) {
 }
 
 func TestValidatePassword(t *testing.T) {
-	if err := validatePassword(t.Context(), "short"); err == nil {
+	ctx := context.Background()
+	if err := validatePassword(ctx, "short"); err == nil {
 		t.Fatal("validatePassword short expected error")
 	}
-	if err := validatePassword(t.Context(), "0123456789abcde"); err != nil {
+	if err := validatePassword(ctx, "0123456789abcde"); err != nil {
 		t.Fatalf("validatePassword valid error = %v", err)
 	}
 	long := "0123456789abcde0123456789abcde0123456789abcde0123456789abcde0123456789abcde"
-	if err := validatePassword(t.Context(), long); err == nil {
+	if err := validatePassword(ctx, long); err == nil {
 		t.Fatal("validatePassword >72 bytes expected error")
 	}
 }

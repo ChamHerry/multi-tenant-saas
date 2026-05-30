@@ -3,7 +3,7 @@ package apikey
 import (
 	"context"
 
-	"repomind-temp/api/apikey/v1"
+	"multi-tenant-saas/api/apikey/v1"
 )
 
 type IAPIKeyV1 interface {

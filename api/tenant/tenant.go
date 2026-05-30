@@ -3,7 +3,7 @@ package tenant
 import (
 	"context"
 
-	"repomind-temp/api/tenant/v1"
+	"multi-tenant-saas/api/tenant/v1"
 )
 
 type ITenantV1 interface {

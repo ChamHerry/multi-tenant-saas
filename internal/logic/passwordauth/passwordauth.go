@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net"
 	"regexp"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
@@ -15,8 +15,9 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"golang.org/x/crypto/bcrypt"
 
-	"repomind-temp/internal/service"
-	"repomind-temp/utility/uuid"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/uuid"
 )
 
 const (
@@ -36,6 +37,7 @@ var (
 	codeConflict      = gcode.New(409001, "Conflict", nil)
 	internalIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	dummyPasswordHash []byte
+	bootstrapMu       sync.Mutex
 )
 
 type sPasswordAuth struct{}
@@ -53,16 +55,15 @@ func (s *sPasswordAuth) Login(ctx context.Context, in service.PasswordLoginInput
 	if err := s.ensureLoginAllowed(ctx, email); err != nil {
 		return nil, err
 	}
-	record, err := g.DB().GetOne(ctx, `
-SELECT u.id, u.email, u.display_name, u.avatar_url, u.status, u.last_login_at, u.metadata, u.created_at, u.updated_at,
-       c.password_hash
-FROM public.user_identities i
-JOIN public.users u ON u.id = i.user_id
-JOIN public.user_password_credentials c ON c.user_id = u.id
-WHERE i.provider='password'
-  AND lower(i.auth_id)=?
-  AND u.deleted_at IS NULL
-LIMIT 1`, email)
+	// 3-table JOIN via GoFrame DAO
+	record, err := dao.Users.Ctx(ctx).
+		Fields("users.*, c.password_hash").
+		InnerJoin("user_identities ui", "ui.user_id = users.id").
+		InnerJoin("user_password_credentials c", "c.user_id = users.id").
+		Where("ui.provider", passwordProvider).
+		Where("lower(ui.email) = lower(?)", email).
+		Where("users.deleted_at IS NULL").
+		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select password credential")
 	}
@@ -137,10 +138,10 @@ func (s *sPasswordAuth) RegisterPasswordUser(ctx context.Context, in service.Reg
 	displayName := strings.TrimSpace(in.DisplayName)
 	hashCost := passwordCost(ctx)
 
-	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		if err := lockFirstPlatformAdminBootstrap(ctx, tx); err != nil {
-			return err
-		}
+	err = dao.Users.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// Use Go mutex instead of pg_advisory_xact_lock
+		bootstrapMu.Lock()
+		defer bootstrapMu.Unlock()
 		exists, err := passwordIdentityExistsTx(ctx, tx, email)
 		if err != nil {
 			return err
@@ -148,7 +149,7 @@ func (s *sPasswordAuth) RegisterPasswordUser(ctx context.Context, in service.Reg
 		if exists {
 			return registrationConflictError(email)
 		}
-		userCount, err := tx.Model("users").Schema("public").Ctx(ctx).Count()
+		userCount, err := dao.Users.Ctx(ctx).TX(tx).Count()
 		if err != nil {
 			return gerror.Wrap(err, "count public users")
 		}
@@ -174,16 +175,15 @@ func (s *sPasswordAuth) RegisterPasswordUser(ctx context.Context, in service.Reg
 }
 
 func passwordIdentityExists(ctx context.Context, email string) (bool, error) {
-	record, err := g.DB().GetOne(ctx, `
-SELECT 1
-FROM public.user_identities i
-JOIN public.users u ON u.id = i.user_id
-WHERE i.provider='password' AND lower(i.auth_id)=? AND u.deleted_at IS NULL
-LIMIT 1`, email)
+	cols := dao.UserIdentities.Columns()
+	count, err := dao.UserIdentities.Ctx(ctx).
+		Where(cols.Provider, passwordProvider).
+		Where("lower("+cols.Email+") = lower(?)", email).
+		Count()
 	if err != nil {
 		return false, gerror.Wrap(err, "select password identity")
 	}
-	return !record.IsEmpty(), nil
+	return count > 0, nil
 }
 
 func registrationConflictError(email string) error {
@@ -201,20 +201,11 @@ type passwordRegistrationInsert struct {
 	HashCost     int
 }
 
-func lockFirstPlatformAdminBootstrap(ctx context.Context, tx gdb.TX) error {
-	_, err := tx.Ctx(ctx).Exec(
-		`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`,
-		firstPlatformAdminLockKey,
-	)
-	return gerror.Wrap(err, "lock first platform admin bootstrap")
-}
-
 func passwordIdentityExistsTx(ctx context.Context, tx gdb.TX, email string) (bool, error) {
-	count, err := tx.Model("user_identities", "i").
-		Schema("public").
-		InnerJoin("users", "u", "u.id = i.user_id").
-		Ctx(ctx).
-		Where("i.provider=? AND lower(i.auth_id)=? AND u.deleted_at IS NULL", passwordProvider, email).
+	cols := dao.UserIdentities.Columns()
+	count, err := dao.UserIdentities.Ctx(ctx).TX(tx).
+		Where(cols.Provider, passwordProvider).
+		Where("lower("+cols.Email+") = lower(?)", email).
 		Count()
 	if err != nil {
 		return false, gerror.Wrap(err, "count password identity")
@@ -223,17 +214,33 @@ func passwordIdentityExistsTx(ctx context.Context, tx gdb.TX, email string) (boo
 }
 
 func insertPasswordUserTx(ctx context.Context, tx gdb.TX, in passwordRegistrationInsert) error {
-	if _, err := tx.Ctx(ctx).Exec(`
-INSERT INTO public.users(id, email, display_name, avatar_url, status, metadata, last_login_at, created_at, updated_at)
-VALUES (?, ?, ?, NULL, 'active', ?::jsonb, now(), now(), now())`,
-		in.UserID, in.Email, nilIfEmptyString(in.DisplayName), in.Metadata); err != nil {
+	userCols := dao.Users.Columns()
+	if _, err := dao.Users.Ctx(ctx).TX(tx).Data(g.Map{
+		userCols.Id:          in.UserID,
+		userCols.Email:       in.Email,
+		userCols.DisplayName: nilIfEmptyString(in.DisplayName),
+		userCols.AvatarUrl:   nil,
+		userCols.Status:      "active",
+		userCols.Metadata:    in.Metadata,
+		userCols.LastLoginAt: "now()",
+		userCols.CreatedAt:   "now()",
+		userCols.UpdatedAt:   "now()",
+	}).Insert(); err != nil {
 		return gerror.Wrap(err, "insert public user")
 	}
-	if _, err := tx.Ctx(ctx).Exec(`
-INSERT INTO public.user_identities(
-    id, user_id, provider, auth_id, email, email_verified, raw_profile, last_login_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, false, ?::jsonb, now(), now(), now())`,
-		in.IdentityID, in.UserID, passwordProvider, in.Email, in.Email, in.RawProfile); err != nil {
+	identCols := dao.UserIdentities.Columns()
+	if _, err := dao.UserIdentities.Ctx(ctx).TX(tx).Data(g.Map{
+		identCols.Id:            in.IdentityID,
+		identCols.UserId:        in.UserID,
+		identCols.Provider:      passwordProvider,
+		identCols.AuthId:        in.Email,
+		identCols.Email:         in.Email,
+		identCols.EmailVerified: false,
+		identCols.RawProfile:    in.RawProfile,
+		identCols.LastLoginAt:   "now()",
+		identCols.CreatedAt:     "now()",
+		identCols.UpdatedAt:     "now()",
+	}).Insert(); err != nil {
 		return gerror.Wrap(err, "insert user identity")
 	}
 	if err := upsertCredentialTx(ctx, tx, in.UserID, in.PasswordHash, in.HashCost); err != nil {
@@ -246,15 +253,33 @@ func upsertCredentialTx(ctx context.Context, tx gdb.TX, userID, passwordHash str
 	if err := validateInternalID(userID); err != nil {
 		return err
 	}
-	_, err := tx.Ctx(ctx).Exec(`
-INSERT INTO public.user_password_credentials(user_id, password_hash, hash_alg, hash_cost, password_changed_at, created_at, updated_at)
-VALUES (?, ?, 'bcrypt', ?, now(), now(), now())
-ON CONFLICT (user_id) DO UPDATE
-SET password_hash=EXCLUDED.password_hash,
-    hash_alg='bcrypt',
-    hash_cost=EXCLUDED.hash_cost,
-    password_changed_at=now(),
-    updated_at=now()`, userID, passwordHash, cost)
+	cols := dao.UserPasswordCredentials.Columns()
+	now := time.Now()
+
+	existing, err := dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Where(cols.UserId, userID).One()
+	if err != nil {
+		return gerror.Wrap(err, "select password credential")
+	}
+
+	if existing.IsEmpty() {
+		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Data(g.Map{
+			cols.UserId:            userID,
+			cols.PasswordHash:      passwordHash,
+			cols.HashCost:          cost,
+			cols.PasswordChangedAt: now,
+			cols.CreatedAt:         now,
+			cols.UpdatedAt:         now,
+		}).Insert()
+	} else {
+		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).
+			Where(cols.UserId, userID).
+			Data(g.Map{
+				cols.PasswordHash:      passwordHash,
+				cols.HashCost:          cost,
+				cols.PasswordChangedAt: now,
+				cols.UpdatedAt:         now,
+			}).Update()
+	}
 	return gerror.Wrap(err, "upsert password credential")
 }
 
@@ -265,10 +290,32 @@ func bootstrapFirstPlatformAdminIfNeeded(ctx context.Context, tx gdb.TX, userID 
 	if err := validateInternalID(userID); err != nil {
 		return false, err
 	}
-	_, err := tx.Ctx(ctx).Exec(`
-INSERT INTO public.platform_admins(user_id, role, status, created_by_user_id, created_at, updated_at)
-VALUES (?, ?, 'active', ?, now(), now())
-ON CONFLICT (user_id) DO NOTHING`, userID, platformSuperAdminRole, userID)
+	cols := dao.PlatformAdmins.Columns()
+	now := time.Now()
+
+	existing, err := dao.PlatformAdmins.Ctx(ctx).TX(tx).Where(cols.UserId, userID).One()
+	if err != nil {
+		return false, gerror.Wrap(err, "select platform admin")
+	}
+
+	if existing.IsEmpty() {
+		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).Data(g.Map{
+			cols.UserId:          userID,
+			cols.Role:            platformSuperAdminRole,
+			cols.Status:          "active",
+			cols.CreatedByUserId: userID,
+			cols.CreatedAt:       now,
+			cols.UpdatedAt:       now,
+		}).Insert()
+	} else {
+		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).
+			Where(cols.UserId, userID).
+			Data(g.Map{
+				cols.Role:      platformSuperAdminRole,
+				cols.Status:    "active",
+				cols.UpdatedAt: now,
+			}).Update()
+	}
 	if err != nil {
 		return false, gerror.Wrap(err, "bootstrap first platform admin")
 	}
@@ -290,10 +337,16 @@ func insertBootstrapAuditTx(ctx context.Context, tx gdb.TX, userID string) error
 	if err != nil {
 		return err
 	}
-	_, err = tx.Ctx(ctx).Exec(`
-INSERT INTO public.audit_logs(tenant_id, user_id, action, resource_type, resource_id, metadata, created_at)
-VALUES (NULL, ?, ?, 'platform_admin', ?, ?::jsonb, now())`,
-		userID, platformAdminBootstrapLog, userID, metadata)
+	auditCols := dao.AuditLogs.Columns()
+	_, err = dao.AuditLogs.Ctx(ctx).TX(tx).Data(g.Map{
+		auditCols.TenantId:     nil,
+		auditCols.UserId:       userID,
+		auditCols.Action:       platformAdminBootstrapLog,
+		auditCols.ResourceType: "platform_admin",
+		auditCols.ResourceId:   userID,
+		auditCols.Metadata:     metadata,
+		auditCols.CreatedAt:    "now()",
+	}).Insert()
 	return gerror.Wrap(err, "insert platform admin bootstrap audit log")
 }
 
@@ -343,23 +396,23 @@ func (s *sPasswordAuth) SetPassword(ctx context.Context, email, password string)
 	if email == "" {
 		return nil, gerror.NewCode(gcode.CodeMissingParameter, "email is required")
 	}
-	record, err := g.DB().GetOne(ctx, `
-SELECT u.id
-FROM public.user_identities i
-JOIN public.users u ON u.id = i.user_id
-WHERE i.provider='password' AND lower(i.auth_id)=? AND u.deleted_at IS NULL
-LIMIT 1`, email)
+	// Find password user by identity email
+	identCols := dao.UserIdentities.Columns()
+	identRecord, err := dao.UserIdentities.Ctx(ctx).
+		Where(identCols.Provider, passwordProvider).
+		Where("lower("+identCols.Email+") = lower(?)", email).
+		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select password user")
 	}
-	if record.IsEmpty() {
+	if identRecord.IsEmpty() {
 		return nil, gerror.Newf("password user %s not found", email)
 	}
 	hash, err := s.hashPassword(ctx, password)
 	if err != nil {
 		return nil, err
 	}
-	userID := record["id"].String()
+	userID := identRecord["user_id"].String()
 	if err = upsertCredential(ctx, userID, string(hash), passwordCost(ctx)); err != nil {
 		return nil, err
 	}
@@ -371,18 +424,18 @@ func (s *sPasswordAuth) ChangePassword(ctx context.Context, userID, currentSessi
 	if err := validateInternalID(userID); err != nil {
 		return err
 	}
-	record, err := g.DB().GetOne(ctx, `
-SELECT password_hash
-FROM public.user_password_credentials
-WHERE user_id=?`, userID)
+	cols := dao.UserPasswordCredentials.Columns()
+	value, err := dao.UserPasswordCredentials.Ctx(ctx).
+		Where(cols.UserId, userID).
+		Value(cols.PasswordHash)
 	if err != nil {
-		return gerror.Wrap(err, "select user password credential")
+		return err
 	}
-	if record.IsEmpty() {
+	if value == nil || value.String() == "" {
 		performDummyCompare(oldPassword)
 		return loginError()
 	}
-	if err = bcrypt.CompareHashAndPassword([]byte(record["password_hash"].String()), []byte(oldPassword)); err != nil {
+	if err = bcrypt.CompareHashAndPassword([]byte(value.String()), []byte(oldPassword)); err != nil {
 		return loginError()
 	}
 	hash, err := s.hashPassword(ctx, newPassword)
@@ -411,16 +464,15 @@ func (s *sPasswordAuth) hashPassword(ctx context.Context, password string) ([]by
 }
 
 func (s *sPasswordAuth) ensureLoginAllowed(ctx context.Context, email string) error {
-	record, err := g.DB().GetOne(ctx, `
-SELECT locked_until
-FROM public.auth_login_attempts
-WHERE login_key=? AND locked_until IS NOT NULL AND locked_until > now()
-ORDER BY locked_until DESC
-LIMIT 1`, email)
+	cols := dao.AuthLoginAttempts.Columns()
+	value, err := dao.AuthLoginAttempts.Ctx(ctx).
+		Where(cols.LoginKey, email).
+		Where(cols.LockedUntil+" > NOW()").
+		Value(cols.LockedUntil)
 	if err != nil {
-		return gerror.Wrap(err, "select login attempts")
+		return err
 	}
-	if !record.IsEmpty() {
+	if value != nil && value.String() != "" {
 		return gerror.NewCode(gcode.CodeNotAuthorized, "too many failed login attempts; try again later")
 	}
 	return nil
@@ -432,39 +484,75 @@ func (s *sPasswordAuth) recordLoginFailure(ctx context.Context, email, ip string
 		threshold = defaultLockThreshold
 	}
 	lockDuration := durationConfig(ctx, "auth.password.lockDuration", defaultLockDuration)
-	_, err := g.DB().Exec(ctx, `
-INSERT INTO public.auth_login_attempts(login_key, ip, failed_count, locked_until, last_failed_at, created_at, updated_at)
-VALUES (?, ?::inet, 1, CASE WHEN 1 >= ? THEN now() + (?::interval) ELSE NULL END, now(), now(), now())
-ON CONFLICT (login_key, ip) DO UPDATE
-SET failed_count=public.auth_login_attempts.failed_count + 1,
-    locked_until=CASE
-        WHEN public.auth_login_attempts.failed_count + 1 >= ? THEN now() + (?::interval)
-        ELSE public.auth_login_attempts.locked_until
-    END,
-    last_failed_at=now(),
-    updated_at=now()`, email, attemptIP(ip), threshold, pgInterval(lockDuration), threshold, pgInterval(lockDuration))
+
+	cols := dao.AuthLoginAttempts.Columns()
+	now := time.Now()
+	ipVal := attemptIP(ip)
+
+	// Check existing attempt record
+	record, err := dao.AuthLoginAttempts.Ctx(ctx).Where(cols.LoginKey, email).One()
+	if err != nil {
+		return gerror.Wrap(err, "select login attempt")
+	}
+
+	if record.IsEmpty() {
+		// First failure for this login key
+		data := g.Map{
+			cols.LoginKey:     email,
+			cols.Ip:           ipVal,
+			cols.FailedCount:  1,
+			cols.LastFailedAt: now,
+			cols.CreatedAt:    now,
+			cols.UpdatedAt:    now,
+		}
+		if 1 >= threshold {
+			data[cols.LockedUntil] = now.Add(lockDuration)
+		}
+		_, err = dao.AuthLoginAttempts.Ctx(ctx).Data(data).Insert()
+		return gerror.Wrap(err, "record login failure")
+	}
+
+	// Increment existing failure count
+	newCount := record[cols.FailedCount].Int() + 1
+	data := g.Map{
+		cols.FailedCount:  newCount,
+		cols.LastFailedAt: now,
+		cols.Ip:           ipVal,
+		cols.UpdatedAt:    now,
+	}
+	if newCount >= threshold {
+		data[cols.LockedUntil] = now.Add(lockDuration)
+	}
+	_, err = dao.AuthLoginAttempts.Ctx(ctx).Where(cols.LoginKey, email).Data(data).Update()
 	return gerror.Wrap(err, "record login failure")
 }
 
 func (s *sPasswordAuth) recordLoginSuccess(ctx context.Context, email string) error {
-	_, err := g.DB().Exec(ctx, `
-UPDATE public.auth_login_attempts
-SET failed_count=0, locked_until=NULL, last_success_at=now(), updated_at=now()
-WHERE login_key=?`, email)
+	cols := dao.AuthLoginAttempts.Columns()
+	_, err := dao.AuthLoginAttempts.Ctx(ctx).
+		Where(cols.LoginKey, email).
+		Data(g.Map{cols.FailedCount: 0, cols.LockedUntil: nil, cols.LastSuccessAt: "now()", cols.UpdatedAt: "now()"}).
+		Update()
 	return gerror.Wrap(err, "record login success")
 }
 
 func touchPasswordIdentityLogin(ctx context.Context, userID, email string) error {
-	if _, err := g.DB().Exec(ctx, `
-UPDATE public.user_identities
-SET last_login_at=now(), updated_at=now()
-WHERE provider='password' AND lower(auth_id)=?`, email); err != nil {
+	identCols := dao.UserIdentities.Columns()
+	_, err := dao.UserIdentities.Ctx(ctx).
+		Where(identCols.Provider, passwordProvider).
+		Where("lower("+identCols.AuthId+") = lower(?)", email).
+		Data(g.Map{identCols.LastLoginAt: "now()", identCols.UpdatedAt: "now()"}).
+		Update()
+	if err != nil {
 		return gerror.Wrap(err, "touch password identity login")
 	}
-	if _, err := g.DB().Exec(ctx, `
-UPDATE public.users
-SET last_login_at=now(), updated_at=now()
-WHERE id=? AND deleted_at IS NULL`, userID); err != nil {
+	userCols := dao.Users.Columns()
+	_, err = dao.Users.Ctx(ctx).
+		Where(userCols.Id, userID).
+		Where("deleted_at IS NULL").
+		Data(g.Map{userCols.LastLoginAt: "now()", userCols.UpdatedAt: "now()"}).
+		Update()
+	if err != nil {
 		return gerror.Wrap(err, "touch password user login")
 	}
 	return nil
@@ -474,15 +562,33 @@ func upsertCredential(ctx context.Context, userID, passwordHash string, cost int
 	if err := validateInternalID(userID); err != nil {
 		return err
 	}
-	_, err := g.DB().Exec(ctx, `
-INSERT INTO public.user_password_credentials(user_id, password_hash, hash_alg, hash_cost, password_changed_at, created_at, updated_at)
-VALUES (?, ?, 'bcrypt', ?, now(), now(), now())
-ON CONFLICT (user_id) DO UPDATE
-SET password_hash=EXCLUDED.password_hash,
-    hash_alg='bcrypt',
-    hash_cost=EXCLUDED.hash_cost,
-    password_changed_at=now(),
-    updated_at=now()`, userID, passwordHash, cost)
+	cols := dao.UserPasswordCredentials.Columns()
+	now := time.Now()
+
+	existing, err := dao.UserPasswordCredentials.Ctx(ctx).Where(cols.UserId, userID).One()
+	if err != nil {
+		return gerror.Wrap(err, "select password credential")
+	}
+
+	if existing.IsEmpty() {
+		_, err = dao.UserPasswordCredentials.Ctx(ctx).Data(g.Map{
+			cols.UserId:            userID,
+			cols.PasswordHash:      passwordHash,
+			cols.HashCost:          cost,
+			cols.PasswordChangedAt: now,
+			cols.CreatedAt:         now,
+			cols.UpdatedAt:         now,
+		}).Insert()
+	} else {
+		_, err = dao.UserPasswordCredentials.Ctx(ctx).
+			Where(cols.UserId, userID).
+			Data(g.Map{
+				cols.PasswordHash:      passwordHash,
+				cols.HashCost:          cost,
+				cols.PasswordChangedAt: now,
+				cols.UpdatedAt:         now,
+			}).Update()
+	}
 	return gerror.Wrap(err, "upsert password credential")
 }
 
@@ -521,14 +627,6 @@ func durationConfig(ctx context.Context, key string, fallback time.Duration) tim
 		return fallback
 	}
 	return d
-}
-
-func pgInterval(d time.Duration) string {
-	seconds := int64(d.Seconds())
-	if seconds <= 0 {
-		seconds = int64(defaultLockDuration.Seconds())
-	}
-	return strconv.FormatInt(seconds, 10) + " seconds"
 }
 
 func normalizeEmail(email string) string {

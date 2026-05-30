@@ -7,7 +7,7 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 type tenantSelectorCandidate struct {
@@ -76,31 +76,44 @@ func tenantOptionalRoute(r *ghttp.Request) bool {
 	return tenantOptionalPath(r.URL.Path, r.Method)
 }
 
+// tenantOptionalRoutes is the centralized registry of routes that do not
+// require a tenant selector. Add new entries here instead of scattering
+// hardcoded path checks.
+var tenantOptionalRoutes = []struct {
+	Method      string
+	Path        string // exact match after trimming trailing slash
+	Prefix      string // prefix match (mutually exclusive with Path)
+	Suffix      string // suffix match (used with Prefix)
+}{
+	{Method: http.MethodGet, Path: "/api/v1/me"},
+	{Method: http.MethodGet, Path: "/api/v1/me/tenants"},
+	{Method: http.MethodGet, Path: "/api/v1/me/access"},
+	{Method: http.MethodGet, Path: "/api/v1/me/invitations"},
+	{Method: http.MethodPost, Prefix: "/api/v1/me/invitations/", Suffix: "/decline"},
+	{Method: http.MethodGet, Path: "/api/v1/me/security-events"},
+	{Method: http.MethodPost, Path: "/api/v1/invitations/accept"},
+	{Method: http.MethodPost, Path: "/api/v1/tenants"},
+}
+
 func tenantOptionalPath(rawPath, method string) bool {
 	path := strings.TrimRight(rawPath, "/")
 	if path == "" {
 		path = "/"
 	}
-	switch {
-	case path == "/api/v1/me" && method == http.MethodGet:
-		return true
-	case path == "/api/v1/me/tenants" && method == http.MethodGet:
-		return true
-	case path == "/api/v1/me/access" && method == http.MethodGet:
-		return true
-	case path == "/api/v1/me/invitations" && method == http.MethodGet:
-		return true
-	case strings.HasPrefix(path, "/api/v1/me/invitations/") && strings.HasSuffix(path, "/decline") && method == http.MethodPost:
-		return true
-	case path == "/api/v1/me/security-events" && method == http.MethodGet:
-		return true
-	case path == "/api/v1/invitations/accept" && method == http.MethodPost:
-		return true
-	case path == "/api/v1/tenants" && method == http.MethodPost:
-		return true
-	default:
-		return false
+	for _, route := range tenantOptionalRoutes {
+		if method != route.Method {
+			continue
+		}
+		if route.Path != "" && path == route.Path {
+			return true
+		}
+		if route.Prefix != "" && strings.HasPrefix(path, route.Prefix) {
+			if route.Suffix == "" || strings.HasSuffix(path, route.Suffix) {
+				return true
+			}
+		}
 	}
+	return false
 }
 
 func tenantSelector(r *ghttp.Request) string {

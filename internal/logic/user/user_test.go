@@ -3,7 +3,7 @@ package user
 import (
 	"testing"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 func TestValidateIdentityInput(t *testing.T) {

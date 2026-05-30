@@ -3,9 +3,9 @@ package member
 import (
 	"context"
 
-	apimember "repomind-temp/api/member"
-	"repomind-temp/api/member/v1"
-	"repomind-temp/internal/service"
+	apimember "multi-tenant-saas/api/member"
+	"multi-tenant-saas/api/member/v1"
+	"multi-tenant-saas/internal/service"
 )
 
 type ControllerV1 struct{}
@@ -80,4 +80,32 @@ func (c *ControllerV1) Remove(ctx context.Context, req *v1.RemoveReq) (res *v1.A
 	}
 	_ = service.Audit().Write(ctx, service.AuditLogInput{Action: "member.remove", ResourceType: "tenant_member", ResourceID: req.User})
 	return &v1.ActionRes{OK: true}, nil
+}
+
+func (c *ControllerV1) BatchAdd(ctx context.Context, req *v1.BatchAddReq) (res *v1.BatchAddRes, err error) {
+	if err = service.RBAC().Require(ctx, service.PermissionMemberManage); err != nil {
+		return nil, err
+	}
+	tc, err := service.MustTenantContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	added := 0
+	var errs []v1.BatchAddError
+	for _, m := range req.Members {
+		_, addErr := service.TenantMembershipService().AddMember(ctx, service.AddTenantMemberInput{
+			TenantID:        tc.TenantID,
+			UserID:          m.UserID,
+			Role:            m.Role,
+			Status:          "active",
+			InvitedByUserID: tc.UserID,
+		})
+		if addErr != nil {
+			errs = append(errs, v1.BatchAddError{UserID: m.UserID, Error: addErr.Error()})
+		} else {
+			added++
+		}
+	}
+	_ = service.Audit().Write(ctx, service.AuditLogInput{Action: "member.batch_add", ResourceType: "tenant_member", Metadata: map[string]any{"added": added, "errors": len(errs)}})
+	return &v1.BatchAddRes{Added: added, Errors: errs}, nil
 }

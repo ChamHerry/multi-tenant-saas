@@ -3,8 +3,8 @@ package middleware
 import (
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"repomind-temp/internal/service"
-	"repomind-temp/utility/uuid"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/uuid"
 )
 
 const RequestIDHeader = "X-Request-ID"

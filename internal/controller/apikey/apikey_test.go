@@ -3,7 +3,7 @@ package apikey
 import (
 	"testing"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 func TestTenantGrantScopes(t *testing.T) {

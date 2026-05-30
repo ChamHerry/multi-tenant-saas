@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	apiaudit "repomind-temp/api/audit"
-	"repomind-temp/api/audit/v1"
-	"repomind-temp/internal/service"
+	apiaudit "multi-tenant-saas/api/audit"
+	"multi-tenant-saas/api/audit/v1"
+	"multi-tenant-saas/internal/service"
 )
 
 type ControllerV1 struct{}

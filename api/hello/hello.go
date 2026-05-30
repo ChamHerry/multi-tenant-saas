@@ -7,7 +7,7 @@ package hello
 import (
 	"context"
 
-	"repomind-temp/api/hello/v1"
+	"multi-tenant-saas/api/hello/v1"
 )
 
 type IHelloV1 interface {

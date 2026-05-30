@@ -3,7 +3,7 @@ package v1
 import (
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 type ListTenantReq struct {
@@ -69,4 +69,27 @@ type AcceptRes struct {
 
 type ActionRes struct {
 	OK bool `json:"ok"`
+}
+
+type BatchCreateReq struct {
+	g.Meta      `path:"/tenants/{tenant}/invitations/batch" tags:"Invitation" method:"post" summary:"Batch create tenant invitations"`
+	Tenant      string              `v:"required"`
+	Invitations []BatchInvitation   `json:"invitations" v:"required|length:1,50"`
+}
+
+type BatchInvitation struct {
+	InviteeEmail string `json:"invitee_email" v:"required"`
+	Role         string `json:"role" v:"required"`
+	Message      string `json:"message"`
+}
+
+type BatchCreateRes struct {
+	Created int                    `json:"created"`
+	Results []service.TenantInvitation `json:"results,omitempty"`
+	Errors  []BatchCreateError     `json:"errors,omitempty"`
+}
+
+type BatchCreateError struct {
+	InviteeEmail string `json:"invitee_email"`
+	Error        string `json:"error"`
 }

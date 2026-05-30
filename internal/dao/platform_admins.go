@@ -5,7 +5,7 @@
 package dao
 
 import (
-	"repomind-temp/internal/dao/internal"
+	"multi-tenant-saas/internal/dao/internal"
 )
 
 // platformAdminsDao is the data access object for the table platform_admins.

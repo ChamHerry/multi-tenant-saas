@@ -4,7 +4,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	migrationfiles "repomind-temp/manifest/migration"
+	migrationfiles "multi-tenant-saas/manifest/migration"
 )
 
 func TestLatestMigrationVersion(t *testing.T) {
@@ -35,7 +35,7 @@ func TestEmbeddedPublicMigrationVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("public LatestMigrationVersion() error = %v", err)
 	}
-	if publicVersion != 202605290001 {
-		t.Fatalf("public version = %d, want %d", publicVersion, uint64(202605290001))
+	if publicVersion != 202605300002 {
+		t.Fatalf("public version = %d, want %d", publicVersion, uint64(202605300002))
 	}
 }

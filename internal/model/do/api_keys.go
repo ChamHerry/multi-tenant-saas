@@ -16,7 +16,6 @@ type ApiKeys struct {
 	UserId          any      //
 	Name            any      //
 	KeyHash         any      //
-	KeyType         any      //
 	Scopes          []string //
 	LastUsedAt      any      //
 	ExpiresAt       any      //
@@ -24,4 +23,6 @@ type ApiKeys struct {
 	RevokedAt       any      //
 	KeyPrefix       any      //
 	CreatedByUserId any      //
+	KeyType         any      //
+	UpdatedAt       any      //
 }

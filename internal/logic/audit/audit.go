@@ -7,8 +7,8 @@ import (
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gerror"
 
-	"repomind-temp/internal/dao"
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
 )
 
 type sAudit struct{}
@@ -31,12 +31,20 @@ func (s *sAudit) Write(ctx context.Context, in service.AuditLogInput) error {
 			in.UserID = identity.UserID
 		}
 	}
+	if in.PlatformRole == "" {
+		if pac, ok := service.PlatformAdminContextFromCtx(ctx); ok {
+			in.PlatformRole = pac.Role
+		}
+	}
 	metadata := in.Metadata
 	if metadata == nil {
 		metadata = map[string]any{}
 	}
 	if requestID := service.RequestIDFromCtx(ctx); requestID != "" {
 		metadata["request_id"] = requestID
+	}
+	if in.PlatformRole != "" {
+		metadata["platform_role"] = in.PlatformRole
 	}
 	payload, err := json.Marshal(metadata)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
-	migrationfiles "repomind-temp/manifest/migration"
+	migrationfiles "multi-tenant-saas/manifest/migration"
 )
 
 const (
