@@ -50,48 +50,48 @@ export function MembersPage() {
   }
 
   if (!tenantId) {
-    return <EmptyState title={t('members.noTenantTitle', '请先选择组织')} description={t('members.noTenantDescription', '成员管理需要明确的组织上下文。可以在顶部选择已有组织，或先到组织页创建。')} />
+    return <EmptyState title={t('members.noTenantTitle', 'Select an organization first')} description={t('members.noTenantDescription', 'Member management requires an explicit organization context. Select an organization in the header, or create one from the organizations page.')} />
   }
 
   const firstError = members.error ?? addMember.error ?? updateMember.error ?? removeMember.error
 
   return (
     <div className="space-y-6">
-      {firstError ? <ErrorView error={firstError} title={t('members.errorTitle', '成员操作失败')} /> : null}
+      {firstError ? <ErrorView error={firstError} title={t('members.errorTitle', 'Member action failed')} /> : null}
 
       <div className="flex justify-end">
         <Button disabled={!canManageMembers} leftIcon={<UserPlus className="size-4" />} onClick={() => setIsAddMemberOpen(true)}>
-          {t('members.addButton', '添加成员')}
+          {t('members.addButton', 'Add member')}
         </Button>
       </div>
 
-      <Dialog open={isAddMemberOpen} title={t('members.dialogTitle', '添加成员')} onClose={() => setIsAddMemberOpen(false)}>
+      <Dialog open={isAddMemberOpen} title={t('members.dialogTitle', 'Add member')} onClose={() => setIsAddMemberOpen(false)}>
         <form className="space-y-4" onSubmit={submit}>
-          <Input label={t('members.userIdLabel', 'User ID')} value={userId} onChange={(event) => setUserId(event.target.value)} placeholder={t('members.userIdPlaceholder', '用户 UUID')} error={errors.user_id} />
-          <Select label={t('members.roleLabel', '角色')} value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
+          <Input label={t('members.userIdLabel', 'User ID')} value={userId} onChange={(event) => setUserId(event.target.value)} placeholder={t('members.userIdPlaceholder', 'User UUID')} error={errors.user_id} />
+          <Select label={t('members.roleLabel', 'Role')} value={role} onChange={(event) => setRole(event.target.value as TenantRole)}>
             {roles.map((item) => <option key={item} value={item}>{formatRole(item)}</option>)}
           </Select>
-          <Select label={t('members.statusLabel', '状态')} value={status} onChange={(event) => setStatus(event.target.value)}>
+          <Select label={t('members.statusLabel', 'Status')} value={status} onChange={(event) => setStatus(event.target.value)}>
             {statuses.map((item) => <option key={item} value={item}>{formatMemberStatus(item)}</option>)}
           </Select>
-          <Button type="submit" isLoading={addMember.isPending} leftIcon={<UserPlus className="size-4" />}>{t('members.submit', '添加/更新成员')}</Button>
+          <Button type="submit" isLoading={addMember.isPending} leftIcon={<UserPlus className="size-4" />}>{t('members.submit', 'Add or update member')}</Button>
         </form>
       </Dialog>
 
       <section>
         <Card>
-          <CardHeader title={t('members.tableTitle', '成员列表')} description={t('members.tableDescription', '调用 GET /api/v1/tenants/{tenant}/members。')} />
-          {members.isLoading ? <LoadingView label={t('members.loading', '加载成员...')} /> : (members.data?.members.length ?? 0) === 0 ? (
-            <EmptyState title={t('members.emptyTitle', '暂无成员')} description={t('members.emptyDescription', '组织创建者应至少是 owner。如果没有成员，请检查后端数据。')} />
+          <CardHeader title={t('members.tableTitle', 'Members')} description={t('members.tableDescription', 'Calls GET /api/v1/tenants/{tenant}/members.')} />
+          {members.isLoading ? <LoadingView label={t('members.loading', 'Loading members...')} /> : (members.data?.members.length ?? 0) === 0 ? (
+            <EmptyState title={t('members.emptyTitle', 'No members yet')} description={t('members.emptyDescription', 'The organization creator should be at least an owner. If no members appear, check backend data.')} />
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <thead>
                   <tr>
-                    <Th>{t('members.columns.user', '用户')}</Th>
-                    <Th>{t('members.columns.role', '角色')}</Th>
-                    <Th>{t('members.columns.status', '状态')}</Th>
-                    <Th>{t('members.columns.actions', '操作')}</Th>
+                    <Th>{t('members.columns.user', 'User')}</Th>
+                    <Th>{t('members.columns.role', 'Role')}</Th>
+                    <Th>{t('members.columns.status', 'Status')}</Th>
+                    <Th>{t('members.columns.actions', 'Actions')}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -110,7 +110,7 @@ export function MembersPage() {
                             onChange={(event) => updateMember.mutate({ userId: member.user_id, input: { role: event.target.value as TenantRole } })}
                             disabled={!canManageMembers}
                             className="h-8 min-w-28 bg-white text-xs"
-                            aria-label={t('members.updateRoleAria', '更新角色')}
+                            aria-label={t('members.updateRoleAria', 'Update role')}
                           >
                             {roles.map((item) => <option key={item} value={item}>{formatRole(item)}</option>)}
                           </Select>
@@ -119,11 +119,11 @@ export function MembersPage() {
                             onChange={(event) => updateMember.mutate({ userId: member.user_id, input: { status: event.target.value } })}
                             disabled={!canManageMembers}
                             className="h-8 min-w-28 bg-white text-xs"
-                            aria-label={t('members.updateStatusAria', '更新状态')}
+                            aria-label={t('members.updateStatusAria', 'Update status')}
                           >
                             {statuses.map((item) => <option key={item} value={item}>{formatMemberStatus(item)}</option>)}
                           </Select>
-                          <Button size="sm" variant="danger" disabled={!canManageMembers} onClick={() => removeMember.mutate(member.user_id)} isLoading={removeMember.isPending}>{t('members.remove', '移除')}</Button>
+                          <Button size="sm" variant="danger" disabled={!canManageMembers} onClick={() => removeMember.mutate(member.user_id)} isLoading={removeMember.isPending}>{t('members.remove', 'Remove')}</Button>
                         </div>
                       </Td>
                     </tr>

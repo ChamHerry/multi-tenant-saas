@@ -36,11 +36,11 @@ export function TenantAccessPage() {
   }, [activeTab, availableTabs.length, requestedTab, setSearchParams])
 
   if (!tenantId) {
-    return <EmptyState title={t('tenantAccess.noTenantTitle', '请先选择组织')} description={t('tenantAccess.noTenantDescription', '用户与访问需要明确的组织上下文。')} />
+    return <EmptyState title={t('tenantAccess.noTenantTitle', 'Select an organization first')} description={t('tenantAccess.noTenantDescription', 'Users and access require an explicit organization context.')} />
   }
 
   if (!availableTabs.length || !activeTab) {
-    return <EmptyState title={t('tenantAccess.noAccessTitle', '无访问权限')} description={t('tenantAccess.noAccessDescription', '当前组织角色没有成员或邀请管理权限。')} />
+    return <EmptyState title={t('tenantAccess.noAccessTitle', 'No access')} description={t('tenantAccess.noAccessDescription', 'Your current organization role cannot manage members or invitations.')} />
   }
 
   return (
