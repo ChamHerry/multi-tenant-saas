@@ -1,26 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Link,
-  NavLink,
-  Outlet,
-  useMatches,
-  useNavigate,
-} from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { Building2, LogOut } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAccess } from "@/features/access/access-hooks";
-import { useLogoutMutation, useMe } from "@/features/auth/auth-hooks";
-import { useTenantStore } from "@/features/tenants/tenant-store";
-import { LanguageSwitcher } from "@/shared/i18n";
-import { Badge, Button, ErrorView } from "@/shared/ui";
-import { cn } from "@/shared/lib/cn";
-import { buildScopeNavSections } from "./scope-nav";
-import {
-  PageTitleContext,
-  resolvePageTitle,
-  type PageTitleDescriptor,
-} from "./page-title";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, NavLink, Outlet, useMatches, useNavigate } from 'react-router-dom'
+import { Building2, LogOut } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAccess } from '@/features/access/access-hooks'
+import { useLogoutMutation, useMe } from '@/features/auth/auth-hooks'
+import { useTenantStore } from '@/features/tenants/tenant-store'
+import { LanguageSwitcher } from '@/shared/i18n'
+import { Badge, Button, ErrorView } from '@/shared/ui'
+import { cn } from '@/shared/lib/cn'
+import { buildScopeNavSections } from './scope-nav'
+import { PageTitleContext } from './page-title'
 
 type RouteTitleHandle = {
   titleKey?: string;

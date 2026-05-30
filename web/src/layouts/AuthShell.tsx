@@ -1,8 +1,5 @@
 import type { ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from '@/shared/i18n'
-
-const featureKeys = ['auth.shell.features.httpOnly', 'auth.shell.features.api', 'auth.shell.features.orgContext']
 
 export function AuthShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
