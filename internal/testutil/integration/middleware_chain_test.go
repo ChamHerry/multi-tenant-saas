@@ -24,6 +24,23 @@ func TestHealthCheck(t *testing.T) {
 	}
 }
 
+// TestXRequestIDHeader verifies X-Request-ID is set in responses.
+func TestXRequestIDHeader(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	resp := suite.Client.GET("/healthz")
+	testutil.AssertStatus(t, resp, 200)
+	requestID := resp.Headers.Get("X-Request-ID")
+	if requestID == "" {
+		t.Fatal("expected X-Request-ID header in response")
+	}
+	// Should be a non-empty string (UUID).
+	if len(requestID) < 10 {
+		t.Fatalf("expected reasonable X-Request-ID, got %q", requestID)
+	}
+}
+
 // TestAuthRequired verifies that /api/v1/me returns 401 without authentication.
 func TestAuthRequired(t *testing.T) {
 	suite.SetupTest(t)
@@ -32,6 +49,31 @@ func TestAuthRequired(t *testing.T) {
 	client := testutil.NewTestClient(t, suite.Client.BaseURL())
 	resp := client.GET("/api/v1/me")
 	testutil.AssertStatus(t, resp, 401)
+}
+
+// TestFullChain_CSRFRequired verifies CSRF enforcement on mutating endpoints.
+func TestFullChain_CSRFRequired(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	// Register a user to get a session.
+	testutil.RegisterUser(t, suite.Client, "csrf@example.com", "CSRF User")
+
+	// The TestClient auto-captures CSRF tokens. Create a client that strips it.
+	// We'll create a new client, copy the cookies, but manually omit the CSRF header.
+	noCSRFClient := testutil.NewTestClient(t, suite.Client.BaseURL())
+	// Login to get a session + CSRF cookie.
+	testutil.LoginUser(t, noCSRFClient, "csrf@example.com", testutil.TestPassword())
+
+	// Now clear just the CSRF token from the client while keeping cookies.
+	noCSRFClient.ClearCSRF()
+
+	// POST to a mutating endpoint without CSRF token.
+	resp := noCSRFClient.POST("/api/v1/auth/logout", "")
+	// CSRF middleware should reject with 403.
+	if resp.StatusCode != 403 {
+		t.Fatalf("expected 403 for missing CSRF token, got %d body %s", resp.StatusCode, resp.Body)
+	}
 }
 
 // TestTenantResolverWithHeader verifies X-Tenant-ID header resolves tenant context.

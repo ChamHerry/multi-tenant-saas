@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gogf/gf/v2/frame/g"
+
 	"multi-tenant-saas/internal/service"
 )
 
@@ -87,4 +89,14 @@ func AddMember(ctx context.Context, t *testing.T, tenantID, userID, role string)
 		t.Fatalf("add member %s to %s: %v", userID, tenantID, err)
 	}
 	return m
+}
+
+// ExpireInvitationDB directly sets an invitation's expires_at to the past
+// and status to expired. Uses parameterized query to prevent SQL injection.
+func ExpireInvitationDB(invitationID string) error {
+	_, err := g.DB().Exec(context.Background(),
+		"UPDATE tenant_invitations SET expires_at = NOW() - INTERVAL '1 day', status = 'expired', updated_at = NOW() WHERE id = $1",
+		invitationID,
+	)
+	return err
 }

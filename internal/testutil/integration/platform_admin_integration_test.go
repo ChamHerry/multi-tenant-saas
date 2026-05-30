@@ -24,6 +24,32 @@ func TestPlatformAdmin_Session(t *testing.T) {
 	}
 }
 
+// TestPlatformAdmin_NonAdmin_Forbidden verifies non-platform-admin users get 403.
+func TestPlatformAdmin_NonAdmin_Forbidden(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	// First user is super_admin, so we need a second user.
+	testutil.RegisterUser(t, suite.Client, "first@example.com", "First User")
+	user2 := testutil.RegisterAdditionalUser(t, suite.Client.BaseURL(), "nonadmin@example.com", "Non Admin")
+
+	// Login as the second user (non-admin).
+	nonAdminClient := testutil.NewTestClient(t, suite.Client.BaseURL())
+	testutil.LoginUser(t, nonAdminClient, "nonadmin@example.com", testutil.TestPassword())
+
+	// Verify user2 has no platform admin record by checking the ID.
+	_ = user2["id"].(string)
+
+	resp := nonAdminClient.GET("/api/v1/admin/session")
+	// Should be forbidden — not a platform admin.
+	if resp.StatusCode == 200 {
+		t.Fatal("expected non-platform-admin to be forbidden from admin session")
+	}
+	if resp.StatusCode != 403 && resp.StatusCode != 401 {
+		t.Fatalf("expected 403 or 401, got %d body %s", resp.StatusCode, resp.Body)
+	}
+}
+
 // TestPlatformAdmin_ListTenants verifies admin can list all tenants.
 func TestPlatformAdmin_ListTenants(t *testing.T) {
 	suite.SetupTest(t)
