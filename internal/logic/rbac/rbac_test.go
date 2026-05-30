@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 func TestCanByRole(t *testing.T) {

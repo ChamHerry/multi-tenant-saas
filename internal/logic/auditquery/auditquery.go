@@ -11,9 +11,9 @@ import (
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 
-	"repomind-temp/internal/dao"
-	"repomind-temp/internal/service"
-	"repomind-temp/utility/uuid"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/uuid"
 )
 
 var internalIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -31,12 +31,12 @@ func (s *sAuditQuery) List(ctx context.Context, filter service.AuditLogFilter) (
 	}
 	limit, offset := normalizeLimitOffset(filter.Limit, filter.Offset)
 	whereSQL := strings.Join(where, " AND ")
-	baseModel := dao.AuditLogs.Ctx(ctx).Where(whereSQL, args...)
-	total, err := baseModel.Clone().Count()
+	total, err := dao.AuditLogs.Ctx(ctx).Where(whereSQL, args...).Count()
 	if err != nil {
 		return nil, gerror.Wrap(err, "count audit logs")
 	}
-	rows, err := baseModel.Clone().
+	rows, err := dao.AuditLogs.Ctx(ctx).
+		Where(whereSQL, args...).
 		OrderDesc(dao.AuditLogs.Columns().CreatedAt).
 		Limit(limit).
 		Offset(offset).
@@ -61,11 +61,7 @@ func (s *sAuditQuery) Export(ctx context.Context, filter service.AuditLogFilter)
 		return nil, err
 	}
 	whereSQL := strings.Join(where, " AND ")
-	rows, err := dao.AuditLogs.Ctx(ctx).
-		Where(whereSQL, args...).
-		OrderDesc(dao.AuditLogs.Columns().CreatedAt).
-		Limit(10000).
-		All()
+	rows, err := dao.AuditLogs.Ctx(ctx).Where(whereSQL, args...).All()
 	if err != nil {
 		return nil, gerror.Wrap(err, "export audit logs")
 	}

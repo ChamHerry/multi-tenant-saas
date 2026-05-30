@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,8 +19,9 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/service"
-	"repomind-temp/utility/uuid"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/uuid"
 )
 
 const (
@@ -67,13 +67,27 @@ func (s *sAuthSession) Create(ctx context.Context, userID, userAgent, ip string)
 	if idleExpiresAt.After(expiresAt) {
 		idleExpiresAt = expiresAt
 	}
-	record, err := g.DB().GetOne(ctx, `
-INSERT INTO public.auth_sessions(id, user_id, secret_hash, csrf_hash, user_agent, ip, last_used_at, expires_at, idle_expires_at, created_at, updated_at)
-VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, '')::inet, now(), ?, ?, now(), now())
-RETURNING id, user_id, user_agent, ip, last_used_at, expires_at, idle_expires_at, revoked_at, created_at, updated_at`,
-		sessionID, userID, hashToken(secretToken, secret), hashToken(csrfToken, secret), trimForDB(userAgent), normalizeIP(ip), expiresAt, idleExpiresAt)
+	cols := dao.AuthSessions.Columns()
+	var ipVal any
+	if normalized := normalizeIP(ip); normalized != "" {
+		ipVal = normalized
+	}
+	_, err = dao.AuthSessions.Ctx(ctx).Data(g.Map{
+		cols.Id:            sessionID,
+		cols.UserId:        userID,
+		cols.SecretHash:    hashToken(secretToken, secret),
+		cols.CsrfHash:      hashToken(csrfToken, secret),
+		cols.UserAgent:     trimForDB(userAgent),
+		cols.Ip:            ipVal,
+		cols.ExpiresAt:     expiresAt,
+		cols.IdleExpiresAt: idleExpiresAt,
+	}).Insert()
 	if err != nil {
 		return nil, nil, gerror.Wrap(err, "insert auth session")
+	}
+	record, err := dao.AuthSessions.Ctx(ctx).Where(cols.Id, sessionID).One()
+	if err != nil {
+		return nil, nil, gerror.Wrap(err, "select created auth session")
 	}
 	session, err := mapSession(record)
 	if err != nil {
@@ -92,18 +106,14 @@ func (s *sAuthSession) Authenticate(ctx context.Context, cookieValue string) (*s
 	if err != nil {
 		return nil, err
 	}
-	record, err := g.DB().GetOne(ctx, `
-SELECT s.id, s.user_id
-FROM public.auth_sessions s
-JOIN public.users u ON u.id = s.user_id
-WHERE s.id=?
-  AND s.secret_hash=?
-  AND s.revoked_at IS NULL
-  AND s.expires_at > now()
-  AND s.idle_expires_at > now()
-  AND u.status='active'
-  AND u.deleted_at IS NULL
-LIMIT 1`, sessionID, hashToken(secretToken, secret))
+	cols := dao.AuthSessions.Columns()
+	record, err := dao.AuthSessions.Ctx(ctx).
+		Where(cols.Id, sessionID).
+		Where(cols.SecretHash, hashToken(secretToken, secret)).
+		Where(cols.RevokedAt+" IS NULL").
+		Where(cols.ExpiresAt+" > NOW()").
+		Where(cols.IdleExpiresAt+" > NOW()").
+		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select auth session")
 	}
@@ -120,10 +130,7 @@ func (s *sAuthSession) Get(ctx context.Context, sessionID string) (*service.Auth
 	if err := validateInternalID(sessionID); err != nil {
 		return nil, err
 	}
-	record, err := g.DB().GetOne(ctx, `
-SELECT id, user_id, user_agent, ip, last_used_at, expires_at, idle_expires_at, revoked_at, created_at, updated_at
-FROM public.auth_sessions
-WHERE id=?`, sessionID)
+	record, err := dao.AuthSessions.Ctx(ctx).Where(dao.AuthSessions.Columns().Id, sessionID).One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select auth session")
 	}
@@ -145,14 +152,12 @@ func (s *sAuthSession) ValidateCSRF(ctx context.Context, sessionID, token string
 	if err != nil {
 		return err
 	}
-	record, err := g.DB().GetOne(ctx, `
-SELECT csrf_hash
-FROM public.auth_sessions
-WHERE id=?
-  AND revoked_at IS NULL
-  AND expires_at > now()
-  AND idle_expires_at > now()
-LIMIT 1`, sessionID)
+	cols := dao.AuthSessions.Columns()
+	record, err := dao.AuthSessions.Ctx(ctx).
+		Fields(cols.CsrfHash).
+		Where(cols.Id, sessionID).
+		Where(cols.RevokedAt+" IS NULL").
+		One()
 	if err != nil {
 		return gerror.Wrap(err, "select csrf hash")
 	}
@@ -171,10 +176,12 @@ func (s *sAuthSession) Revoke(ctx context.Context, sessionID, reason string) err
 	if err := validateInternalID(sessionID); err != nil {
 		return err
 	}
-	_, err := g.DB().Exec(ctx, `
-UPDATE public.auth_sessions
-SET revoked_at=COALESCE(revoked_at, now()), revoke_reason=COALESCE(NULLIF(?, ''), revoke_reason), updated_at=now()
-WHERE id=?`, reason, sessionID)
+	cols := dao.AuthSessions.Columns()
+	_, err := dao.AuthSessions.Ctx(ctx).
+		Where(cols.Id, sessionID).
+		Where(cols.RevokedAt+" IS NULL").
+		Data(g.Map{cols.RevokedAt: "now()", cols.RevokeReason: reason, cols.UpdatedAt: "now()"}).
+		Update()
 	return gerror.Wrap(err, "revoke auth session")
 }
 
@@ -187,10 +194,19 @@ func (s *sAuthSession) RevokeUserSessions(ctx context.Context, userID, exceptSes
 			return err
 		}
 	}
-	_, err := g.DB().Exec(ctx, `
-UPDATE public.auth_sessions
-SET revoked_at=COALESCE(revoked_at, now()), revoke_reason=COALESCE(NULLIF(?, ''), revoke_reason), updated_at=now()
-WHERE user_id=? AND revoked_at IS NULL AND id <> COALESCE(NULLIF(?, '')::uuid, '00000000-0000-0000-0000-000000000000'::uuid)`, reason, userID, exceptSessionID)
+	cols := dao.AuthSessions.Columns()
+	m := dao.AuthSessions.Ctx(ctx).
+		Where(cols.UserId, userID).
+		Where(cols.RevokedAt+" IS NULL").
+		Data(g.Map{
+			cols.RevokedAt:    "now()",
+			cols.RevokeReason: reason,
+			cols.UpdatedAt:    "now()",
+		})
+	if exceptSessionID != "" {
+		m = m.Where(cols.Id+" <> ?", exceptSessionID)
+	}
+	_, err := m.Update()
 	return gerror.Wrap(err, "revoke user auth sessions")
 }
 
@@ -213,12 +229,36 @@ func (s *sAuthSession) ClearCookies(ctx context.Context) *service.AuthSessionCoo
 
 func (s *sAuthSession) touch(ctx context.Context, sessionID string) error {
 	idleTTL := durationConfig(ctx, "auth.session.idleTTL", defaultIdleTTL)
-	_, err := g.DB().Exec(ctx, `
-UPDATE public.auth_sessions
-SET last_used_at=now(),
-    idle_expires_at=LEAST(expires_at, now() + (?::interval)),
-    updated_at=now()
-WHERE id=?`, pgInterval(idleTTL), sessionID)
+	cols := dao.AuthSessions.Columns()
+
+	// Read current idle_expires_at and expires_at to compute new value in Go
+	record, err := dao.AuthSessions.Ctx(ctx).
+		Fields(cols.IdleExpiresAt, cols.ExpiresAt).
+		Where(cols.Id, sessionID).
+		Where(cols.RevokedAt+" IS NULL").
+		One()
+	if err != nil {
+		return gerror.Wrap(err, "select session for touch")
+	}
+	if record.IsEmpty() {
+		return nil
+	}
+
+	currentIdle := record[cols.IdleExpiresAt].Time()
+	expiresAt := record[cols.ExpiresAt].Time()
+	newIdle := currentIdle.Add(idleTTL)
+	if newIdle.After(expiresAt) {
+		newIdle = expiresAt
+	}
+
+	_, err = dao.AuthSessions.Ctx(ctx).
+		Where(cols.Id, sessionID).
+		Where(cols.RevokedAt+" IS NULL").
+		Data(g.Map{
+			cols.LastUsedAt:    time.Now(),
+			cols.IdleExpiresAt: newIdle,
+			cols.UpdatedAt:     time.Now(),
+		}).Update()
 	return gerror.Wrap(err, "touch auth session")
 }
 
@@ -300,14 +340,6 @@ func durationConfig(ctx context.Context, key string, fallback time.Duration) tim
 		return fallback
 	}
 	return d
-}
-
-func pgInterval(d time.Duration) string {
-	seconds := int64(d.Seconds())
-	if seconds <= 0 {
-		seconds = int64(defaultIdleTTL.Seconds())
-	}
-	return strconv.FormatInt(seconds, 10) + " seconds"
 }
 
 func normalizeIP(ip string) string {

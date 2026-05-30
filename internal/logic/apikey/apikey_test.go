@@ -29,12 +29,9 @@ func TestRawKeyPrefix(t *testing.T) {
 	}
 }
 
-func TestTextArrayLiteralAndExpiresAt(t *testing.T) {
+func TestTextArrayLiteral(t *testing.T) {
 	if got := textArrayLiteral([]string{"tenant:read", "member:read"}); got != `{"tenant:read","member:read"}` {
 		t.Fatalf("textArrayLiteral=%s", got)
-	}
-	if got := expiresAtString(nil); got != "" {
-		t.Fatalf("expiresAtString(nil)=%q", got)
 	}
 }
 

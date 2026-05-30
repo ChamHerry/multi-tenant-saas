@@ -3,7 +3,7 @@ package invitation
 import (
 	"testing"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 func TestValidateCreateInput(t *testing.T) {

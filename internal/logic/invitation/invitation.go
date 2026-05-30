@@ -14,8 +14,9 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/service"
-	"repomind-temp/utility/uuid"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/uuid"
 )
 
 var (
@@ -56,24 +57,37 @@ func (s *sTenantInvitation) Create(ctx context.Context, in service.CreateTenantI
 	}
 	expiresAt := time.Now().Add(expiresIn)
 	inviteeUserID, _ := findUserIDByEmail(ctx, in.InviteeEmail)
-	record, err := g.DB().GetOne(ctx, `
-INSERT INTO public.tenant_invitations(
-    id, tenant_id, invitee_email, invitee_user_id, role, status, token_hash,
-    invited_by_user_id, message, expires_at, created_at, updated_at
-) VALUES (?, ?, ?, NULLIF(?, '')::uuid, ?, 'pending', ?, ?, ?, ?, now(), now())
-RETURNING id, tenant_id, invitee_email, invitee_user_id, role, status, invited_by_user_id,
-          accepted_by_user_id, message, expires_at, accepted_at, declined_at, revoked_at,
-          resent_at, created_at, updated_at`,
-		invitationID, in.TenantID, normalizeEmail(in.InviteeEmail), inviteeUserID, in.Role, hashToken(token), in.InvitedByUserID, in.Message, expiresAt)
+	var inviteeUserIDVal any
+	if inviteeUserID != "" {
+		inviteeUserIDVal = inviteeUserID
+	}
+	cols := dao.TenantInvitations.Columns()
+	_, err = dao.TenantInvitations.Ctx(ctx).Data(g.Map{
+		cols.Id:              invitationID,
+		cols.TenantId:        in.TenantID,
+		cols.InviteeEmail:    normalizeEmail(in.InviteeEmail),
+		cols.InviteeUserId:   inviteeUserIDVal,
+		cols.Role:            in.Role,
+		cols.TokenHash:       hashToken(token),
+		cols.InvitedByUserId: in.InvitedByUserID,
+		cols.Message:         in.Message,
+		cols.ExpiresAt:       expiresAt,
+	}).Insert()
 	if err != nil {
 		return nil, gerror.Wrap(err, "insert tenant invitation")
+	}
+	record, err := dao.TenantInvitations.Ctx(ctx).Where(cols.Id, invitationID).One()
+	if err != nil {
+		return nil, gerror.Wrap(err, "select created invitation")
 	}
 	invitation, err := mapInvitation(record)
 	if err != nil {
 		return nil, err
 	}
 	_ = service.Audit().Write(ctx, service.AuditLogInput{TenantID: in.TenantID, UserID: in.InvitedByUserID, Action: "tenant.invitation.create", ResourceType: "tenant_invitation", ResourceID: invitation.ID, Metadata: map[string]any{"email": invitation.InviteeEmail, "role": invitation.Role}})
-	return &service.CreatedTenantInvitation{Invitation: *invitation, Token: token, AcceptURL: acceptURL(ctx, token)}, nil
+	result := &service.CreatedTenantInvitation{Invitation: *invitation, Token: token, AcceptURL: acceptURL(ctx, token)}
+	sendInvitationEmailAsync(ctx, in.InvitedByUserID, in.TenantID, result)
+	return result, nil
 }
 
 func (s *sTenantInvitation) ListTenantInvitations(ctx context.Context, tenantID string, filter service.TenantInvitationFilter) (*service.TenantInvitationList, error) {
@@ -100,10 +114,10 @@ func (s *sTenantInvitation) ListMyInvitations(ctx context.Context, userID string
 			return nil, err
 		}
 	}
-	where := []string{"lower(i.invitee_email)=lower(?)"}
+	where := []string{"lower(tenant_invitations.invitee_email)=lower(?)"}
 	args := []any{email}
 	if status := strings.TrimSpace(filter.Status); status != "" {
-		where = append(where, "i.status=?")
+		where = append(where, "tenant_invitations.status=?")
 		args = append(args, status)
 	}
 	return listInvitations(ctx, where, args, filter)
@@ -121,54 +135,114 @@ func (s *sTenantInvitation) Accept(ctx context.Context, token string, userID str
 		return nil, err
 	}
 	var membership *service.TenantMembership
-	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		record, err := tx.Ctx(ctx).GetOne(`
-SELECT id, tenant_id, invitee_email, role, status, invited_by_user_id, expires_at
-FROM public.tenant_invitations
-WHERE token_hash=?
-FOR UPDATE`, hashToken(token))
+	err = dao.TenantInvitations.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// Select invitation within transaction (no FOR UPDATE, transaction isolation handles consistency)
+		invCols := dao.TenantInvitations.Columns()
+		record, err := dao.TenantInvitations.Ctx(ctx).TX(tx).
+			Where(invCols.TokenHash, hashToken(token)).
+			Where(invCols.Status, "pending").
+			One()
 		if err != nil {
 			return gerror.Wrap(err, "select invitation for accept")
 		}
 		if record.IsEmpty() {
 			return gerror.NewCode(gcode.CodeNotFound, "invitation not found")
 		}
-		if record["status"].String() != "pending" {
-			return gerror.NewCodef(gcode.CodeInvalidParameter, "invitation is %s", record["status"].String())
-		}
-		if time.Now().After(record["expires_at"].Time()) {
-			_, _ = tx.Ctx(ctx).Exec(`UPDATE public.tenant_invitations SET status='expired', updated_at=now() WHERE id=?`, record["id"].String())
+		if time.Now().After(record[invCols.ExpiresAt].Time()) {
+			_, _ = dao.TenantInvitations.Ctx(ctx).TX(tx).
+				Where(invCols.Id, record[invCols.Id].String()).
+				Where(invCols.Status, "pending").
+				Data(g.Map{invCols.Status: "expired", invCols.UpdatedAt: "now()"}).
+				Update()
 			return gerror.NewCode(gcode.CodeInvalidParameter, "invitation is expired")
 		}
-		if normalizeEmail(record["invitee_email"].String()) != normalizeEmail(userEmailValue) {
+		if normalizeEmail(record[invCols.InviteeEmail].String()) != normalizeEmail(userEmailValue) {
 			return gerror.NewCode(gcode.CodeNotAuthorized, "invitation email does not match current user")
 		}
-		tenantID := record["tenant_id"].String()
+
+		tenantID := record[invCols.TenantId].String()
 		membershipID := uuid.GenerateV4()
-		memberRecord, err := tx.Ctx(ctx).GetOne(`
-INSERT INTO public.tenant_memberships(
-    id, tenant_id, user_id, role, status, invited_by_user_id, joined_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, 'active', NULLIF(?, '')::uuid, now(), now(), now())
-ON CONFLICT (tenant_id, user_id) DO UPDATE
-SET role=EXCLUDED.role,
-    status='active',
-    invited_by_user_id=EXCLUDED.invited_by_user_id,
-    joined_at=COALESCE(public.tenant_memberships.joined_at, now()),
-    deleted_at=NULL,
-    updated_at=now()
-RETURNING id, tenant_id, user_id, role, status, invited_by_user_id, joined_at, created_at, updated_at`,
-			membershipID, tenantID, userID, record["role"].String(), record["invited_by_user_id"].String())
+		invitedBy := record[invCols.InvitedByUserId].String()
+		role := record[invCols.Role].String()
+		now := time.Now()
+
+		// Upsert membership: Select existing, then Insert or Update
+		memCols := dao.TenantMemberships.Columns()
+		existing, err := dao.TenantMemberships.Ctx(ctx).TX(tx).
+			Where(memCols.TenantId, tenantID).
+			Where(memCols.UserId, userID).
+			Where("deleted_at IS NULL").
+			One()
 		if err != nil {
-			return gerror.Wrap(err, "accept invitation membership")
+			return gerror.Wrap(err, "select existing membership")
 		}
-		membership, err = mapMembership(memberRecord)
+
+		if existing.IsEmpty() {
+			var invitedByVal any
+			if invitedBy != "" {
+				invitedByVal = invitedBy
+			}
+			_, err = dao.TenantMemberships.Ctx(ctx).TX(tx).Data(g.Map{
+				memCols.Id:              membershipID,
+				memCols.TenantId:        tenantID,
+				memCols.UserId:          userID,
+				memCols.Role:            role,
+				memCols.Status:          "active",
+				memCols.InvitedByUserId: invitedByVal,
+				memCols.JoinedAt:        now,
+				memCols.CreatedAt:       now,
+				memCols.UpdatedAt:       now,
+			}).Insert()
+			if err != nil {
+				return gerror.Wrap(err, "accept invitation membership")
+			}
+		} else {
+			data := g.Map{
+				memCols.Role:      role,
+				memCols.Status:    "active",
+				memCols.UpdatedAt: now,
+			}
+			if invitedBy != "" {
+				data[memCols.InvitedByUserId] = invitedBy
+			}
+			if existing[memCols.Status].String() == "invited" {
+				data[memCols.JoinedAt] = now
+			}
+			_, err = dao.TenantMemberships.Ctx(ctx).TX(tx).
+				Where(memCols.TenantId, tenantID).
+				Where(memCols.UserId, userID).
+				Where("deleted_at IS NULL").
+				Data(data).
+				Update()
+			if err != nil {
+				return gerror.Wrap(err, "accept invitation membership")
+			}
+		}
+
+		// Fetch the membership record
+		memberRecord, err := dao.TenantMemberships.Ctx(ctx).TX(tx).
+			Where(memCols.TenantId, tenantID).
+			Where(memCols.UserId, userID).
+			Where("deleted_at IS NULL").
+			One()
+		if err != nil {
+			return gerror.Wrap(err, "select accepted membership")
+		}
+		membership, err = mapMembershipTx(memberRecord)
 		if err != nil {
 			return err
 		}
-		_, err = tx.Ctx(ctx).Exec(`
-UPDATE public.tenant_invitations
-SET status='accepted', invitee_user_id=?, accepted_by_user_id=?, accepted_at=now(), updated_at=now()
-WHERE id=?`, userID, userID, record["id"].String())
+
+		// Mark invitation as accepted (conditional WHERE prevents double-accept)
+		_, err = dao.TenantInvitations.Ctx(ctx).TX(tx).
+			Where(invCols.Id, record[invCols.Id].String()).
+			Where(invCols.Status, "pending").
+			Data(g.Map{
+				invCols.Status:           "accepted",
+				invCols.AcceptedByUserId: userID,
+				invCols.AcceptedAt:       now,
+				invCols.UpdatedAt:        now,
+			}).Update()
 		if err != nil {
 			return gerror.Wrap(err, "mark invitation accepted")
 		}
@@ -192,10 +266,13 @@ func (s *sTenantInvitation) Decline(ctx context.Context, invitationID string, us
 	if err != nil {
 		return err
 	}
-	result, err := g.DB().Exec(ctx, `
-UPDATE public.tenant_invitations
-SET status='declined', declined_at=now(), updated_at=now()
-WHERE id=? AND lower(invitee_email)=lower(?) AND status='pending'`, invitationID, email)
+	cols := dao.TenantInvitations.Columns()
+	result, err := dao.TenantInvitations.Ctx(ctx).
+		Where(cols.Id, invitationID).
+		Where("lower("+cols.InviteeEmail+") = lower(?)", email).
+		Where(cols.Status, "pending").
+		Data(g.Map{cols.Status: "declined", cols.DeclinedAt: "now()", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "decline invitation")
 	}
@@ -211,10 +288,13 @@ func (s *sTenantInvitation) Revoke(ctx context.Context, tenantID string, invitat
 	if err := validateTenantActor(tenantID, invitationID, actorUserID); err != nil {
 		return err
 	}
-	result, err := g.DB().Exec(ctx, `
-UPDATE public.tenant_invitations
-SET status='revoked', revoked_at=now(), updated_at=now()
-WHERE tenant_id=? AND id=? AND status='pending'`, tenantID, invitationID)
+	cols := dao.TenantInvitations.Columns()
+	result, err := dao.TenantInvitations.Ctx(ctx).
+		Where(cols.Id, invitationID).
+		Where(cols.TenantId, tenantID).
+		Where(cols.Status, "pending").
+		Data(g.Map{cols.Status: "revoked", cols.RevokedAt: "now()", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "revoke invitation")
 	}
@@ -235,42 +315,70 @@ func (s *sTenantInvitation) Resend(ctx context.Context, tenantID string, invitat
 		return nil, err
 	}
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-	record, err := g.DB().GetOne(ctx, `
-UPDATE public.tenant_invitations
-SET token_hash=?, expires_at=?, resent_at=now(), updated_at=now()
-WHERE tenant_id=? AND id=? AND status='pending'
-RETURNING id, tenant_id, invitee_email, invitee_user_id, role, status, invited_by_user_id,
-          accepted_by_user_id, message, expires_at, accepted_at, declined_at, revoked_at,
-          resent_at, created_at, updated_at`, hashToken(token), expiresAt, tenantID, invitationID)
+	cols := dao.TenantInvitations.Columns()
+	result, err := dao.TenantInvitations.Ctx(ctx).
+		Where(cols.Id, invitationID).
+		Where(cols.TenantId, tenantID).
+		Where(cols.Status, "pending").
+		Data(g.Map{
+			cols.TokenHash: hashToken(token),
+			cols.ExpiresAt: expiresAt,
+			cols.ResentAt:  "now()",
+			cols.UpdatedAt: "now()",
+		}).
+		Update()
 	if err != nil {
 		return nil, gerror.Wrap(err, "resend invitation")
 	}
-	if record.IsEmpty() {
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
 		return nil, gerror.NewCode(gcode.CodeNotFound, "pending invitation not found")
+	}
+	record, err := dao.TenantInvitations.Ctx(ctx).Where(cols.Id, invitationID).One()
+	if err != nil {
+		return nil, gerror.Wrap(err, "select resent invitation")
 	}
 	invitation, err := mapInvitation(record)
 	if err != nil {
 		return nil, err
 	}
 	_ = service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: actorUserID, Action: "tenant.invitation.resend", ResourceType: "tenant_invitation", ResourceID: invitationID})
-	return &service.CreatedTenantInvitation{Invitation: *invitation, Token: token, AcceptURL: acceptURL(ctx, token)}, nil
+	created := &service.CreatedTenantInvitation{Invitation: *invitation, Token: token, AcceptURL: acceptURL(ctx, token)}
+	sendInvitationEmailAsync(ctx, actorUserID, tenantID, created)
+	return created, nil
 }
 
 func (s *sTenantInvitation) ExpirePending(ctx context.Context, now time.Time, limit int) (int, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
-	result, err := g.DB().Exec(ctx, `
-WITH expired AS (
-    SELECT id FROM public.tenant_invitations
-    WHERE status='pending' AND expires_at < ?
-    ORDER BY expires_at ASC
-    LIMIT ?
-)
-UPDATE public.tenant_invitations i
-SET status='expired', updated_at=now()
-FROM expired
-WHERE i.id=expired.id`, now, limit)
+	cols := dao.TenantInvitations.Columns()
+
+	// Select IDs of pending expired invitations, then Update by IDs
+	records, err := dao.TenantInvitations.Ctx(ctx).
+		Fields(cols.Id).
+		Where(cols.Status, "pending").
+		Where(cols.ExpiresAt+" < ?", now).
+		OrderAsc(cols.ExpiresAt).
+		Limit(limit).
+		All()
+	if err != nil {
+		return 0, gerror.Wrap(err, "select pending invitations")
+	}
+	if len(records) == 0 {
+		return 0, nil
+	}
+
+	ids := make([]string, 0, len(records))
+	for _, r := range records {
+		ids = append(ids, r[cols.Id].String())
+	}
+
+	result, err := dao.TenantInvitations.Ctx(ctx).
+		Where(cols.Id+" IN(?)", ids).
+		Where(cols.Status, "pending").
+		Data(g.Map{cols.Status: "expired", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return 0, gerror.Wrap(err, "expire pending invitations")
 	}
@@ -281,25 +389,23 @@ WHERE i.id=expired.id`, now, limit)
 func listInvitations(ctx context.Context, where []string, args []any, filter service.TenantInvitationFilter) (*service.TenantInvitationList, error) {
 	limit, offset := normalizeLimitOffset(filter.Limit, filter.Offset)
 	whereSQL := strings.Join(where, " AND ")
-	countRecord, err := g.DB().GetOne(ctx, `
-SELECT count(*) AS total
-FROM public.tenant_invitations i
-JOIN public.tenants t ON t.id=i.tenant_id
-WHERE `+whereSQL, args...)
+
+	total, err := dao.TenantInvitations.Ctx(ctx).
+		LeftJoin("tenants t", "t.id = tenant_invitations.tenant_id").
+		Where(whereSQL, args...).
+		Count()
 	if err != nil {
 		return nil, gerror.Wrap(err, "count invitations")
 	}
-	rowsArgs := append(append([]any{}, args...), limit, offset)
-	rows, err := g.DB().GetAll(ctx, `
-SELECT i.id, i.tenant_id, t.name AS tenant_name, t.slug AS tenant_slug,
-       i.invitee_email, i.invitee_user_id, i.role, i.status, i.invited_by_user_id,
-       i.accepted_by_user_id, i.message, i.expires_at, i.accepted_at, i.declined_at,
-       i.revoked_at, i.resent_at, i.created_at, i.updated_at
-FROM public.tenant_invitations i
-JOIN public.tenants t ON t.id=i.tenant_id
-WHERE `+whereSQL+`
-ORDER BY i.created_at DESC
-LIMIT ? OFFSET ?`, rowsArgs...)
+
+	rows, err := dao.TenantInvitations.Ctx(ctx).
+		LeftJoin("tenants t", "t.id = tenant_invitations.tenant_id").
+		Fields("tenant_invitations.*, t.name AS tenant_name, t.slug AS tenant_slug").
+		Where(whereSQL, args...).
+		OrderDesc("tenant_invitations.created_at").
+		Limit(limit).
+		Offset(offset).
+		All()
 	if err != nil {
 		return nil, gerror.Wrap(err, "list invitations")
 	}
@@ -311,7 +417,7 @@ LIMIT ? OFFSET ?`, rowsArgs...)
 		}
 		items = append(items, *item)
 	}
-	return &service.TenantInvitationList{Invitations: items, Total: countRecord["total"].Int()}, nil
+	return &service.TenantInvitationList{Invitations: items, Total: total}, nil
 }
 
 func validateCreateInput(in service.CreateTenantInvitationInput) error {
@@ -367,7 +473,12 @@ func validEmail(email string) bool {
 }
 
 func ensureActiveTenant(ctx context.Context, tenantID string) error {
-	record, err := g.DB().GetOne(ctx, `SELECT 1 FROM public.tenants WHERE id=? AND status='active' AND deleted_at IS NULL`, tenantID)
+	cols := dao.Tenants.Columns()
+	record, err := dao.Tenants.Ctx(ctx).
+		Where(cols.Id, tenantID).
+		Where(cols.Status, "active").
+		Where("deleted_at IS NULL").
+		One()
 	if err != nil {
 		return gerror.Wrap(err, "select active tenant")
 	}
@@ -378,9 +489,13 @@ func ensureActiveTenant(ctx context.Context, tenantID string) error {
 }
 
 func ensureActiveInviter(ctx context.Context, tenantID, inviterUserID string) error {
-	record, err := g.DB().GetOne(ctx, `
-SELECT 1 FROM public.tenant_memberships
-WHERE tenant_id=? AND user_id=? AND status='active' AND deleted_at IS NULL`, tenantID, inviterUserID)
+	cols := dao.TenantMemberships.Columns()
+	record, err := dao.TenantMemberships.Ctx(ctx).
+		Where(cols.TenantId, tenantID).
+		Where(cols.UserId, inviterUserID).
+		Where(cols.Status, "active").
+		Where("deleted_at IS NULL").
+		One()
 	if err != nil {
 		return gerror.Wrap(err, "select active inviter membership")
 	}
@@ -391,12 +506,14 @@ WHERE tenant_id=? AND user_id=? AND status='active' AND deleted_at IS NULL`, ten
 }
 
 func ensureEmailNotActiveMember(ctx context.Context, tenantID, email string) error {
-	record, err := g.DB().GetOne(ctx, `
-SELECT 1
-FROM public.tenant_memberships tm
-JOIN public.users u ON u.id=tm.user_id
-WHERE tm.tenant_id=? AND lower(u.email)=lower(?) AND tm.status='active' AND tm.deleted_at IS NULL AND u.deleted_at IS NULL
-LIMIT 1`, tenantID, email)
+	// JOIN query to check by email
+	record, err := dao.TenantMemberships.Ctx(ctx).
+		LeftJoin("users u", "u.id = tenant_memberships.user_id").
+		Where("tenant_memberships.tenant_id", tenantID).
+		Where("lower(u.email) = lower(?)", email).
+		Where("tenant_memberships.status", "active").
+		Where("tenant_memberships.deleted_at IS NULL").
+		One()
 	if err != nil {
 		return gerror.Wrap(err, "select active member by email")
 	}
@@ -407,25 +524,34 @@ LIMIT 1`, tenantID, email)
 }
 
 func userEmail(ctx context.Context, userID string) (string, error) {
-	record, err := g.DB().GetOne(ctx, `SELECT email FROM public.users WHERE id=? AND status='active' AND deleted_at IS NULL`, userID)
+	cols := dao.Users.Columns()
+	value, err := dao.Users.Ctx(ctx).
+		Where(cols.Id, userID).
+		Where(cols.Status, "active").
+		Where("deleted_at IS NULL").
+		Value(cols.Email)
 	if err != nil {
 		return "", gerror.Wrap(err, "select user email")
 	}
-	if record.IsEmpty() {
+	if value.IsNil() || value.String() == "" {
 		return "", gerror.NewCode(gcode.CodeNotFound, "active user not found")
 	}
-	return record["email"].String(), nil
+	return value.String(), nil
 }
 
 func findUserIDByEmail(ctx context.Context, email string) (string, error) {
-	record, err := g.DB().GetOne(ctx, `SELECT id FROM public.users WHERE lower(email)=lower(?) AND deleted_at IS NULL LIMIT 1`, email)
+	cols := dao.UserIdentities.Columns()
+	value, err := dao.UserIdentities.Ctx(ctx).
+		Where(cols.Provider, "password").
+		Where("lower("+cols.Email+") = lower(?)", email).
+		Value(cols.UserId)
 	if err != nil {
 		return "", gerror.Wrap(err, "select user by email")
 	}
-	if record.IsEmpty() {
+	if value.IsNil() || value.String() == "" {
 		return "", nil
 	}
-	return record["id"].String(), nil
+	return value.String(), nil
 }
 
 func generateToken() (string, error) {
@@ -480,7 +606,7 @@ func mapInvitation(record gdb.Record) (*service.TenantInvitation, error) {
 	}, nil
 }
 
-func mapMembership(record gdb.Record) (*service.TenantMembership, error) {
+func mapMembershipTx(record gdb.Record) (*service.TenantMembership, error) {
 	id := record["id"].String()
 	if err := validateInternalID(id); err != nil {
 		return nil, err
@@ -508,4 +634,36 @@ func nullableTime(value any) *time.Time {
 	}
 	t := v.Time()
 	return &t
+}
+
+// sendInvitationEmailAsync fires the invitation email in a goroutine so
+// it never blocks or fails the HTTP response.
+func sendInvitationEmailAsync(ctx context.Context, inviterUserID, tenantID string, created *service.CreatedTenantInvitation) {
+	inviterName := inviterUserID
+	if value, err := dao.Users.Ctx(ctx).Where(dao.Users.Columns().Id, inviterUserID).Value(dao.Users.Columns().DisplayName); err == nil && !value.IsNil() {
+		if name := value.String(); name != "" {
+			inviterName = name
+		}
+	}
+	tenantName := tenantID
+	if value, err := dao.Tenants.Ctx(ctx).Where(dao.Tenants.Columns().Id, tenantID).Value(dao.Tenants.Columns().Name); err == nil && !value.IsNil() {
+		tenantName = value.String()
+	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				g.Log().Warningf(ctx, "[email] panic sending invitation email: %v", r)
+			}
+		}()
+		if err := service.Email().SendInvitation(ctx, service.SendInvitationInput{
+			ToEmail:      created.Invitation.InviteeEmail,
+			InviterName:  inviterName,
+			TenantName:   tenantName,
+			AcceptURL:    created.AcceptURL,
+			Role:         created.Invitation.Role,
+			InvitationID: created.Invitation.ID,
+		}); err != nil {
+			g.Log().Warningf(ctx, "[email] failed to send invitation to %s: %v", created.Invitation.InviteeEmail, err)
+		}
+	}()
 }

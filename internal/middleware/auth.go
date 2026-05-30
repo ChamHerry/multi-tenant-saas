@@ -5,7 +5,7 @@ import (
 
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 func Auth(r *ghttp.Request) {

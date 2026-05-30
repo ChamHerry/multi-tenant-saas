@@ -19,6 +19,8 @@ services:
     image: postgres:16-alpine
     container_name: multi-tenant-saas-postgres
     restart: unless-stopped
+    ports:
+      - "55432:5432"
     environment:
       POSTGRES_DB: saas_template
       POSTGRES_USER: saas_template

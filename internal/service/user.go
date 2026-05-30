@@ -40,9 +40,16 @@ type UserIdentity struct {
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
+type UpdateProfileInput struct {
+	UserID      string
+	DisplayName string
+	AvatarURL   string
+}
+
 type IUser interface {
 	EnsureUserByIdentity(ctx context.Context, in EnsureUserByIdentityInput) (*User, error)
 	GetUser(ctx context.Context, userID string) (*User, error)
+	UpdateProfile(ctx context.Context, in UpdateProfileInput) (*User, error)
 }
 
 var localUser IUser

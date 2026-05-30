@@ -3,7 +3,7 @@ package membership
 import (
 	"testing"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 func TestDefaultTenantNameAndSlug(t *testing.T) {

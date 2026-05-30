@@ -4,16 +4,17 @@ import (
 	"context"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcmd"
 
-	"repomind-temp/internal/controller"
-	_ "repomind-temp/internal/logic"
-	"repomind-temp/internal/middleware"
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/controller"
+	_ "multi-tenant-saas/internal/logic"
+	"multi-tenant-saas/internal/middleware"
+	"multi-tenant-saas/internal/service"
 )
 
 var (
@@ -34,6 +35,7 @@ var (
 			s := g.Server()
 			configureStaticFileService(ctx, s)
 			registerRoutes(s)
+			startBackgroundJobs(ctx)
 			s.Run()
 			return nil
 		},
@@ -375,9 +377,14 @@ func registerRoutes(s *ghttp.Server) {
 		group.Middleware(middleware.HandlerResponse)
 		controller.RegisterRootRoutes(group)
 	})
+	s.Group("/metrics", func(group *ghttp.RouterGroup) {
+		group.GET("/", middleware.MetricsHandler)
+	})
 	s.Group("/api/v1", func(group *ghttp.RouterGroup) {
 		group.Middleware(middleware.RequestContext)
 		group.Middleware(middleware.HandlerResponse)
+		group.Middleware(middleware.Tracing)
+		group.Middleware(middleware.Metrics)
 		controller.RegisterRoutes(group)
 	})
 }
@@ -458,4 +465,27 @@ func validateRuntimeAuthConfig(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// startBackgroundJobs launches background goroutines for periodic tasks
+// such as expiring pending invitations.
+func startBackgroundJobs(ctx context.Context) {
+	go func() {
+		interval := g.Cfg().MustGet(ctx, "invitation.autoExpireInterval", "5m").Duration()
+		if interval <= 0 {
+			interval = 5 * time.Minute
+		}
+		g.Log().Infof(ctx, "[background] invitation auto-expire started with interval %s", interval)
+		for {
+			time.Sleep(interval)
+			expired, err := service.TenantInvitationService().ExpirePending(ctx, time.Now(), 100)
+			if err != nil {
+				g.Log().Warningf(ctx, "[background] invitation expire error: %v", err)
+				continue
+			}
+			if expired > 0 {
+				g.Log().Infof(ctx, "[background] expired %d pending invitations", expired)
+			}
+		}
+	}()
 }

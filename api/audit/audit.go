@@ -3,7 +3,7 @@ package audit
 import (
 	"context"
 
-	"repomind-temp/api/audit/v1"
+	"multi-tenant-saas/api/audit/v1"
 )
 
 type IAuditV1 interface {

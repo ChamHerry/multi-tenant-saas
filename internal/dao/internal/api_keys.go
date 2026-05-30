@@ -26,7 +26,6 @@ type ApiKeysColumns struct {
 	UserId          string //
 	Name            string //
 	KeyHash         string //
-	KeyType         string //
 	Scopes          string //
 	LastUsedAt      string //
 	ExpiresAt       string //
@@ -34,6 +33,8 @@ type ApiKeysColumns struct {
 	RevokedAt       string //
 	KeyPrefix       string //
 	CreatedByUserId string //
+	KeyType         string //
+	UpdatedAt       string //
 }
 
 // apiKeysColumns holds the columns for the table api_keys.
@@ -43,7 +44,6 @@ var apiKeysColumns = ApiKeysColumns{
 	UserId:          "user_id",
 	Name:            "name",
 	KeyHash:         "key_hash",
-	KeyType:         "key_type",
 	Scopes:          "scopes",
 	LastUsedAt:      "last_used_at",
 	ExpiresAt:       "expires_at",
@@ -51,6 +51,8 @@ var apiKeysColumns = ApiKeysColumns{
 	RevokedAt:       "revoked_at",
 	KeyPrefix:       "key_prefix",
 	CreatedByUserId: "created_by_user_id",
+	KeyType:         "key_type",
+	UpdatedAt:       "updated_at",
 }
 
 // NewApiKeysDao creates and returns a new DAO object for table data access.

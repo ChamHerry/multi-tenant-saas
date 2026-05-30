@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 
-	"repomind-temp/api/auth/v1"
+	"multi-tenant-saas/api/auth/v1"
 )
 
 type IAuthPublicV1 interface {

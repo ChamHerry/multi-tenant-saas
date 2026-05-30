@@ -3,7 +3,7 @@ package platformadmin
 import (
 	"testing"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 func TestPlatformRolePermissions(t *testing.T) {

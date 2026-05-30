@@ -7,9 +7,9 @@ import (
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 
-	apiapikey "repomind-temp/api/apikey"
-	"repomind-temp/api/apikey/v1"
-	"repomind-temp/internal/service"
+	apiapikey "multi-tenant-saas/api/apikey"
+	"multi-tenant-saas/api/apikey/v1"
+	"multi-tenant-saas/internal/service"
 )
 
 type ControllerV1 struct{}

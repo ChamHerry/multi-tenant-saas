@@ -3,14 +3,15 @@ package service
 import "context"
 
 type AuditLogInput struct {
-	TenantID     string
-	UserID       string
-	Action       string
-	ResourceType string
-	ResourceID   string
-	IP           string
-	UserAgent    string
-	Metadata     map[string]any
+	TenantID      string
+	UserID        string
+	Action        string
+	ResourceType  string
+	ResourceID    string
+	IP            string
+	UserAgent     string
+	PlatformRole  string // filled by platform admin operations
+	Metadata      map[string]any
 }
 
 type IAudit interface {

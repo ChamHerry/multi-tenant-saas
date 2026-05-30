@@ -58,16 +58,24 @@ func NewApiKeyTenantGrantsDao(handlers ...gdb.ModelHandler) *ApiKeyTenantGrantsD
 }
 
 // DB retrieves and returns the underlying raw database management object of the current DAO.
-func (dao *ApiKeyTenantGrantsDao) DB() gdb.DB { return g.DB(dao.group) }
+func (dao *ApiKeyTenantGrantsDao) DB() gdb.DB {
+	return g.DB(dao.group)
+}
 
 // Table returns the table name of the current DAO.
-func (dao *ApiKeyTenantGrantsDao) Table() string { return dao.table }
+func (dao *ApiKeyTenantGrantsDao) Table() string {
+	return dao.table
+}
 
 // Columns returns all column names of the current DAO.
-func (dao *ApiKeyTenantGrantsDao) Columns() ApiKeyTenantGrantsColumns { return dao.columns }
+func (dao *ApiKeyTenantGrantsDao) Columns() ApiKeyTenantGrantsColumns {
+	return dao.columns
+}
 
 // Group returns the database configuration group name of the current DAO.
-func (dao *ApiKeyTenantGrantsDao) Group() string { return dao.group }
+func (dao *ApiKeyTenantGrantsDao) Group() string {
+	return dao.group
+}
 
 // Ctx creates and returns a Model for the current DAO. It automatically sets the context for the current operation.
 func (dao *ApiKeyTenantGrantsDao) Ctx(ctx context.Context) *gdb.Model {
@@ -79,6 +87,11 @@ func (dao *ApiKeyTenantGrantsDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Transaction wraps the transaction logic using function f.
+// It rolls back the transaction and returns the error if function f returns a non-nil error.
+// It commits the transaction and returns nil if function f returns nil.
+//
+// Note: Do not commit or roll back the transaction in function f,
+// as it is automatically handled by this function.
 func (dao *ApiKeyTenantGrantsDao) Transaction(ctx context.Context, f func(ctx context.Context, tx gdb.TX) error) (err error) {
 	return dao.Ctx(ctx).Transaction(ctx, f)
 }

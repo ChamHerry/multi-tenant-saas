@@ -3,7 +3,7 @@ package admin
 import (
 	"context"
 
-	"repomind-temp/api/admin/v1"
+	"multi-tenant-saas/api/admin/v1"
 )
 
 type IAdminV1 interface {

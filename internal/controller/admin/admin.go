@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	apiadmin "repomind-temp/api/admin"
-	"repomind-temp/api/admin/v1"
-	"repomind-temp/internal/service"
+	apiadmin "multi-tenant-saas/api/admin"
+	"multi-tenant-saas/api/admin/v1"
+	"multi-tenant-saas/internal/service"
 )
 
 type ControllerV1 struct{}

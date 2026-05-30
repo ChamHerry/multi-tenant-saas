@@ -3,16 +3,21 @@ package lifecycle
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/service"
-	"repomind-temp/utility/uuid"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/uuid"
 )
 
 var internalIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -38,12 +43,13 @@ func (s *sTenantLifecycle) RunPendingJobs(ctx context.Context, limit int) error 
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
-	rows, err := g.DB().GetAll(ctx, `
-SELECT id, tenant_id, type
-FROM public.tenant_lifecycle_jobs
-WHERE status='pending' AND scheduled_at <= now()
-ORDER BY scheduled_at ASC
-LIMIT ?`, limit)
+	cols := dao.TenantLifecycleJobs.Columns()
+	rows, err := dao.TenantLifecycleJobs.Ctx(ctx).
+		Where(cols.Status, "pending").
+		Where(cols.ScheduledAt+" <= NOW()").
+		OrderAsc(cols.ScheduledAt).
+		Limit(limit).
+		All()
 	if err != nil {
 		return gerror.Wrap(err, "list pending tenant lifecycle jobs")
 	}
@@ -66,10 +72,12 @@ func (s *sTenantLifecycle) CancelJob(ctx context.Context, jobID, actorUserID str
 			return err
 		}
 	}
-	result, err := g.DB().Exec(ctx, `
-UPDATE public.tenant_lifecycle_jobs
-SET status='cancelled', updated_at=now(), finished_at=now()
-WHERE id=? AND status='pending'`, jobID)
+	cols := dao.TenantLifecycleJobs.Columns()
+	result, err := dao.TenantLifecycleJobs.Ctx(ctx).
+		Where(cols.Id, jobID).
+		Where(cols.Status, "pending").
+		Data(g.Map{cols.Status: "cancelled", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "cancel tenant lifecycle job")
 	}
@@ -94,13 +102,29 @@ func (s *sTenantLifecycle) createJob(ctx context.Context, tenantID, actorUserID,
 		return nil, gerror.Wrap(err, "marshal lifecycle metadata")
 	}
 	jobID := uuid.GenerateV4()
-	record, err := g.DB().GetOne(ctx, `
-INSERT INTO public.tenant_lifecycle_jobs(id, tenant_id, type, status, requested_by_user_id, scheduled_at, metadata, created_at, updated_at)
-VALUES (?, ?, ?, 'pending', NULLIF(?, '')::uuid, ?, ?::jsonb, now(), now())
-RETURNING id, tenant_id, type, status, requested_by_user_id, scheduled_at, started_at, finished_at,
-          error_message, artifact_uri, metadata, created_at, updated_at`, jobID, tenantID, jobType, actorUserID, scheduledAt, string(payload))
+	var requestedByVal any
+	if actorUserID != "" {
+		requestedByVal = actorUserID
+	}
+	jsonMeta, err := gjson.LoadJson(payload)
+	if err != nil {
+		return nil, gerror.Wrap(err, "parse lifecycle metadata")
+	}
+	cols := dao.TenantLifecycleJobs.Columns()
+	_, err = dao.TenantLifecycleJobs.Ctx(ctx).Data(g.Map{
+		cols.Id:                jobID,
+		cols.TenantId:          tenantID,
+		cols.Type:              jobType,
+		cols.RequestedByUserId: requestedByVal,
+		cols.ScheduledAt:       scheduledAt,
+		cols.Metadata:          jsonMeta,
+	}).Insert()
 	if err != nil {
 		return nil, gerror.Wrap(err, "insert tenant lifecycle job")
+	}
+	record, err := dao.TenantLifecycleJobs.Ctx(ctx).Where(cols.Id, jobID).One()
+	if err != nil {
+		return nil, gerror.Wrap(err, "select created lifecycle job")
 	}
 	job, err := mapJob(record)
 	if err != nil {
@@ -111,24 +135,36 @@ RETURNING id, tenant_id, type, status, requested_by_user_id, scheduled_at, start
 }
 
 func (s *sTenantLifecycle) runOne(ctx context.Context, jobID, tenantID, jobType string) error {
-	_, err := g.DB().Exec(ctx, `UPDATE public.tenant_lifecycle_jobs SET status='running', started_at=now(), updated_at=now() WHERE id=? AND status='pending'`, jobID)
+	cols := dao.TenantLifecycleJobs.Columns()
+	_, err := dao.TenantLifecycleJobs.Ctx(ctx).
+		Where(cols.Id, jobID).
+		Where(cols.Status, "pending").
+		Data(g.Map{cols.Status: "running", cols.StartedAt: "now()", cols.UpdatedAt: "now()"}).
+		Update()
 	if err != nil {
 		return gerror.Wrap(err, "mark lifecycle job running")
 	}
 	var runErr error
+	var artifactURI string
 	switch jobType {
 	case "purge":
 		runErr = purgeTenant(ctx, tenantID)
 	case "export":
-		runErr = nil
+		artifactURI, runErr = exportTenant(ctx, tenantID)
 	default:
 		runErr = gerror.NewCodef(gcode.CodeInvalidParameter, "unknown lifecycle job type %s", jobType)
 	}
 	if runErr != nil {
-		_, _ = g.DB().Exec(ctx, `UPDATE public.tenant_lifecycle_jobs SET status='failed', error_message=?, finished_at=now(), updated_at=now() WHERE id=?`, runErr.Error(), jobID)
+		_, _ = dao.TenantLifecycleJobs.Ctx(ctx).
+			Where(cols.Id, jobID).
+			Data(g.Map{cols.Status: "failed", cols.ErrorMessage: runErr.Error(), cols.FinishedAt: "now()", cols.UpdatedAt: "now()"}).
+			Update()
 		return runErr
 	}
-	_, err = g.DB().Exec(ctx, `UPDATE public.tenant_lifecycle_jobs SET status='succeeded', finished_at=now(), updated_at=now() WHERE id=?`, jobID)
+	_, err = dao.TenantLifecycleJobs.Ctx(ctx).
+		Where(cols.Id, jobID).
+		Data(g.Map{cols.Status: "succeeded", cols.ArtifactUri: artifactURI, cols.FinishedAt: "now()", cols.UpdatedAt: "now()"}).
+		Update()
 	return gerror.Wrap(err, "mark lifecycle job succeeded")
 }
 
@@ -136,18 +172,86 @@ func purgeTenant(ctx context.Context, tenantID string) error {
 	if err := validateInternalID(tenantID); err != nil {
 		return err
 	}
-	record, err := g.DB().GetOne(ctx, `SELECT id FROM public.tenants WHERE id=? AND status='deleted'`, tenantID)
+	cols := dao.Tenants.Columns()
+	record, err := dao.Tenants.Ctx(ctx).
+		Where(cols.Id, tenantID).
+		Where(cols.Status, "deleted").
+		One()
 	if err != nil {
 		return gerror.Wrap(err, "select tenant for purge")
 	}
 	if record.IsEmpty() {
 		return gerror.NewCode(gcode.CodeInvalidParameter, "tenant is not in deleted status")
 	}
-	_, err = g.DB().Exec(ctx, `
-UPDATE public.tenants
-SET updated_at=now()
-WHERE id=? AND status='deleted'`, tenantID)
+	_, err = dao.Tenants.Ctx(ctx).
+		Where(cols.Id, tenantID).
+		Where(cols.Status, "deleted").
+		Data(g.Map{cols.Status: "purged", cols.UpdatedAt: "now()"}).
+		Update()
 	return gerror.Wrap(err, "mark public-schema tenant purge complete")
+}
+
+// exportTenant queries core tenant data and writes it to a JSONL file.
+// Returns the artifact URI (file path) on success.
+func exportTenant(ctx context.Context, tenantID string) (string, error) {
+	if err := validateInternalID(tenantID); err != nil {
+		return "", err
+	}
+	exportDir := g.Cfg().MustGet(ctx, "tenant.lifecycle.exportDir", "/tmp/tenant-exports").String()
+	if err := os.MkdirAll(exportDir, 0o755); err != nil {
+		return "", gerror.Wrap(err, "create export directory")
+	}
+	fileName := fmt.Sprintf("%s_%s.jsonl", tenantID, time.Now().Format("20060102T150405"))
+	filePath := filepath.Join(exportDir, fileName)
+	f, err := os.Create(filePath)
+	if err != nil {
+		return "", gerror.Wrap(err, "create export file")
+	}
+	defer f.Close()
+	// Per-table DAO queries
+	daoQueries := []struct {
+		label string
+		query func(ctx context.Context, tid string) ([]gdb.Record, error)
+	}{
+		{"tenants", func(ctx context.Context, tid string) ([]gdb.Record, error) {
+			return dao.Tenants.Ctx(ctx).Where(dao.Tenants.Columns().Id, tid).All()
+		}},
+		{"tenant_memberships", func(ctx context.Context, tid string) ([]gdb.Record, error) {
+			return dao.TenantMemberships.Ctx(ctx).Where(dao.TenantMemberships.Columns().TenantId, tid).All()
+		}},
+		{"tenant_invitations", func(ctx context.Context, tid string) ([]gdb.Record, error) {
+			return dao.TenantInvitations.Ctx(ctx).Where(dao.TenantInvitations.Columns().TenantId, tid).All()
+		}},
+		{"api_keys", func(ctx context.Context, tid string) ([]gdb.Record, error) {
+			// api_keys.tenant_id is nullable, export by user_id via grants
+			return dao.ApiKeys.Ctx(ctx).
+				LeftJoin("api_key_tenant_grants akg", "akg.api_key_id = api_keys.id").
+				Where("akg.tenant_id", tid).
+				All()
+		}},
+		{"api_key_tenant_grants", func(ctx context.Context, tid string) ([]gdb.Record, error) {
+			return dao.ApiKeyTenantGrants.Ctx(ctx).Where(dao.ApiKeyTenantGrants.Columns().TenantId, tid).All()
+		}},
+	}
+	total := 0
+	for _, dq := range daoQueries {
+		rows, err := dq.query(ctx, tenantID)
+		if err != nil {
+			return "", gerror.Wrapf(err, "export table %s", dq.label)
+		}
+		for _, row := range rows {
+			line, err := json.Marshal(row.Map())
+			if err != nil {
+				continue
+			}
+			if _, err := f.Write(append(line, '\n')); err != nil {
+				return "", gerror.Wrap(err, "write export line")
+			}
+			total++
+		}
+	}
+	g.Log().Infof(ctx, "[lifecycle] exported tenant %s: %d rows -> %s", tenantID, total, filePath)
+	return filePath, nil
 }
 
 func validateInternalID(id string) error {

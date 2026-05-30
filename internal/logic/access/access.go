@@ -3,7 +3,7 @@ package access
 import (
 	"context"
 
-	"repomind-temp/internal/service"
+	"multi-tenant-saas/internal/service"
 )
 
 type sAccess struct{}

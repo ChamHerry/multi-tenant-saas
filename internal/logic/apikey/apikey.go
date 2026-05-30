@@ -16,9 +16,10 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
-	"repomind-temp/internal/logic/rbac"
-	"repomind-temp/internal/service"
-	"repomind-temp/utility/uuid"
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/logic/rbac"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/uuid"
 )
 
 var internalIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -64,14 +65,31 @@ func (s *sAPIKey) createPersonal(ctx context.Context, in service.CreatePersonalA
 	keyPrefix := rawKeyPrefix(rawKey)
 	hash := hashRawKey(rawKey, secret)
 	var created *service.APIKey
-	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		record, err := tx.Ctx(ctx).GetOne(`
-INSERT INTO public.api_keys(id, tenant_id, user_id, name, key_hash, key_prefix, scopes, expires_at, key_type, created_by_user_id, created_at)
-VALUES (?, NULLIF(?, '')::uuid, ?, ?, ?, ?, ?::text[], NULLIF(?, '')::timestamptz, ?, ?, now())
-RETURNING id, tenant_id, user_id, name, key_type, key_prefix, scopes, last_used_at, expires_at, created_at, revoked_at, created_by_user_id`,
-			keyID, "", input.UserID, input.Name, hash, keyPrefix, textArrayLiteral(input.Scopes), expiresAtString(input.ExpiresAt), service.APIKeyTypePersonal, input.UserID)
+	err = dao.ApiKeys.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// Insert api_key, then Select back
+		keyCols := dao.ApiKeys.Columns()
+		var expiresAtVal any
+		if input.ExpiresAt != nil {
+			expiresAtVal = *input.ExpiresAt
+		}
+		_, err = dao.ApiKeys.Ctx(ctx).TX(tx).Data(g.Map{
+			keyCols.Id:              keyID,
+			keyCols.TenantId:        nil,
+			keyCols.UserId:          input.UserID,
+			keyCols.Name:            input.Name,
+			keyCols.KeyHash:         hash,
+			keyCols.KeyPrefix:       keyPrefix,
+			keyCols.Scopes:          gdb.Raw("'" + textArrayLiteral(input.Scopes) + "'"),
+			keyCols.ExpiresAt:       expiresAtVal,
+			keyCols.KeyType:         service.APIKeyTypePersonal,
+			keyCols.CreatedByUserId: input.UserID,
+		}).Insert()
 		if err != nil {
 			return gerror.Wrap(err, "insert api key")
+		}
+		record, err := dao.ApiKeys.Ctx(ctx).TX(tx).Where(keyCols.Id, keyID).One()
+		if err != nil {
+			return gerror.Wrap(err, "select created api key")
 		}
 		item, err := mapAPIKey(record)
 		if err != nil {
@@ -82,13 +100,20 @@ RETURNING id, tenant_id, user_id, name, key_type, key_prefix, scopes, last_used_
 			if err = validateInternalID(grantID); err != nil {
 				return err
 			}
-			grantRecord, err := tx.Ctx(ctx).GetOne(`
-INSERT INTO public.api_key_tenant_grants(id, api_key_id, tenant_id, scopes, status, granted_by_user_id, created_at, updated_at)
-VALUES (?, ?, ?, ?::text[], 'active', ?, now(), now())
-RETURNING id, api_key_id, tenant_id, scopes, status, granted_by_user_id, revoked_by_user_id, created_at, updated_at, revoked_at`,
-				grantID, keyID, grant.TenantID, textArrayLiteral(grant.Scopes), input.UserID)
+			grantCols := dao.ApiKeyTenantGrants.Columns()
+			_, err = dao.ApiKeyTenantGrants.Ctx(ctx).TX(tx).Data(g.Map{
+				grantCols.Id:             grantID,
+				grantCols.ApiKeyId:       keyID,
+				grantCols.TenantId:       grant.TenantID,
+				grantCols.Scopes:         gdb.Raw("'" + textArrayLiteral(grant.Scopes) + "'"),
+				grantCols.GrantedByUserId: input.UserID,
+			}).Insert()
 			if err != nil {
 				return gerror.Wrap(err, "insert api key tenant grant")
+			}
+			grantRecord, err := dao.ApiKeyTenantGrants.Ctx(ctx).TX(tx).Where(grantCols.Id, grantID).One()
+			if err != nil {
+				return gerror.Wrap(err, "select created api key tenant grant")
 			}
 			mappedGrant, err := mapAPIKeyGrant(grantRecord)
 			if err != nil {
@@ -112,14 +137,21 @@ func (s *sAPIKey) ListPersonal(ctx context.Context, userID, tenantID string) ([]
 	if err := validateInternalID(tenantID); err != nil {
 		return nil, err
 	}
-	result, err := g.DB().GetAll(ctx, `
-SELECT DISTINCT ak.id, ak.tenant_id, ak.user_id, ak.name, ak.key_type, ak.key_prefix, ak.scopes, ak.last_used_at, ak.expires_at, ak.created_at, ak.revoked_at, ak.created_by_user_id
-FROM public.api_keys ak
-JOIN public.api_key_tenant_grants g ON g.api_key_id = ak.id
-WHERE ak.user_id=? AND ak.key_type=? AND g.tenant_id=?
-ORDER BY ak.created_at DESC`, userID, service.APIKeyTypePersonal, tenantID)
+	// List personal API keys that have grants for the given tenant.
+	// Select only api_keys columns to avoid PG GROUP BY errors on joined grant columns.
+	result, err := dao.ApiKeys.Ctx(ctx).
+		Fields("api_keys.*").
+		LeftJoin("api_key_tenant_grants akg", "akg.api_key_id = api_keys.id").
+		Where("api_keys.user_id", userID).
+		Where("akg.tenant_id", tenantID).
+		Where("akg.status", "active").
+		Where("akg.revoked_at IS NULL").
+		Where("api_keys.revoked_at IS NULL").
+		Group("api_keys.id").
+		OrderDesc("api_keys.created_at").
+		All()
 	if err != nil {
-		return nil, gerror.Wrap(err, "list tenant-scoped api keys")
+		return nil, err
 	}
 	items := make([]service.APIKey, 0, len(result))
 	for _, record := range result {
@@ -147,18 +179,30 @@ func (s *sAPIKey) RevokePersonal(ctx context.Context, userID, tenantID, apiKeyID
 	if err := validateInternalID(apiKeyID); err != nil {
 		return err
 	}
-	return g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		result, err := tx.Ctx(ctx).Exec(`
-UPDATE public.api_keys
-SET revoked_at=COALESCE(revoked_at, now())
-WHERE user_id=?
-  AND id=?
-  AND revoked_at IS NULL
-  AND id IN (
-    SELECT g.api_key_id
-    FROM public.api_key_tenant_grants g
-    WHERE g.api_key_id=? AND g.tenant_id=?
-  )`, userID, apiKeyID, apiKeyID, tenantID)
+	return dao.ApiKeys.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// Check that an active grant exists for this key+tenant
+		grantCols := dao.ApiKeyTenantGrants.Columns()
+		grantRecord, err := dao.ApiKeyTenantGrants.Ctx(ctx).TX(tx).
+			Where(grantCols.ApiKeyId, apiKeyID).
+			Where(grantCols.TenantId, tenantID).
+			Where(grantCols.Status, "active").
+			Where(grantCols.RevokedAt+" IS NULL").
+			One()
+		if err != nil {
+			return gerror.Wrap(err, "check api key tenant grant")
+		}
+		if grantRecord.IsEmpty() {
+			return gerror.Newf("tenant-scoped api key %s not found for user %s in tenant %s", apiKeyID, userID, tenantID)
+		}
+
+		// Revoke the key if it belongs to the user
+		keyCols := dao.ApiKeys.Columns()
+		result, err := dao.ApiKeys.Ctx(ctx).TX(tx).
+			Where(keyCols.Id, apiKeyID).
+			Where(keyCols.UserId, userID).
+			Where(keyCols.RevokedAt+" IS NULL").
+			Data(g.Map{keyCols.RevokedAt: time.Now(), keyCols.UpdatedAt: time.Now()}).
+			Update()
 		if err != nil {
 			return gerror.Wrap(err, "revoke tenant-scoped api key")
 		}
@@ -166,10 +210,17 @@ WHERE user_id=?
 		if rows == 0 {
 			return gerror.Newf("tenant-scoped api key %s not found for user %s in tenant %s", apiKeyID, userID, tenantID)
 		}
-		_, err = tx.Ctx(ctx).Exec(`
-UPDATE public.api_key_tenant_grants
-SET status='revoked', revoked_at=COALESCE(revoked_at, now()), revoked_by_user_id=?, updated_at=now()
-WHERE api_key_id=? AND revoked_at IS NULL`, userID, apiKeyID)
+
+		// Revoke all grants for this key
+		_, err = dao.ApiKeyTenantGrants.Ctx(ctx).TX(tx).
+			Where(grantCols.ApiKeyId, apiKeyID).
+			Where(grantCols.RevokedAt+" IS NULL").
+			Data(g.Map{
+				grantCols.Status:         "revoked",
+				grantCols.RevokedAt:      time.Now(),
+				grantCols.RevokedByUserId: userID,
+				grantCols.UpdatedAt:      time.Now(),
+			}).Update()
 		return gerror.Wrap(err, "revoke tenant-scoped api key grants")
 	})
 }
@@ -181,41 +232,17 @@ func (s *sAPIKey) ResolveTenantGrant(ctx context.Context, apiKeyID, tenantID str
 	if err := validateInternalID(tenantID); err != nil {
 		return nil, err
 	}
-	record, err := g.DB().GetOne(ctx, `
-SELECT
-    g.id,
-    g.api_key_id,
-    g.tenant_id,
-    g.scopes,
-    g.status,
-    g.granted_by_user_id,
-    g.revoked_by_user_id,
-    g.created_at,
-    g.updated_at,
-    g.revoked_at,
-    t.slug AS tenant_slug,
-    t.name AS tenant_name,
-    ak.user_id,
-    ak.name AS key_name,
-    ak.key_prefix
-FROM public.api_key_tenant_grants g
-JOIN public.api_keys ak ON ak.id = g.api_key_id
-JOIN public.users u ON u.id = ak.user_id
-JOIN public.tenants t ON t.id = g.tenant_id
-JOIN public.tenant_memberships tm ON tm.tenant_id = g.tenant_id AND tm.user_id = ak.user_id
-WHERE g.api_key_id=?
-  AND g.tenant_id=?
-  AND g.status='active'
-  AND g.revoked_at IS NULL
-  AND ak.revoked_at IS NULL
-  AND (ak.expires_at IS NULL OR ak.expires_at > now())
-  AND u.status='active'
-  AND u.deleted_at IS NULL
-  AND t.status='active'
-  AND t.deleted_at IS NULL
-  AND tm.status='active'
-  AND tm.deleted_at IS NULL
-LIMIT 1`, apiKeyID, tenantID)
+	grantCols := dao.ApiKeyTenantGrants.Columns()
+	record, err := dao.ApiKeyTenantGrants.Ctx(ctx).
+		LeftJoin("tenants t", "t.id = api_key_tenant_grants.tenant_id").
+		LeftJoin("api_keys ak", "ak.id = api_key_tenant_grants.api_key_id").
+		LeftJoin("users u", "u.id = ak.user_id").
+		Fields("api_key_tenant_grants.*, t.name AS tenant_name, t.slug AS tenant_slug, u.id AS user_id, ak.name AS key_name, ak.key_prefix").
+		Where(grantCols.ApiKeyId, apiKeyID).
+		Where(grantCols.TenantId, tenantID).
+		Where(grantCols.Status, "active").
+		Where(grantCols.RevokedAt + " IS NULL").
+		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select api key tenant grant")
 	}
@@ -234,20 +261,26 @@ func (s *sAPIKey) Authenticate(ctx context.Context, rawKey string) (*service.Aut
 		return nil, err
 	}
 	hash := hashRawKey(rawKey, secret)
-	record, err := g.DB().GetOne(ctx, `
-SELECT ak.id, ak.tenant_id, ak.user_id, ak.scopes, ak.key_type
-FROM public.api_keys ak
-JOIN public.users u ON u.id = ak.user_id
-WHERE ak.key_hash=?
-  AND ak.revoked_at IS NULL
-  AND (ak.expires_at IS NULL OR ak.expires_at > now())
-  AND u.status='active'
-  AND u.deleted_at IS NULL
-LIMIT 1`, hash)
+	cols := dao.ApiKeys.Columns()
+	record, err := dao.ApiKeys.Ctx(ctx).
+		Where(cols.KeyHash, hash).
+		Where(cols.RevokedAt+" IS NULL").
+		Where("(expires_at IS NULL OR expires_at > NOW())").
+		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select api key")
 	}
 	if record.IsEmpty() {
+		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "api key is invalid, revoked, expired, or not attached to an active user")
+	}
+	// Verify user is active
+	userCols := dao.Users.Columns()
+	userRecord, err := dao.Users.Ctx(ctx).
+		Where(userCols.Id, record[cols.UserId].String()).
+		Where(userCols.Status, "active").
+		Where("deleted_at IS NULL").
+		One()
+	if err != nil || userRecord.IsEmpty() {
 		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "api key is invalid, revoked, expired, or not attached to an active user")
 	}
 	scopes := parseTextArray(record["scopes"].String())
@@ -255,7 +288,7 @@ LIMIT 1`, hash)
 		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "api key has no scopes")
 	}
 	apiKeyID := record["id"].String()
-	_, _ = g.DB().Exec(ctx, `UPDATE public.api_keys SET last_used_at=now() WHERE id=?`, apiKeyID)
+	_, _ = dao.ApiKeys.Ctx(ctx).Where(cols.Id, apiKeyID).Data(g.Map{cols.LastUsedAt: "now()"}).Update()
 	return &service.AuthIdentity{
 		UserID:   record["user_id"].String(),
 		TenantID: "",
@@ -352,11 +385,12 @@ func scopeIncludedInKey(scope string, keyScopes []string) bool {
 }
 
 func ensureActiveUser(ctx context.Context, userID string) error {
-	record, err := g.DB().GetOne(ctx, `
-SELECT 1
-FROM public.users
-WHERE id=? AND status='active' AND deleted_at IS NULL
-LIMIT 1`, userID)
+	cols := dao.Users.Columns()
+	record, err := dao.Users.Ctx(ctx).
+		Where(cols.Id, userID).
+		Where(cols.Status, "active").
+		Where("deleted_at IS NULL").
+		One()
 	if err != nil {
 		return gerror.Wrap(err, "select active api key user")
 	}
@@ -367,16 +401,13 @@ LIMIT 1`, userID)
 }
 
 func ensureActiveMembership(ctx context.Context, tenantID, userID string) error {
-	record, err := g.DB().GetOne(ctx, `
-SELECT 1
-FROM public.tenant_memberships tm
-JOIN public.users u ON u.id = tm.user_id
-JOIN public.tenants t ON t.id = tm.tenant_id
-WHERE tm.tenant_id=? AND tm.user_id=?
-  AND tm.status='active' AND tm.deleted_at IS NULL
-  AND u.status='active' AND u.deleted_at IS NULL
-  AND t.status='active' AND t.deleted_at IS NULL
-LIMIT 1`, tenantID, userID)
+	cols := dao.TenantMemberships.Columns()
+	record, err := dao.TenantMemberships.Ctx(ctx).
+		Where(cols.TenantId, tenantID).
+		Where(cols.UserId, userID).
+		Where(cols.Status, "active").
+		Where("deleted_at IS NULL").
+		One()
 	if err != nil {
 		return gerror.Wrap(err, "select active api key membership")
 	}
@@ -391,40 +422,35 @@ func enforcePersonalKeyLimit(ctx context.Context, userID string) error {
 	if limit <= 0 {
 		return nil
 	}
-	record, err := g.DB().GetOne(ctx, `
-SELECT count(*) AS used
-FROM public.api_keys
-WHERE user_id=? AND key_type=? AND revoked_at IS NULL`, userID, service.APIKeyTypePersonal)
+	cols := dao.ApiKeys.Columns()
+	count, err := dao.ApiKeys.Ctx(ctx).
+		Where(cols.UserId, userID).
+		Where(cols.KeyType, service.APIKeyTypePersonal).
+		Where(cols.RevokedAt+" IS NULL").
+		Where("(expires_at IS NULL OR expires_at > NOW())").
+		Count()
 	if err != nil {
-		return gerror.Wrap(err, "select personal api key usage")
+		return err
 	}
-	if record["used"].Int() >= limit {
+	if count >= limit {
 		return gerror.NewCodef(gcode.CodeNotAuthorized, "personal api key limit exceeded: limit=%d", limit)
 	}
 	return nil
 }
 
 func listKeyGrants(ctx context.Context, apiKeyID string) ([]service.APIKeyTenantGrant, error) {
-	result, err := g.DB().GetAll(ctx, `
-SELECT
-    g.id,
-    g.api_key_id,
-    g.tenant_id,
-    g.scopes,
-    g.status,
-    g.granted_by_user_id,
-    g.revoked_by_user_id,
-    g.created_at,
-    g.updated_at,
-    g.revoked_at,
-    t.slug AS tenant_slug,
-    t.name AS tenant_name
-FROM public.api_key_tenant_grants g
-JOIN public.tenants t ON t.id = g.tenant_id
-WHERE g.api_key_id=?
-ORDER BY g.created_at DESC`, apiKeyID)
+	grantCols := dao.ApiKeyTenantGrants.Columns()
+	result, err := dao.ApiKeyTenantGrants.Ctx(ctx).
+		LeftJoin("tenants t", "t.id = api_key_tenant_grants.tenant_id").
+		LeftJoin("api_keys ak", "ak.id = api_key_tenant_grants.api_key_id").
+		LeftJoin("users u", "u.id = ak.user_id").
+		Fields("api_key_tenant_grants.*, t.name AS tenant_name, t.slug AS tenant_slug, u.id AS user_id, ak.name AS key_name, ak.key_prefix").
+		Where(grantCols.ApiKeyId, apiKeyID).
+		Where(grantCols.Status, "active").
+		Where(grantCols.RevokedAt + " IS NULL").
+		All()
 	if err != nil {
-		return nil, gerror.Wrap(err, "list api key grants")
+		return nil, err
 	}
 	items := make([]service.APIKeyTenantGrant, 0, len(result))
 	for _, record := range result {
@@ -438,26 +464,19 @@ ORDER BY g.created_at DESC`, apiKeyID)
 }
 
 func listKeyGrantsForTenant(ctx context.Context, apiKeyID, tenantID string) ([]service.APIKeyTenantGrant, error) {
-	result, err := g.DB().GetAll(ctx, `
-SELECT
-    g.id,
-    g.api_key_id,
-    g.tenant_id,
-    g.scopes,
-    g.status,
-    g.granted_by_user_id,
-    g.revoked_by_user_id,
-    g.created_at,
-    g.updated_at,
-    g.revoked_at,
-    t.slug AS tenant_slug,
-    t.name AS tenant_name
-FROM public.api_key_tenant_grants g
-JOIN public.tenants t ON t.id = g.tenant_id
-WHERE g.api_key_id=? AND g.tenant_id=?
-ORDER BY g.created_at DESC`, apiKeyID, tenantID)
+	grantCols := dao.ApiKeyTenantGrants.Columns()
+	result, err := dao.ApiKeyTenantGrants.Ctx(ctx).
+		LeftJoin("tenants t", "t.id = api_key_tenant_grants.tenant_id").
+		LeftJoin("api_keys ak", "ak.id = api_key_tenant_grants.api_key_id").
+		LeftJoin("users u", "u.id = ak.user_id").
+		Fields("api_key_tenant_grants.*, t.name AS tenant_name, t.slug AS tenant_slug, u.id AS user_id, ak.name AS key_name, ak.key_prefix").
+		Where(grantCols.ApiKeyId, apiKeyID).
+		Where(grantCols.TenantId, tenantID).
+		Where(grantCols.Status, "active").
+		Where(grantCols.RevokedAt + " IS NULL").
+		All()
 	if err != nil {
-		return nil, gerror.Wrap(err, "list tenant api key grants")
+		return nil, err
 	}
 	items := make([]service.APIKeyTenantGrant, 0, len(result))
 	for _, record := range result {
@@ -601,13 +620,6 @@ func textArrayLiteral(items []string) string {
 		quoted = append(quoted, `"`+item+`"`)
 	}
 	return `{` + strings.Join(quoted, `,`) + `}`
-}
-
-func expiresAtString(t *time.Time) string {
-	if t == nil {
-		return ""
-	}
-	return t.UTC().Format(time.RFC3339Nano)
 }
 
 func parseTextArray(value string) []string {
