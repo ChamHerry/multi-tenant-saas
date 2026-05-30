@@ -15,12 +15,7 @@ type RequirePermissionProps = {
   mode?: 'all' | 'any'
 }
 
-export function RequirePermission({
-  children,
-  tenant,
-  platform,
-  mode = 'all',
-}: RequirePermissionProps) {
+export function RequirePermission({ children, tenant, platform, mode = 'all' }: RequirePermissionProps) {
   const params = useParams()
   const [searchParams] = useSearchParams()
   const { t } = useTranslation()
@@ -46,7 +41,8 @@ export function RequirePermission({
   if (tenant && tenant.length > 0) {
     const tenantId = params.tenantId ?? searchParams.get('tenantId') ?? currentTenantId
     const tenantAccess = access.data?.tenants.find((item) => item.tenant_id === tenantId)
-    const allowed = mode === 'all' ? hasAll(tenantAccess?.permissions, tenant) : hasAny(tenantAccess?.permissions, tenant)
+    const allowed =
+      mode === 'all' ? hasAll(tenantAccess?.permissions, tenant) : hasAny(tenantAccess?.permissions, tenant)
     if (!tenantId) {
       return (
         <EmptyState

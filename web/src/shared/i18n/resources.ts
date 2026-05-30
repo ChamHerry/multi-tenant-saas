@@ -184,11 +184,14 @@ export const resources = {
           loading: 'Loading permission context...',
           loadFailed: 'Failed to load permission context',
           noPlatformPermissionTitle: 'No platform permission',
-          noPlatformPermissionDescription: 'This account does not have permission to access this platform admin page. The real API remains protected by backend authorization.',
+          noPlatformPermissionDescription:
+            'This account does not have permission to access this platform admin page. The real API remains protected by backend authorization.',
           selectTenantTitle: 'Select an organization first',
-          selectTenantDescription: 'This page requires organization context. Select an existing organization from the sidebar or create one first.',
+          selectTenantDescription:
+            'This page requires organization context. Select an existing organization from the sidebar or create one first.',
           noTenantPermissionTitle: 'No organization permission',
-          noTenantPermissionDescription: 'The current organization role does not have permission to access this page. The real API remains protected by backend RBAC.',
+          noTenantPermissionDescription:
+            'The current organization role does not have permission to access this page. The real API remains protected by backend RBAC.',
         },
       },
       routes: {

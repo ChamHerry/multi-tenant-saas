@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useMatches, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Building2, LogOut } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccess } from '@/features/access/access-hooks'
@@ -9,55 +10,47 @@ import { LanguageSwitcher } from '@/shared/i18n'
 import { Badge, Button, ErrorView } from '@/shared/ui'
 import { cn } from '@/shared/lib/cn'
 import { buildScopeNavSections } from './scope-nav'
-import { PageTitleContext } from './page-title'
+import { PageTitleContext, resolvePageTitle, type PageTitleDescriptor } from './page-title'
 
 type RouteTitleHandle = {
-  titleKey?: string;
-  titleValues?: PageTitleDescriptor["values"];
-};
+  titleKey?: string
+  titleValues?: PageTitleDescriptor['values']
+}
 
-function getRouteTitleDescriptor(
-  matches: { handle?: unknown }[],
-): PageTitleDescriptor {
+function getRouteTitleDescriptor(matches: { handle?: unknown }[]): PageTitleDescriptor {
   for (const match of [...matches].reverse()) {
-    const handle = match.handle as RouteTitleHandle | undefined;
-    if (typeof handle?.titleKey === "string" && handle.titleKey.trim()) {
-      return { key: handle.titleKey, values: handle.titleValues };
+    const handle = match.handle as RouteTitleHandle | undefined
+    if (typeof handle?.titleKey === 'string' && handle.titleKey.trim()) {
+      return { key: handle.titleKey, values: handle.titleValues }
     }
   }
-  return { key: "routes.dashboard.title" };
+  return { key: 'routes.dashboard.title' }
 }
 
 export function AppShell() {
-  const navigate = useNavigate();
-  const matches = useMatches();
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const { data: me, error: meError } = useMe();
-  const { data: access, error: accessError } = useAccess();
-  const logoutMutation = useLogoutMutation();
-  const currentTenantId = useTenantStore((state) => state.currentTenantId);
-  const setCurrentTenantId = useTenantStore(
-    (state) => state.setCurrentTenantId,
-  );
-  const [pageTitleOverride, setPageTitleOverride] =
-    useState<PageTitleDescriptor>();
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isTenantMenuOpen, setIsTenantMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const tenantMenuRef = useRef<HTMLDivElement>(null);
-  const tenants = useMemo(() => access?.tenants ?? [], [access?.tenants]);
-  const currentMembership = tenants.find(
-    (tenant) => tenant.tenant_id === currentTenantId,
-  );
-  const currentUserLabel =
-    me?.user.display_name || me?.user.email || t("appShell.user.devUser");
-  const routeTitle = getRouteTitleDescriptor(matches);
+  const navigate = useNavigate()
+  const matches = useMatches()
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const { data: me, error: meError } = useMe()
+  const { data: access, error: accessError } = useAccess()
+  const logoutMutation = useLogoutMutation()
+  const currentTenantId = useTenantStore((state) => state.currentTenantId)
+  const setCurrentTenantId = useTenantStore((state) => state.setCurrentTenantId)
+  const [pageTitleOverride, setPageTitleOverride] = useState<PageTitleDescriptor>()
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [isTenantMenuOpen, setIsTenantMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+  const tenantMenuRef = useRef<HTMLDivElement>(null)
+  const tenants = useMemo(() => access?.tenants ?? [], [access?.tenants])
+  const currentMembership = tenants.find((tenant) => tenant.tenant_id === currentTenantId)
+  const currentUserLabel = me?.user.display_name || me?.user.email || t('appShell.user.devUser')
+  const routeTitle = getRouteTitleDescriptor(matches)
   const setPageTitle = useCallback((title?: PageTitleDescriptor) => {
-    setPageTitleOverride(title);
-  }, []);
-  const pageTitleContext = useMemo(() => ({ setPageTitle }), [setPageTitle]);
-  const pageTitle = resolvePageTitle(t, pageTitleOverride ?? routeTitle);
+    setPageTitleOverride(title)
+  }, [])
+  const pageTitleContext = useMemo(() => ({ setPageTitle }), [setPageTitle])
+  const pageTitle = resolvePageTitle(t, pageTitleOverride ?? routeTitle)
   const scopeSections = useMemo(
     () =>
       buildScopeNavSections({
@@ -76,10 +69,8 @@ export function AppShell() {
       currentTenantId &&
       tenants.some(
         (tenant) =>
-          tenant.tenant_id === currentTenantId &&
-          tenant.status === "active" &&
-          tenant.tenant_status === "active",
-      );
+          tenant.tenant_id === currentTenantId && tenant.status === 'active' && tenant.tenant_status === 'active',
+      )
     if (!hasSelected) {
       const firstActive =
         tenants.find(
@@ -142,53 +133,41 @@ export function AppShell() {
               type="button"
               className="flex w-full items-center justify-between gap-2 rounded-panel bg-surface-soft px-3 py-2 text-left text-sm transition hover:bg-brand-soft"
               onClick={() => {
-                setIsTenantMenuOpen((current) => !current);
-                setIsUserMenuOpen(false);
+                setIsTenantMenuOpen((current) => !current)
+                setIsUserMenuOpen(false)
               }}
             >
               <div className="min-w-0">
-                <div className="truncate font-bold text-ink">
-                  {currentMembership.tenant_name}
-                </div>
-                <div className="truncate text-xs text-subtle">
-                  {currentMembership.tenant_slug}
-                </div>
+                <div className="truncate font-bold text-ink">{currentMembership.tenant_name}</div>
+                <div className="truncate text-xs text-subtle">{currentMembership.tenant_slug}</div>
               </div>
               <Badge tone="green">{currentMembership.role}</Badge>
             </button>
             {isTenantMenuOpen ? (
               <div className="absolute inset-x-0 top-full z-20 mt-2 rounded-card border border-line bg-white p-2 shadow-brand">
                 <div className="px-2 py-1 text-xs font-bold uppercase tracking-wide text-subtle">
-                  {t("appShell.tenant.selectLabel")}
+                  {t('appShell.tenant.selectLabel')}
                 </div>
                 <div className="mt-1 space-y-1">
                   {tenants.map((tenant) => {
-                    const isCurrent = tenant.tenant_id === currentTenantId;
+                    const isCurrent = tenant.tenant_id === currentTenantId
                     return (
                       <button
                         key={tenant.tenant_id}
                         type="button"
                         className={cn(
-                          "flex w-full items-center justify-between gap-2 rounded-panel px-3 py-2 text-left text-sm transition hover:bg-brand-soft",
-                          isCurrent && "bg-brand-soft",
+                          'flex w-full items-center justify-between gap-2 rounded-panel px-3 py-2 text-left text-sm transition hover:bg-brand-soft',
+                          isCurrent && 'bg-brand-soft',
                         )}
                         onClick={() => chooseTenant(tenant.tenant_id)}
                       >
                         <div className="min-w-0">
-                          <div className="truncate font-bold text-ink">
-                            {tenant.tenant_name}
-                          </div>
-                          <div className="truncate text-xs text-subtle">
-                            {tenant.tenant_slug}
-                          </div>
+                          <div className="truncate font-bold text-ink">{tenant.tenant_name}</div>
+                          <div className="truncate text-xs text-subtle">{tenant.tenant_slug}</div>
                         </div>
-                        {isCurrent ? (
-                          <Badge tone="green">
-                            {t("appShell.tenant.currentBadge")}
-                          </Badge>
-                        ) : null}
+                        {isCurrent ? <Badge tone="green">{t('appShell.tenant.currentBadge')}</Badge> : null}
                       </button>
-                    );
+                    )
                   })}
                 </div>
               </div>
@@ -196,18 +175,12 @@ export function AppShell() {
           </div>
         ) : (
           <div className="mt-3 rounded-panel bg-surface-soft px-3 py-3 text-sm text-muted">
-            <div>{t("appShell.tenant.emptyTitle")}</div>
-            <div className="mt-1 text-xs text-subtle">
-              {t("appShell.tenant.emptyDescription")}
-            </div>
+            <div>{t('appShell.tenant.emptyTitle')}</div>
+            <div className="mt-1 text-xs text-subtle">{t('appShell.tenant.emptyDescription')}</div>
             <div className="mt-3">
               <Link to="/tenants">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={<Building2 className="size-4" />}
-                >
-                  {t("appShell.tenant.manageCta")}
+                <Button variant="secondary" size="sm" leftIcon={<Building2 className="size-4" />}>
+                  {t('appShell.tenant.manageCta')}
                 </Button>
               </Link>
             </div>
@@ -285,9 +258,7 @@ export function AppShell() {
                       >
                         <LogOut className="size-4" />
                         <span>
-                          {logoutMutation.isPending
-                            ? t("appShell.user.logoutPending")
-                            : t("appShell.user.logout")}
+                          {logoutMutation.isPending ? t('appShell.user.logoutPending') : t('appShell.user.logout')}
                         </span>
                       </button>
                     </div>
@@ -298,12 +269,9 @@ export function AppShell() {
           </header>
           <main className="mx-auto max-w-7xl p-4 sm:p-6">
             {meError ? (
-              <ErrorView title={t("appShell.errors.meLoad")} error={meError} />
+              <ErrorView title={t('appShell.errors.meLoad')} error={meError} />
             ) : accessError ? (
-              <ErrorView
-                title={t("appShell.errors.accessLoad")}
-                error={accessError}
-              />
+              <ErrorView title={t('appShell.errors.accessLoad')} error={accessError} />
             ) : (
               <Outlet />
             )}

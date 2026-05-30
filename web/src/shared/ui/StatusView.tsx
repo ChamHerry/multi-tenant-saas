@@ -3,7 +3,11 @@ import { errorMessage } from '@/shared/api/errors'
 
 export function LoadingView({ label }: { label?: string }) {
   const { t } = useTranslation()
-  return <div className="rounded-card border border-line bg-white p-5 text-sm text-muted shadow-soft">{label ?? t('common.loading')}</div>
+  return (
+    <div className="rounded-card border border-line bg-white p-5 text-sm text-muted shadow-soft">
+      {label ?? t('common.loading')}
+    </div>
+  )
 }
 
 export function ErrorView({ error, title }: { error: unknown; title?: string }) {

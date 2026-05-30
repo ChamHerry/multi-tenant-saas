@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from '@/shared/i18n'
+
+const featureKeys = ['auth.shell.features.httpOnly', 'auth.shell.features.api', 'auth.shell.features.orgContext']
 
 export function AuthShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
@@ -20,7 +23,10 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <p className="mt-5 text-base leading-8 text-muted">{t('auth.shell.description')}</p>
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
             {featureKeys.map((key) => (
-              <div key={key} className="rounded-card border border-line bg-white/80 p-4 text-sm font-bold text-brand shadow-soft">
+              <div
+                key={key}
+                className="rounded-card border border-line bg-white/80 p-4 text-sm font-bold text-brand shadow-soft"
+              >
                 {t(key)}
               </div>
             ))}

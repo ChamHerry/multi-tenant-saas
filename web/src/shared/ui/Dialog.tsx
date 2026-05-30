@@ -2,7 +2,17 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from './Button'
 
-export function Dialog({ open, title, children, onClose }: { open: boolean; title: ReactNode; children: ReactNode; onClose: () => void }) {
+export function Dialog({
+  open,
+  title,
+  children,
+  onClose,
+}: {
+  open: boolean
+  title: ReactNode
+  children: ReactNode
+  onClose: () => void
+}) {
   const { t } = useTranslation()
 
   if (!open) return null
@@ -11,7 +21,9 @@ export function Dialog({ open, title, children, onClose }: { open: boolean; titl
       <div className="w-full max-w-lg rounded-card border border-line bg-white p-5 shadow-brand">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-lg font-bold text-ink">{title}</h3>
-          <Button variant="ghost" size="sm" onClick={onClose}>{t('common.close')}</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            {t('common.close')}
+          </Button>
         </div>
         {children}
       </div>
