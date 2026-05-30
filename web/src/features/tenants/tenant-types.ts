@@ -1,5 +1,10 @@
 import { z } from 'zod'
 import type { TenantPermission } from '@/features/access/access-types'
+import {
+  defaultTenantSchemaTranslator,
+  tenantValidationFallback,
+  type SchemaTranslator,
+} from './tenant-i18n'
 
 export const tenantRoleSchema = z.enum(['owner', 'admin', 'member', 'viewer'])
 export type TenantRole = z.infer<typeof tenantRoleSchema>
@@ -49,21 +54,36 @@ export type TenantContext = {
 export const TENANT_SLUG_MAX_LENGTH = 80
 const TENANT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$/
 
-export const createTenantInputSchema = z.object({
-  name: z.string().min(1, '请输入组织名称').max(100, '组织名称最多 100 字符'),
-  slug: z
-    .string()
-    .min(1, '请输入 Slug')
-    .regex(TENANT_SLUG_PATTERN, 'Slug 需为 3-80 位小写字母、数字或短横线，且首尾必须是字母或数字'),
-})
-export type CreateTenantInput = z.infer<typeof createTenantInputSchema>
+export function createCreateTenantInputSchema(t: SchemaTranslator = defaultTenantSchemaTranslator) {
+  return z.object({
+    name: z
+      .string()
+      .min(1, t('tenantNameRequired', tenantValidationFallback.tenantNameRequired))
+      .max(100, t('tenantNameMax', tenantValidationFallback.tenantNameMax, { max: 100 })),
+    slug: z
+      .string()
+      .min(1, t('tenantSlugRequired', tenantValidationFallback.tenantSlugRequired))
+      .regex(TENANT_SLUG_PATTERN, t('tenantSlugPattern', tenantValidationFallback.tenantSlugPattern)),
+  })
+}
 
-export const updateTenantInputSchema = z.object({
-  name: z.string().min(1, '组织名称不能为空').max(100, '组织名称最多 100 字符').optional(),
-  slug: z
-    .string()
-    .min(1, 'Slug 不能为空')
-    .regex(TENANT_SLUG_PATTERN, 'Slug 需为 3-80 位小写字母、数字或短横线，且首尾必须是字母或数字')
-    .optional(),
-})
-export type UpdateTenantInput = z.infer<typeof updateTenantInputSchema>
+export const createTenantInputSchema = createCreateTenantInputSchema()
+export type CreateTenantInput = z.infer<ReturnType<typeof createCreateTenantInputSchema>>
+
+export function createUpdateTenantInputSchema(t: SchemaTranslator = defaultTenantSchemaTranslator) {
+  return z.object({
+    name: z
+      .string()
+      .min(1, t('tenantNameCannotBeEmpty', tenantValidationFallback.tenantNameCannotBeEmpty))
+      .max(100, t('tenantNameMax', tenantValidationFallback.tenantNameMax, { max: 100 }))
+      .optional(),
+    slug: z
+      .string()
+      .min(1, t('tenantSlugCannotBeEmpty', tenantValidationFallback.tenantSlugCannotBeEmpty))
+      .regex(TENANT_SLUG_PATTERN, t('tenantSlugPattern', tenantValidationFallback.tenantSlugPattern))
+      .optional(),
+  })
+}
+
+export const updateTenantInputSchema = createUpdateTenantInputSchema()
+export type UpdateTenantInput = z.infer<ReturnType<typeof createUpdateTenantInputSchema>>
