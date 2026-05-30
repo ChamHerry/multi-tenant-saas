@@ -154,9 +154,10 @@ func TestListMembers(t *testing.T) {
 }
 
 // TestBatchAdd verifies batch adding members.
-// TODO: GoFrame length validation treats []BatchMember as string; needs investigation.
+// Previously skipped: GoFrame's "length" validation rule measures JSON string rune count
+// instead of slice element count for []BatchMember fields. Fixed by moving validation
+// to controller layer with manual len() check.
 func TestBatchAdd(t *testing.T) {
-	t.Skip("TODO: GoFrame v2.10.2 slice validation quirk with length rule")
 	suite.SetupTest(t)
 	defer suite.TeardownTest(t)
 
@@ -180,7 +181,6 @@ func TestBatchAdd(t *testing.T) {
 
 // TestBatchAdd_PartialFailure verifies batch add with mixed valid/invalid user IDs.
 func TestBatchAdd_PartialFailure(t *testing.T) {
-	t.Skip("TODO: depends on TestBatchAdd fix (GoFrame slice validation quirk)")
 	suite.SetupTest(t)
 	defer suite.TeardownTest(t)
 
@@ -198,8 +198,8 @@ func TestBatchAdd_PartialFailure(t *testing.T) {
 	if added, ok := data["added"].(float64); !ok || int(added) != 1 {
 		t.Fatalf("expected added=1, got %v", data)
 	}
-	errors, ok := data["errors"].([]any)
-	if !ok || len(errors) < 1 {
+	errs, ok := data["errors"].([]any)
+	if !ok || len(errs) < 1 {
 		t.Fatalf("expected at least 1 error, got %v", data)
 	}
 }
