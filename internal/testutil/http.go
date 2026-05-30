@@ -173,6 +173,12 @@ func (c *TestClient) ResetCookies() {
 	c.csrfToken = ""
 }
 
+// ClearCSRF removes only the CSRF token while keeping session cookies.
+// Useful for testing CSRF enforcement.
+func (c *TestClient) ClearCSRF() {
+	c.csrfToken = ""
+}
+
 // JSON returns the parsed JSON body as a map.
 func (r *TestResponse) JSON() map[string]any {
 	var result map[string]any

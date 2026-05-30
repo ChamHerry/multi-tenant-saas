@@ -45,7 +45,6 @@ func TestAPIKeyAuthenticate(t *testing.T) {
 	rawKey := resp.JSONData()["raw_key"].(string)
 
 	// Use a fresh client with the API key as Bearer token.
-	// GET /me requires auth scope; include tenant header with matching scope.
 	apiClient := testutil.NewTestClient(t, suite.Client.BaseURL())
 	resp = apiClient.DoWithHeaders("GET", "/api/v1/me", "",
 		map[string]string{"Authorization": "Bearer " + rawKey})
@@ -109,5 +108,22 @@ func TestListAPIKeys(t *testing.T) {
 	keys, ok := resp.JSONData()["api_keys"].([]any)
 	if !ok || len(keys) != 2 {
 		t.Fatalf("expected 2 api keys, got %v", resp.Body)
+	}
+}
+
+// TestAPIKey_InvalidSecret verifies that a wrong key fails authentication.
+func TestAPIKey_InvalidSecret(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	fakeClient := testutil.NewTestClient(t, suite.Client.BaseURL())
+	resp := fakeClient.DoWithHeaders("GET", "/api/v1/me", "",
+		map[string]string{"Authorization": "Bearer saas_totally_invalid_key"})
+	// Should fail authentication — not 200.
+	if resp.StatusCode == 200 {
+		t.Fatal("expected invalid API key to be rejected")
+	}
+	if resp.StatusCode != 401 && resp.StatusCode != 403 {
+		t.Fatalf("expected 401 or 403 for invalid key, got %d body %s", resp.StatusCode, resp.Body)
 	}
 }

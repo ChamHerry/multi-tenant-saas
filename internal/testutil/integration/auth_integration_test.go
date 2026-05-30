@@ -116,6 +116,33 @@ func TestLogin_WrongPassword(t *testing.T) {
 	}
 }
 
+// TestLogin_RateLimited verifies rate limiting kicks in after burst exhaustion.
+func TestLogin_RateLimited(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	// Use a fresh client so the rate limit bucket starts from scratch.
+	// Rate limiter is keyed by IP (no auth), so localhost gets a single bucket.
+	rlClient := testutil.NewTestClient(t, suite.Client.BaseURL())
+
+	// Send requests to exhaust the burst bucket (config: burst=40, rps=20).
+	// Using GET /api/v1/me which is cheap but goes through RateLimit middleware.
+	got429 := false
+	for i := 0; i < 60; i++ {
+		resp := rlClient.GET("/api/v1/me")
+		if resp.StatusCode == 429 {
+			got429 = true
+			if resp.Headers.Get("Retry-After") == "" {
+				t.Fatal("expected Retry-After header on 429 response")
+			}
+			break
+		}
+	}
+	if !got429 {
+		t.Fatal("expected 429 rate limited response after 60 requests, never got one")
+	}
+}
+
 // TestLogout_Success verifies the logout chain.
 func TestLogout_Success(t *testing.T) {
 	suite.SetupTest(t)
@@ -173,4 +200,46 @@ func TestMe_Unauthenticated(t *testing.T) {
 
 	resp := suite.Client.GET("/api/v1/me")
 	testutil.AssertStatus(t, resp, 401)
+}
+
+// TestChangePassword verifies password change flow:
+// old password stops working, new password works.
+func TestChangePassword(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	email := "changepw@example.com"
+	testutil.RegisterUser(t, suite.Client, email, "Change PW User")
+
+	// Change password via the authenticated endpoint.
+	newPassword := "BrandNewPassword123!"
+	resp := suite.Client.POST("/api/v1/auth/password/change", fmt.Sprintf(`{
+		"old_password": "%s",
+		"new_password": "%s"
+	}`, testutil.TestPassword(), newPassword))
+	testutil.AssertSuccess(t, resp)
+
+	// Old session is still valid after password change (session-based auth).
+	// Verify by accessing /me.
+	resp = suite.Client.GET("/api/v1/me")
+	testutil.AssertSuccess(t, resp)
+
+	// Old password should no longer work.
+	suite.Client.ResetCookies()
+	oldPwClient := testutil.NewTestClient(t, suite.Client.BaseURL())
+	resp = oldPwClient.POST("/api/v1/auth/login", fmt.Sprintf(`{
+		"email": "%s",
+		"password": "%s"
+	}`, email, testutil.TestPassword()))
+	if resp.StatusCode == 200 {
+		t.Fatal("expected login with old password to fail after change")
+	}
+
+	// New password should work.
+	newPwClient := testutil.NewTestClient(t, suite.Client.BaseURL())
+	resp = newPwClient.POST("/api/v1/auth/login", fmt.Sprintf(`{
+		"email": "%s",
+		"password": "%s"
+	}`, email, newPassword))
+	testutil.AssertSuccess(t, resp)
 }
