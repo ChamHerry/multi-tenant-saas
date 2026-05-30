@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Activity, ArrowRight, DatabaseZap, Server, Users } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -10,7 +10,7 @@ import { apiRaw } from '@/shared/api/client'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
-import { usePageTitle } from '@/layouts/page-title'
+import { pageTitle, usePageTitle } from '@/layouts/page-title'
 import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
 
 type Health = { ok: boolean; version?: number; dirty?: boolean; error?: string }
@@ -50,10 +50,13 @@ export function DashboardPage() {
   const tenants = useMyTenants()
   const tenantContext = useTenantContext()
   const currentTenantId = useTenantStore((state) => state.currentTenantId)
-  const displayName = me.data?.user.display_name || me.data?.user.email || t('dashboard.userFallback')
-  const tenantCount = tenants.data?.tenants.length ?? 0
+  const displayName = me.data?.user.display_name || me.data?.user.email || 'Dev User'
+  const dashboardPageTitle = useMemo(
+    () => (me.data ? pageTitle('routes.dashboard.welcome', { name: displayName }) : pageTitle('routes.dashboard.title')),
+    [displayName, me.data],
+  )
 
-  usePageTitle(me.data ? t('dashboard.title.welcome', { name: displayName }) : t('dashboard.title.default'))
+  usePageTitle(dashboardPageTitle)
 
   if (me.isLoading) return <LoadingView label={t('common.loading')} />
 

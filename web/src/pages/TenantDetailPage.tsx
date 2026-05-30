@@ -8,7 +8,7 @@ import { useTenantStore } from '@/features/tenants/tenant-store'
 import type { Tenant } from '@/features/tenants/tenant-types'
 import { Button, Card, CardHeader, Dialog, EmptyState, Input, ErrorView, LoadingView } from '@/shared/ui'
 import { validateForm, type FieldErrors } from '@/shared/lib/validate'
-import { usePageTitle } from '@/layouts/page-title'
+import { pageTitle, usePageTitle } from '@/layouts/page-title'
 
 function TenantEditForm({ tenantId, tenant, canManage, onSaved }: { tenantId: string; tenant: Tenant; canManage: boolean; onSaved?: () => void }) {
   const updateTenant = useUpdateTenant(tenantId)
@@ -56,8 +56,12 @@ export function TenantDetailPage() {
   const canManageTenant = useCanTenant('tenant:manage', tenantId)
   const tenant = detail.data?.tenant
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const tenantPageTitle = useMemo(
+    () => (tenant?.name ? pageTitle('routes.tenantSettings.dynamic', { name: tenant.name }) : pageTitle('routes.tenantSettings.title')),
+    [tenant?.name],
+  )
 
-  usePageTitle(tenant?.name ?? '组织设置')
+  usePageTitle(tenantPageTitle)
 
   useEffect(() => {
     if (tenantId) setCurrentTenantId(tenantId)
