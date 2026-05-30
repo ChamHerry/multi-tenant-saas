@@ -1,0 +1,44 @@
+{
+  "validation": {
+    "emailRequired": "请输入邮箱",
+    "emailInvalid": "邮箱格式不正确",
+    "passwordRequired": "请输入密码",
+    "passwordMin": "密码至少 {min} 个字符",
+    "confirmPasswordRequired": "请确认密码",
+    "displayNameMax": "显示名称最多 {max} 字符",
+    "passwordsMustMatch": "两次输入的密码不一致",
+    "currentPasswordRequired": "请输入当前密码",
+    "newPasswordMin": "新密码至少 {min} 个字符",
+    "confirmNewPasswordRequired": "请确认新密码",
+    "newPasswordsMustMatch": "两次输入的新密码不一致"
+  },
+  "login": {
+    "title": "登录 SaaS 控制台",
+    "description": "使用正式账号登录控制台。登录凭证由后端写入 HttpOnly Cookie，前端不会保存访问令牌。",
+    "emailLabel": "邮箱",
+    "emailPlaceholder": "admin@example.com",
+    "passwordLabel": "密码",
+    "passwordPlaceholder": "至少 15 个字符",
+    "submit": "登录控制台",
+    "noAccountTitle": "没有账号？",
+    "registerLink": "注册新账号",
+    "localAccountTitle": "首次本地创建账号",
+    "localAccountCommand": "go run . user-password-create --email admin@example.com --password '0123456789abcde' --name Admin --email-verified true"
+  },
+  "register": {
+    "title": "注册 SaaS 控制台",
+    "description": "创建正式账号后，系统会自动准备一个默认组织；如果这是平台首次注册，该账号会自动成为平台管理员以完成初始化。",
+    "emailLabel": "邮箱",
+    "emailPlaceholder": "admin@example.com",
+    "displayNameLabel": "显示名称",
+    "displayNamePlaceholder": "Admin",
+    "passwordLabel": "密码",
+    "passwordPlaceholder": "至少 15 个字符",
+    "confirmPasswordLabel": "确认密码",
+    "confirmPasswordPlaceholder": "再次输入密码",
+    "submit": "注册并进入控制台",
+    "hasAccountTitle": "已有账号？",
+    "loginLink": "返回登录",
+    "registrationDisabledHint": "如果后端关闭了公开注册，请在配置中开启 auth.password.registrationEnabled 或使用管理员 CLI 创建账号。平台管理员身份只由后端根据用户表是否为空自动授予。"
+  }
+}

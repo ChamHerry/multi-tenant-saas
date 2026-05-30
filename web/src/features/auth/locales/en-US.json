@@ -1,0 +1,44 @@
+{
+  "validation": {
+    "emailRequired": "Enter your email address",
+    "emailInvalid": "Enter a valid email address",
+    "passwordRequired": "Enter your password",
+    "passwordMin": "Password must be at least {min} characters",
+    "confirmPasswordRequired": "Confirm your password",
+    "displayNameMax": "Display name can be up to {max} characters",
+    "passwordsMustMatch": "Passwords do not match",
+    "currentPasswordRequired": "Enter your current password",
+    "newPasswordMin": "New password must be at least {min} characters",
+    "confirmNewPasswordRequired": "Confirm your new password",
+    "newPasswordsMustMatch": "New passwords do not match"
+  },
+  "login": {
+    "title": "Sign in to the SaaS console",
+    "description": "Use your production account to access the console. Credentials are stored by the backend in HttpOnly cookies; the frontend never stores access tokens.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "admin@example.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "At least 15 characters",
+    "submit": "Sign in to console",
+    "noAccountTitle": "Need an account?",
+    "registerLink": "Create a new account",
+    "localAccountTitle": "Create the first local account",
+    "localAccountCommand": "go run . user-password-create --email admin@example.com --password '0123456789abcde' --name Admin --email-verified true"
+  },
+  "register": {
+    "title": "Register for the SaaS console",
+    "description": "After you create a production account, the system prepares a default organization. If this is the first registration, the backend grants platform administrator access for initialization.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "admin@example.com",
+    "displayNameLabel": "Display name",
+    "displayNamePlaceholder": "Admin",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "At least 15 characters",
+    "confirmPasswordLabel": "Confirm password",
+    "confirmPasswordPlaceholder": "Re-enter your password",
+    "submit": "Register and enter the console",
+    "hasAccountTitle": "Already have an account?",
+    "loginLink": "Back to sign in",
+    "registrationDisabledHint": "If public registration is disabled on the backend, enable auth.password.registrationEnabled in configuration or create an account with the administrator CLI. Platform administrator access is granted only by the backend when the user table is empty."
+  }
+}

@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { defaultSchemaTranslator, formatSchemaMessage, type SchemaTranslator } from '@/shared/lib/schema-translator'
-import { authEnUS } from './locales/en-US'
-import { authZhCN } from './locales/zh-CN'
+import authEnUS from './locales/en-US.json'
+import authZhCN from './locales/zh-CN.json'
 
 const authLocaleResources = {
   'en-US': authEnUS,

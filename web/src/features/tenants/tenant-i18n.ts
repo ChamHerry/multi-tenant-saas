@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react'
-import { tenantEnUS } from './locales/en-US'
-import { tenantZhCN } from './locales/zh-CN'
+import tenantEnUS from './locales/en-US.json'
+import tenantZhCN from './locales/zh-CN.json'
 
 export type SchemaMessageValue = string | number | boolean | null | undefined
 export type SchemaMessageParams = Record<string, SchemaMessageValue>
