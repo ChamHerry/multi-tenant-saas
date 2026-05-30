@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { I18nextProvider } from 'react-i18next'
 import { defaultLanguage, normalizeLanguage, type SupportedLanguage } from './languages'
-import { getCurrentLanguage, i18next, persistLanguage, syncDocumentLanguage } from './i18n'
+import { getCurrentLanguage, i18next, syncDocumentLanguage } from './i18n'
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   return (
@@ -17,7 +17,6 @@ function LanguageSideEffects() {
 
   useEffect(() => {
     syncDocumentLanguage(language)
-    persistLanguage(language)
   }, [language])
 
   useEffect(() => {
