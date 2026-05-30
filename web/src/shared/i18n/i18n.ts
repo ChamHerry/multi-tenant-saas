@@ -50,7 +50,7 @@ if (!i18next.isInitialized) {
       useSuspense: false,
     },
     returnNull: false,
-    initImmediate: false,
+    initAsync: false,
   })
 }
 
