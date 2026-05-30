@@ -9,7 +9,11 @@ const authLocaleResources = {
 } as const
 
 export type AuthLocale = keyof typeof authLocaleResources
-export type AuthMessages = typeof authEnUS
+type LocalizedMessages<T> = {
+  readonly [Key in keyof T]: T[Key] extends string ? string : LocalizedMessages<T[Key]>
+}
+
+export type AuthMessages = LocalizedMessages<typeof authEnUS>
 export type AuthValidationKey = keyof AuthMessages['validation']
 export const AUTH_LOCALE_STORAGE_KEY = 'saas-template.locale'
 
@@ -49,7 +53,7 @@ export function createAuthSchemaTranslator(locale: AuthLocale = 'en-US'): Schema
 }
 
 export function useAuthI18n() {
-  const locale = useSyncExternalStore(subscribeAuthLocale, readAuthLocale, () => 'en-US')
+  const locale = useSyncExternalStore(subscribeAuthLocale, readAuthLocale, () => 'en-US' as AuthLocale)
   return useMemo(() => {
     const messages = getAuthMessages(locale)
     return {
