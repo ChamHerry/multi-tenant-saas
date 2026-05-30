@@ -66,6 +66,7 @@ export function TenantDetailPage() {
   const tenantId = params.tenantId ?? searchParams.get('tenantId') ?? currentTenantId ?? ''
   const detail = useTenantDetail(tenantId)
   const actions = useTenantAction(tenantId)
+  const { t } = useTenantI18n()
   const canManageTenant = useCanTenant('tenant:manage', tenantId)
   const tenant = detail.data?.tenant
   const tenantName = tenant?.name
@@ -78,7 +79,7 @@ export function TenantDetailPage() {
     [tenantName],
   )
 
-  usePageTitle(tenant?.name ?? t('tenantDetail.titleFallback', 'Organization settings'))
+  usePageTitle(tenantPageTitle)
 
   useEffect(() => {
     if (tenantId) setCurrentTenantId(tenantId)

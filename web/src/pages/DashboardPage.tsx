@@ -57,7 +57,7 @@ export function DashboardPage() {
   const displayName = me.data?.user.display_name || me.data?.user.email || t('dashboard.userFallback')
   const tenantCount = tenants.data?.tenants.length ?? 0
 
-  usePageTitle(me.data ? t('dashboard.title.welcome', { name: displayName }) : t('dashboard.title.default'))
+  usePageTitle(me.data ? pageTitle('dashboard.title.welcome', { name: displayName }) : pageTitle('dashboard.title.default'))
 
   if (me.isLoading) return <LoadingView label={t('common.loading')} />
 

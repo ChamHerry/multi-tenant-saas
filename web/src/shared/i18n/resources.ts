@@ -4,11 +4,6 @@ export const resources = {
       app: {
         offline: '当前处于离线状态，连接恢复后会自动同步。',
       },
-      common: {
-        close: '关闭',
-        loading: '加载中...',
-        requestFailed: '请求失败',
-      },
       language: {
         switcherLabel: '界面语言',
         options: {
@@ -17,6 +12,8 @@ export const resources = {
         },
       },
       common: {
+        close: '关闭',
+        requestFailed: '请求失败',
         actions: {
           copy: '复制',
           revoke: '吊销',
@@ -91,7 +88,30 @@ export const resources = {
           apiKeys: '组织 API Keys',
         },
       },
+      auth: {
+        shell: {
+          badge: '多租户 SaaS 模板',
+          titlePrefix: '安全多租户',
+          titleHighlight: '控制台',
+          description: '使用 HttpOnly Cookie、组织上下文和权限快照构建的前端控制台模板。',
+          features: {
+            httpOnly: 'HttpOnly Cookie',
+            api: '统一 API 客户端',
+            orgContext: '组织上下文',
+          },
+        },
+      },
+      notFound: {
+        description: '该路径会由 GoFrame SPA fallback 返回前端入口，但前端路由没有匹配页面。',
+        backHome: '回到仪表盘',
+      },
       apiKeys: {
+        validation: {
+          tenantRequired: '请选择租户',
+          scopeRequired: '至少选择一个 scope',
+          nameRequired: '请输入名称',
+          nameMax: '名称最多 {max} 字符',
+        },
         personal: {
           requireTenantTitle: '请先创建或加入组织',
           requireTenantDescription: '组织 API Keys 已迁移到“组织管理 / 组织 API Keys”。',
@@ -219,11 +239,6 @@ export const resources = {
       app: {
         offline: 'You are offline. Changes will sync when the connection is restored.',
       },
-      common: {
-        close: 'Close',
-        loading: 'Loading...',
-        requestFailed: 'Request failed',
-      },
       language: {
         switcherLabel: 'Interface language',
         options: {
@@ -232,6 +247,8 @@ export const resources = {
         },
       },
       common: {
+        close: 'Close',
+        requestFailed: 'Request failed',
         actions: {
           copy: 'Copy',
           revoke: 'Revoke',
@@ -306,7 +323,30 @@ export const resources = {
           apiKeys: 'Organization API keys',
         },
       },
+      auth: {
+        shell: {
+          badge: 'Multi-tenant SaaS template',
+          titlePrefix: 'Secure multi-tenant',
+          titleHighlight: 'console',
+          description: 'A frontend console template built with HttpOnly cookies, organization context, and permission snapshots.',
+          features: {
+            httpOnly: 'HttpOnly cookies',
+            api: 'Unified API client',
+            orgContext: 'Organization context',
+          },
+        },
+      },
+      notFound: {
+        description: 'This path is served by the GoFrame SPA fallback, but the frontend router has no matching page.',
+        backHome: 'Back to dashboard',
+      },
       apiKeys: {
+        validation: {
+          tenantRequired: 'Select an organization',
+          scopeRequired: 'Select at least one scope',
+          nameRequired: 'Enter a name',
+          nameMax: 'Name must be at most {max} characters',
+        },
         personal: {
           requireTenantTitle: 'Create or join an organization first',
           requireTenantDescription: 'Organization API keys have moved to “Organization management / Organization API keys”.',

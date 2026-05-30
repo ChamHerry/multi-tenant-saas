@@ -3,8 +3,8 @@ export const LANGUAGE_STORAGE_KEY = 'saas-template.locale'
 export const defaultLanguage = 'zh-CN'
 
 export const supportedLanguages = [
-  { code: 'zh-CN', labelKey: 'language.options.zhCN', nativeName: '简体中文', htmlLang: 'zh-CN' },
-  { code: 'en-US', labelKey: 'language.options.enUS', nativeName: 'English', htmlLang: 'en' },
+  { code: 'zh-CN', labelKey: 'language.options.zhCN', htmlLang: 'zh-CN' },
+  { code: 'en-US', labelKey: 'language.options.enUS', htmlLang: 'en' },
 ] as const
 
 export type SupportedLanguage = (typeof supportedLanguages)[number]['code']

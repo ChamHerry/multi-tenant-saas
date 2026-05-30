@@ -8,7 +8,7 @@ import {
   useTenantAPIKeys,
 } from '@/features/tenant-api-keys/tenant-api-key-hooks'
 import {
-  createTenantAPIKeyInputSchema,
+  createTenantAPIKeyInputSchema as buildTenantAPIKeyInputSchema,
   knownScopes,
   tenantScopes,
   type TenantAPIKey,
@@ -29,6 +29,7 @@ import {
   Th,
 } from '@/shared/ui'
 import { validateForm, type FieldErrors } from '@/shared/lib/validate'
+import type { SchemaTranslator } from '@/shared/lib/schema-translator'
 
 const defaultScopes = ['user:read', 'user:tenant:read', 'tenant:read']
 
@@ -49,6 +50,14 @@ export function TenantApiKeysPage() {
   const [rawKey, setRawKey] = useState('')
   const [isCreateKeyOpen, setIsCreateKeyOpen] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
+  const schemaTranslator = useCallback<SchemaTranslator>(
+    (key, fallback, params) => t(`apiKeys.validation.${key}`, { defaultValue: fallback, ...params }),
+    [t],
+  )
+  const createTenantAPIKeyInputSchema = useMemo(
+    () => buildTenantAPIKeyInputSchema(schemaTranslator),
+    [schemaTranslator],
+  )
   const tenantScopeSet = useMemo(() => new Set<string>(tenantScopes), [])
   const allowedTenantScopeSet = useMemo(
     () =>

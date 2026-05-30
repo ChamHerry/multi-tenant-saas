@@ -20,6 +20,9 @@ export function detectInitialLanguage(): SupportedLanguage {
 export function syncDocumentLanguage(language: SupportedLanguage) {
   if (typeof document === 'undefined') return
   document.documentElement.lang = getHtmlLang(language)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('saas-template:locale-change', { detail: { language } }))
+  }
 }
 
 export function persistLanguage(language: SupportedLanguage) {
