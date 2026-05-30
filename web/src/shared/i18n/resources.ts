@@ -16,112 +16,200 @@ export const resources = {
           enUS: 'English',
         },
       },
-      appShell: {
-        tenant: {
-          selectLabel: '选择组织',
-          currentBadge: '当前',
-          emptyTitle: '未选择可用组织。',
-          emptyDescription: '可先创建或加入组织，再访问组织管理菜单。',
-          manageCta: '管理组织',
+      common: {
+        actions: {
+          copy: '复制',
+          revoke: '吊销',
+          suspend: '暂停',
+          restore: '恢复',
+          disable: '禁用',
+          enable: '启用',
         },
-        user: {
-          devUser: '开发用户',
-          logout: '退出',
-          logoutPending: '退出中…',
+        fields: {
+          action: 'Action',
+          actions: '操作',
+          metadata: 'Metadata',
+          resource: '资源',
+          role: '角色',
+          status: '状态',
+          time: '时间',
+          user: '用户',
         },
-        errors: {
-          meLoad: '当前用户认证失败',
-          accessLoad: '权限上下文加载失败',
-        },
-      },
-      auth: {
-        shell: {
-          badge: 'SaaS Template Console',
-          titlePrefix: '多租户 SaaS 模板的',
-          titleHighlight: '安全控制台',
-          description:
-            '使用正式账号登录后，可以创建组织、切换组织上下文、管理成员和 API Key。浏览器登录态由 HttpOnly Cookie 承载，机器访问继续使用 API Key。',
-          features: {
-            httpOnly: 'HttpOnly Cookie',
-            api: 'GoFrame API',
-            orgContext: 'Organization Context',
-          },
-        },
-        guard: {
-          checkingSession: '正在检查登录状态...',
-          sessionCheckFailed: '登录状态检查失败',
+        loading: '加载中...',
+        notAvailable: '-',
+        total: '总计：{{count}}',
+        status: {
+          active: '启用',
+          disabled: '禁用',
+          revoked: '已吊销',
         },
       },
-      access: {
-        guard: {
-          loading: '正在加载权限上下文...',
-          loadFailed: '权限上下文加载失败',
-          noPlatformPermissionTitle: '无平台权限',
-          noPlatformPermissionDescription: '当前账号没有访问该平台管理页面所需的权限。真实 API 仍由后端授权保护。',
-          selectTenantTitle: '请先选择组织',
-          selectTenantDescription: '该页面需要组织上下文。可以在左侧顶部选择已有组织，或先创建组织。',
-          noTenantPermissionTitle: '无组织权限',
-          noTenantPermissionDescription: '当前组织角色没有访问该页面所需的权限。真实 API 仍由后端 RBAC 保护。',
-        },
-      },
-      routes: {
-        dashboard: {
-          title: '组织概览',
+      dashboard: {
+        title: {
+          default: '组织概览',
           welcome: '欢迎，{{name}}',
         },
-        tenants: {
-          title: '我的组织',
+        userFallback: 'Dev User',
+        hero: {
+          createTenant: '创建第一个组织',
+          manageTenants: '管理我的组织',
+          openAccess: '进入用户与访问',
+          noTenantsTitle: '还没有可用组织',
+          noTenantsDescription: '请进入“我的组织”创建或加入组织。之后左侧顶部组织切换器会自动同步当前组织上下文。',
         },
-        tenantSettings: {
-          title: '组织设置',
-          dynamic: '{{name}}',
+        system: {
+          status: {
+            ok: 'OK',
+            error: 'ERROR',
+            loading: 'LOADING',
+          },
+          messages: {
+            checking: '检查中...',
+            unavailable: '服务不可用',
+            migrationVersion: 'migration version {{version}}',
+            healthy: '服务正常',
+          },
+          healthTitle: 'HTTP Health',
+          readyTitle: 'DB Ready',
         },
-        tenantAccess: {
-          title: '用户与访问',
+        cards: {
+          tenantsTitle: '我的组织',
+          currentRoleTitle: '当前组织角色',
+          resolvingRole: '解析中',
+          noTenantSelected: '未选择组织',
+          currentTenantInfo: '当前组织信息',
+          currentTenantDescription: '组织管理页面和组织 API Keys 会自动使用已选择的组织。',
+          tenantInfoError: '组织信息加载失败',
+          tenantInfoLoading: '加载组织信息...',
+          tenantRequired: '请先选择或创建一个组织。',
+          shortcutsTitle: '快捷入口',
+          shortcutsDescription: '覆盖当前已经实现的组织级管理能力。',
         },
-        tenantApiKeys: {
-          title: '组织 API Keys',
-        },
-        tenantAudit: {
-          title: '组织审计',
-        },
-        myInvitations: {
-          title: '我的邀请',
-        },
-        securityEvents: {
-          title: '安全事件',
-        },
-        platformTenants: {
-          title: '平台组织',
-        },
-        platformUsers: {
-          title: '平台用户与管理员',
-        },
-        platformAudit: {
-          title: '平台审计',
-        },
-        notFound: {
-          title: '页面不存在',
+        shortcuts: {
+          settings: '组织设置',
+          access: '用户与访问',
+          apiKeys: '组织 API Keys',
         },
       },
-      nav: {
-        sections: {
-          account: '我的账户',
-          tenant: '组织管理',
-          platform: '平台管理',
+      apiKeys: {
+        personal: {
+          requireTenantTitle: '请先创建或加入组织',
+          requireTenantDescription: '组织 API Keys 已迁移到“组织管理 / 组织 API Keys”。',
         },
-        items: {
-          dashboard: '组织概览',
-          tenants: '我的组织',
-          tenantSettings: '组织设置',
-          tenantAccess: '用户与访问',
-          tenantApiKeys: '组织 API Keys',
-          tenantAudit: '组织审计',
-          myInvitations: '我的邀请',
-          securityEvents: '安全事件',
-          platformTenants: '平台组织',
-          platformUsers: '平台用户与管理员',
-          platformAudit: '平台审计',
+        tenant: {
+          requireTenantTitle: '请先创建或加入组织',
+          requireTenantDescription: '组织 API Keys 需要当前组织上下文。',
+          operationFailed: '组织 API Key 操作失败',
+          createButton: '创建组织 Key',
+          rawKey: {
+            title: '请立即复制 raw key',
+            description: '后端只返回一次 raw_key。刷新页面后只能看到 key_prefix。',
+          },
+          dialog: {
+            title: '为 {{tenantName}} 创建组织 Key',
+            nameLabel: '名称',
+            expiresAtLabel: '过期时间，可选',
+            scopesLabel: 'Scopes',
+            submit: '创建组织 Key',
+          },
+          scopePermissionDenied: '当前组织权限不足',
+          table: {
+            title: '当前组织 Key 列表',
+            description: '仅展示当前用户在 {{tenantName}} 下创建/持有的 Key（GET /api/v1/tenants/{tenant}/api-keys）。',
+            headers: {
+              name: '名称',
+              prefix: '前缀',
+              scopes: 'Key Scopes',
+              tenantGrant: '组织授权',
+              status: '状态',
+              actions: '操作',
+            },
+          },
+          empty: {
+            noKeysTitle: '暂无组织 API Key',
+            noKeysDescription: '创建后可用于当前组织上下文下的接口调用；调用组织接口时必须携带 tenant selector。',
+          },
+          grants: {
+            noTenantScope: '无 tenant scope',
+            noCurrentGrant: '当前组织无有效授权',
+          },
+        },
+      },
+      audit: {
+        common: {
+          filter: '过滤',
+          logs: '日志',
+          loading: '加载审计日志...',
+          noLogs: '暂无日志',
+          exportJsonl: '导出 JSONL',
+          headers: {
+            action: 'Action',
+            ip: 'IP',
+            metadata: 'Metadata',
+            organization: '组织',
+            resource: '资源',
+            time: '时间',
+            user: '用户',
+            userAgent: 'User-Agent',
+          },
+        },
+        tenant: {
+          requireTenantTitle: '请先选择组织',
+          requireTenantDescription: '审计查询需要当前组织上下文。',
+          loadFailed: '审计日志加载失败',
+          actionPlaceholder: 'tenant.invitation.create',
+        },
+        security: {
+          title: '安全事件',
+          loadFailed: '安全事件加载失败',
+          loading: '加载安全事件...',
+          empty: '暂无安全事件',
+        },
+        admin: {
+          loadFailed: '平台审计加载失败',
+          tenantIdLabel: '组织 ID',
+          loading: '加载审计...',
+        },
+      },
+      admin: {
+        common: {
+          session: '管理员会话',
+          search: '搜索',
+          rolePrefix: '角色：',
+          roles: {
+            super_admin: '超级管理员',
+            support: '支持人员',
+            auditor: '审计员',
+          },
+        },
+        tenants: {
+          unavailable: '平台管理不可用',
+          sessionLoading: '校验平台管理员...',
+          searchPlaceholder: 'tenant name / slug / id',
+          listTitle: '组织列表',
+          loading: '加载组织...',
+          headers: {
+            organization: '组织',
+            status: '状态',
+            actions: '操作',
+          },
+        },
+        users: {
+          failed: '用户管理失败',
+          grantAdmin: '授权平台管理员',
+          dialogTitle: '授权平台管理员',
+          userId: 'User ID',
+          searchUsers: '搜索用户',
+          searchPlaceholder: 'email / name / id',
+          platformAdminsTitle: '平台管理员列表',
+          noPlatformAdminPermissionTitle: '无平台管理员管理权限',
+          noPlatformAdminPermissionDescription: '需要 platform:admin:manage 才能查看和维护平台管理员列表。',
+          loadingPlatformAdmins: '加载平台管理员...',
+          usersTitle: '用户列表',
+          loadingUsers: '加载用户...',
+          revokePlatformPermission: '撤销平台权限',
+          grantedAt: '授权时间',
+          lastLogin: '最后登录',
         },
       },
     },
@@ -143,115 +231,200 @@ export const resources = {
           enUS: 'English',
         },
       },
-      appShell: {
-        tenant: {
-          selectLabel: 'Select organization',
-          currentBadge: 'Current',
-          emptyTitle: 'No available organization selected.',
-          emptyDescription: 'Create or join an organization before opening organization management.',
-          manageCta: 'Manage organizations',
+      common: {
+        actions: {
+          copy: 'Copy',
+          revoke: 'Revoke',
+          suspend: 'Suspend',
+          restore: 'Restore',
+          disable: 'Disable',
+          enable: 'Enable',
         },
-        user: {
-          devUser: 'Dev User',
-          logout: 'Log out',
-          logoutPending: 'Logging out…',
+        fields: {
+          action: 'Action',
+          actions: 'Actions',
+          metadata: 'Metadata',
+          resource: 'Resource',
+          role: 'Role',
+          status: 'Status',
+          time: 'Time',
+          user: 'User',
         },
-        errors: {
-          meLoad: 'Current user authentication failed',
-          accessLoad: 'Failed to load permission context',
-        },
-      },
-      auth: {
-        shell: {
-          badge: 'SaaS Template Console',
-          titlePrefix: 'Secure console for a',
-          titleHighlight: 'multi-tenant SaaS template',
-          description:
-            'Sign in with a user account to create organizations, switch organization context, manage members, and manage API keys. Browser sessions use HttpOnly cookies while machine access continues to use API keys.',
-          features: {
-            httpOnly: 'HttpOnly Cookie',
-            api: 'GoFrame API',
-            orgContext: 'Organization Context',
-          },
-        },
-        guard: {
-          checkingSession: 'Checking sign-in status...',
-          sessionCheckFailed: 'Failed to check sign-in status',
+        loading: 'Loading...',
+        notAvailable: '-',
+        total: 'Total: {{count}}',
+        status: {
+          active: 'Active',
+          disabled: 'Disabled',
+          revoked: 'Revoked',
         },
       },
-      access: {
-        guard: {
-          loading: 'Loading permission context...',
-          loadFailed: 'Failed to load permission context',
-          noPlatformPermissionTitle: 'No platform permission',
-          noPlatformPermissionDescription:
-            'This account does not have permission to access this platform admin page. The real API remains protected by backend authorization.',
-          selectTenantTitle: 'Select an organization first',
-          selectTenantDescription:
-            'This page requires organization context. Select an existing organization from the sidebar or create one first.',
-          noTenantPermissionTitle: 'No organization permission',
-          noTenantPermissionDescription:
-            'The current organization role does not have permission to access this page. The real API remains protected by backend RBAC.',
-        },
-      },
-      routes: {
-        dashboard: {
-          title: 'Organization overview',
+      dashboard: {
+        title: {
+          default: 'Organization overview',
           welcome: 'Welcome, {{name}}',
         },
-        tenants: {
-          title: 'My organizations',
+        userFallback: 'Dev User',
+        hero: {
+          createTenant: 'Create first organization',
+          manageTenants: 'Manage my organizations',
+          openAccess: 'Open users and access',
+          noTenantsTitle: 'No available organizations yet',
+          noTenantsDescription: 'Go to “My organizations” to create or join an organization. The organization switcher at the top of the sidebar will then sync the current organization context automatically.',
         },
-        tenantSettings: {
-          title: 'Organization settings',
-          dynamic: '{{name}}',
+        system: {
+          status: {
+            ok: 'OK',
+            error: 'ERROR',
+            loading: 'LOADING',
+          },
+          messages: {
+            checking: 'Checking...',
+            unavailable: 'Service unavailable',
+            migrationVersion: 'migration version {{version}}',
+            healthy: 'Service healthy',
+          },
+          healthTitle: 'HTTP Health',
+          readyTitle: 'DB Ready',
         },
-        tenantAccess: {
-          title: 'Users and access',
+        cards: {
+          tenantsTitle: 'My organizations',
+          currentRoleTitle: 'Current organization role',
+          resolvingRole: 'Resolving',
+          noTenantSelected: 'No organization selected',
+          currentTenantInfo: 'Current organization info',
+          currentTenantDescription: 'Organization settings and organization API keys automatically use the selected organization.',
+          tenantInfoError: 'Failed to load organization info',
+          tenantInfoLoading: 'Loading organization info...',
+          tenantRequired: 'Select or create an organization first.',
+          shortcutsTitle: 'Shortcuts',
+          shortcutsDescription: 'Quick links for the implemented organization-level management features.',
         },
-        tenantApiKeys: {
-          title: 'Organization API keys',
-        },
-        tenantAudit: {
-          title: 'Organization audit',
-        },
-        myInvitations: {
-          title: 'My invitations',
-        },
-        securityEvents: {
-          title: 'Security events',
-        },
-        platformTenants: {
-          title: 'Platform organizations',
-        },
-        platformUsers: {
-          title: 'Platform users and admins',
-        },
-        platformAudit: {
-          title: 'Platform audit',
-        },
-        notFound: {
-          title: 'Page not found',
+        shortcuts: {
+          settings: 'Organization settings',
+          access: 'Users and access',
+          apiKeys: 'Organization API keys',
         },
       },
-      nav: {
-        sections: {
-          account: 'My account',
-          tenant: 'Organization management',
-          platform: 'Platform management',
+      apiKeys: {
+        personal: {
+          requireTenantTitle: 'Create or join an organization first',
+          requireTenantDescription: 'Organization API keys have moved to “Organization management / Organization API keys”.',
         },
-        items: {
-          dashboard: 'Organization overview',
-          tenants: 'My organizations',
-          tenantSettings: 'Organization settings',
-          tenantAccess: 'Users and access',
-          tenantApiKeys: 'Organization API keys',
-          tenantAudit: 'Organization audit',
-          myInvitations: 'My invitations',
-          securityEvents: 'Security events',
-          platformTenants: 'Platform organizations',
-          platformUsers: 'Platform users and admins',
-          platformAudit: 'Platform audit',
+        tenant: {
+          requireTenantTitle: 'Create or join an organization first',
+          requireTenantDescription: 'Organization API keys require a current organization context.',
+          operationFailed: 'Organization API key operation failed',
+          createButton: 'Create organization key',
+          rawKey: {
+            title: 'Copy the raw key now',
+            description: 'The backend returns raw_key only once. After refresh, only key_prefix is visible.',
+          },
+          dialog: {
+            title: 'Create organization key for {{tenantName}}',
+            nameLabel: 'Name',
+            expiresAtLabel: 'Expiration time, optional',
+            scopesLabel: 'Scopes',
+            submit: 'Create organization key',
+          },
+          scopePermissionDenied: 'Insufficient permissions in the current organization',
+          table: {
+            title: 'Current organization key list',
+            description: 'Shows only keys created/held by the current user under {{tenantName}} (GET /api/v1/tenants/{tenant}/api-keys).',
+            headers: {
+              name: 'Name',
+              prefix: 'Prefix',
+              scopes: 'Key scopes',
+              tenantGrant: 'Organization grant',
+              status: 'Status',
+              actions: 'Actions',
+            },
+          },
+          empty: {
+            noKeysTitle: 'No organization API keys',
+            noKeysDescription: 'After creation, use the key for calls in the current organization context; organization API calls must include a tenant selector.',
+          },
+          grants: {
+            noTenantScope: 'No tenant scope',
+            noCurrentGrant: 'No active grant for the current organization',
+          },
+        },
+      },
+      audit: {
+        common: {
+          filter: 'Filters',
+          logs: 'Logs',
+          loading: 'Loading audit logs...',
+          noLogs: 'No logs',
+          exportJsonl: 'Export JSONL',
+          headers: {
+            action: 'Action',
+            ip: 'IP',
+            metadata: 'Metadata',
+            organization: 'Organization',
+            resource: 'Resource',
+            time: 'Time',
+            user: 'User',
+            userAgent: 'User-Agent',
+          },
+        },
+        tenant: {
+          requireTenantTitle: 'Select an organization first',
+          requireTenantDescription: 'Audit queries require the current organization context.',
+          loadFailed: 'Failed to load audit logs',
+          actionPlaceholder: 'tenant.invitation.create',
+        },
+        security: {
+          title: 'Security events',
+          loadFailed: 'Failed to load security events',
+          loading: 'Loading security events...',
+          empty: 'No security events',
+        },
+        admin: {
+          loadFailed: 'Failed to load platform audit logs',
+          tenantIdLabel: 'Organization ID',
+          loading: 'Loading audit logs...',
+        },
+      },
+      admin: {
+        common: {
+          session: 'Admin session',
+          search: 'Search',
+          rolePrefix: 'Role: ',
+          roles: {
+            super_admin: 'Super admin',
+            support: 'Support',
+            auditor: 'Auditor',
+          },
+        },
+        tenants: {
+          unavailable: 'Platform management unavailable',
+          sessionLoading: 'Verifying platform admin...',
+          searchPlaceholder: 'tenant name / slug / id',
+          listTitle: 'Organization list',
+          loading: 'Loading organizations...',
+          headers: {
+            organization: 'Organization',
+            status: 'Status',
+            actions: 'Actions',
+          },
+        },
+        users: {
+          failed: 'User management failed',
+          grantAdmin: 'Grant platform admin',
+          dialogTitle: 'Grant platform admin',
+          userId: 'User ID',
+          searchUsers: 'Search users',
+          searchPlaceholder: 'email / name / id',
+          platformAdminsTitle: 'Platform admin list',
+          noPlatformAdminPermissionTitle: 'No platform admin management permission',
+          noPlatformAdminPermissionDescription: 'platform:admin:manage is required to view and maintain platform admins.',
+          loadingPlatformAdmins: 'Loading platform admins...',
+          usersTitle: 'User list',
+          loadingUsers: 'Loading users...',
+          revokePlatformPermission: 'Revoke platform permission',
+          grantedAt: 'Granted at',
+          lastLogin: 'Last login',
         },
       },
     },
