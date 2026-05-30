@@ -26,12 +26,25 @@ type AuthIdentity struct {
 }
 
 func WithAuthIdentity(ctx context.Context, identity *AuthIdentity) context.Context {
+	// Mirror to BizContext if already initialised.
+	if localBizCtx != nil {
+		localBizCtx.SetIdentity(ctx, identity)
+	}
 	return context.WithValue(ctx, authIdentityContextKey, identity)
 }
 
 func AuthIdentityFromCtx(ctx context.Context) (*AuthIdentity, bool) {
 	identity, ok := ctx.Value(authIdentityContextKey).(*AuthIdentity)
-	return identity, ok && identity != nil
+	if ok && identity != nil {
+		return identity, true
+	}
+	// Fallback to BizContext when legacy key is absent.
+	if localBizCtx != nil {
+		if bc := localBizCtx.Get(ctx); bc.Identity != nil {
+			return bc.Identity, true
+		}
+	}
+	return nil, false
 }
 
 func MustAuthIdentity(ctx context.Context) (*AuthIdentity, error) {
@@ -43,12 +56,25 @@ func MustAuthIdentity(ctx context.Context) (*AuthIdentity, error) {
 }
 
 func WithTenantContext(ctx context.Context, tc *TenantContext) context.Context {
+	// Mirror to BizContext if already initialised.
+	if localBizCtx != nil {
+		localBizCtx.SetTenant(ctx, tc)
+	}
 	return context.WithValue(ctx, tenantContextContextKey, tc)
 }
 
 func TenantContextFromCtx(ctx context.Context) (*TenantContext, bool) {
 	tc, ok := ctx.Value(tenantContextContextKey).(*TenantContext)
-	return tc, ok && tc != nil
+	if ok && tc != nil {
+		return tc, true
+	}
+	// Fallback to BizContext when legacy key is absent.
+	if localBizCtx != nil {
+		if bc := localBizCtx.Get(ctx); bc.Tenant != nil {
+			return bc.Tenant, true
+		}
+	}
+	return nil, false
 }
 
 func MustTenantContext(ctx context.Context) (*TenantContext, error) {
@@ -60,12 +86,25 @@ func MustTenantContext(ctx context.Context) (*TenantContext, error) {
 }
 
 func WithPlatformAdminContext(ctx context.Context, pac *PlatformAdminContext) context.Context {
+	// Mirror to BizContext if already initialised.
+	if localBizCtx != nil {
+		localBizCtx.SetPlatformAdmin(ctx, pac)
+	}
 	return context.WithValue(ctx, platformAdminContextKey, pac)
 }
 
 func PlatformAdminContextFromCtx(ctx context.Context) (*PlatformAdminContext, bool) {
 	pac, ok := ctx.Value(platformAdminContextKey).(*PlatformAdminContext)
-	return pac, ok && pac != nil
+	if ok && pac != nil {
+		return pac, true
+	}
+	// Fallback to BizContext when legacy key is absent.
+	if localBizCtx != nil {
+		if bc := localBizCtx.Get(ctx); bc.PlatformAdmin != nil {
+			return bc.PlatformAdmin, true
+		}
+	}
+	return nil, false
 }
 
 func MustPlatformAdminContext(ctx context.Context) (*PlatformAdminContext, error) {
@@ -77,12 +116,20 @@ func MustPlatformAdminContext(ctx context.Context) (*PlatformAdminContext, error
 }
 
 func WithRequestID(ctx context.Context, requestID string) context.Context {
+	// Mirror to BizContext if already initialised.
+	if localBizCtx != nil {
+		localBizCtx.SetRequestID(ctx, requestID)
+	}
 	return context.WithValue(ctx, requestIDContextKey, requestID)
 }
 
 func RequestIDFromCtx(ctx context.Context) string {
 	if value, ok := ctx.Value(requestIDContextKey).(string); ok {
 		return value
+	}
+	// Fallback to BizContext when legacy key is absent.
+	if localBizCtx != nil {
+		return localBizCtx.GetRequestID(ctx)
 	}
 	return ""
 }

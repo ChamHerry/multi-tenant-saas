@@ -36,12 +36,25 @@ func (s *sAudit) Write(ctx context.Context, in service.AuditLogInput) error {
 			in.PlatformRole = pac.Role
 		}
 	}
+
+	// Auto-fill IP, UserAgent and trace metadata from BizContext.
+	bc := service.BizCtx().Get(ctx)
+	if in.IP == "" {
+		in.IP = bc.ClientIP
+	}
+	if in.UserAgent == "" {
+		in.UserAgent = bc.UserAgent
+	}
+
 	metadata := in.Metadata
 	if metadata == nil {
 		metadata = map[string]any{}
 	}
-	if requestID := service.RequestIDFromCtx(ctx); requestID != "" {
-		metadata["request_id"] = requestID
+	if bc.RequestID != "" {
+		metadata["request_id"] = bc.RequestID
+	}
+	if bc.TraceID != "" {
+		metadata["trace_id"] = bc.TraceID
 	}
 	if in.PlatformRole != "" {
 		metadata["platform_role"] = in.PlatformRole
@@ -60,7 +73,7 @@ func (s *sAudit) Write(ctx context.Context, in service.AuditLogInput) error {
 		cols.UserId:       nilIfEmpty(in.UserID),
 		cols.Action:       in.Action,
 		cols.ResourceType: in.ResourceType,
-		cols.ResourceId:   in.ResourceID,
+		cols.ResourceId:   nilIfEmpty(in.ResourceID),
 		cols.Ip:           nilIfEmpty(in.IP),
 		cols.UserAgent:    in.UserAgent,
 		cols.Metadata:     jsonMetadata,

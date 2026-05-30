@@ -23,6 +23,11 @@ func PlatformAdmin(r *ghttp.Request) {
 		writeError(r, http.StatusForbidden, "PLATFORM_ADMIN_FORBIDDEN", err)
 		return
 	}
-	r.SetCtx(service.WithPlatformAdminContext(r.GetCtx(), pac))
+	ctx := service.WithPlatformAdminContext(r.GetCtx(), pac)
+
+	// Also populate BizContext.
+	service.BizCtx().SetPlatformAdmin(ctx, pac)
+
+	r.SetCtx(ctx)
 	r.Middleware.Next()
 }
