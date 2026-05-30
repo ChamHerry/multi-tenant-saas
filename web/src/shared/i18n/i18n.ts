@@ -1,0 +1,59 @@
+import i18next from 'i18next'
+import { initReactI18next } from 'react-i18next'
+import { readStorage, writeStorage } from '@/shared/lib/storage'
+import { LANGUAGE_STORAGE_KEY, defaultLanguage, getHtmlLang, normalizeLanguage, resolveInitialLanguage, type SupportedLanguage } from './languages'
+import { resources } from './resources'
+
+function readBrowserLanguages(): readonly string[] {
+  if (typeof navigator === 'undefined') return []
+  return navigator.languages?.length ? navigator.languages : [navigator.language]
+}
+
+export function detectInitialLanguage(): SupportedLanguage {
+  return resolveInitialLanguage({
+    storedLanguage: readStorage(LANGUAGE_STORAGE_KEY),
+    browserLanguages: readBrowserLanguages(),
+  })
+}
+
+export function syncDocumentLanguage(language: SupportedLanguage) {
+  if (typeof document === 'undefined') return
+  document.documentElement.lang = getHtmlLang(language)
+}
+
+export function persistLanguage(language: SupportedLanguage) {
+  writeStorage(LANGUAGE_STORAGE_KEY, language)
+}
+
+export function getCurrentLanguage(): SupportedLanguage {
+  return normalizeLanguage(i18next.resolvedLanguage ?? i18next.language) ?? defaultLanguage
+}
+
+export async function changeAppLanguage(language: SupportedLanguage) {
+  persistLanguage(language)
+  await i18next.changeLanguage(language)
+  syncDocumentLanguage(language)
+}
+
+const initialLanguage = detectInitialLanguage()
+
+if (!i18next.isInitialized) {
+  void i18next.use(initReactI18next).init({
+    resources,
+    lng: initialLanguage,
+    fallbackLng: defaultLanguage,
+    supportedLngs: Object.keys(resources),
+    interpolation: {
+      escapeValue: false,
+    },
+    react: {
+      useSuspense: false,
+    },
+    returnNull: false,
+    initImmediate: false,
+  })
+}
+
+syncDocumentLanguage(initialLanguage)
+
+export { i18next }

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAccess } from '@/features/access/access-hooks'
 import { useLogoutMutation, useMe } from '@/features/auth/auth-hooks'
 import { useTenantStore } from '@/features/tenants/tenant-store'
+import { LanguageSwitcher } from '@/shared/i18n'
 import { Badge, Button, ErrorView } from '@/shared/ui'
 import { cn } from '@/shared/lib/cn'
 import { buildScopeNavSections } from './scope-nav'
@@ -217,6 +218,7 @@ export function AppShell() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
+                <LanguageSwitcher />
                 <div ref={userMenuRef} className="relative">
                   <button
                     type="button"

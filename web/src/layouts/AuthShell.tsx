@@ -1,8 +1,12 @@
 import type { ReactNode } from 'react'
+import { LanguageSwitcher } from '@/shared/i18n'
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-page p-4 sm:p-8">
+      <div className="fixed right-4 top-4 z-10">
+        <LanguageSwitcher />
+      </div>
       <div className="hero-gradient mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center rounded-[28px] border border-white/80 p-6 shadow-brand sm:p-10 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="max-w-xl">
           <span className="inline-flex rounded-full bg-brand-soft px-3 py-1 text-xs font-bold text-brand">SaaS Template Console</span>
