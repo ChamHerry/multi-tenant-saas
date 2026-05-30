@@ -48,7 +48,7 @@ type ActionRes struct {
 type BatchAddReq struct {
 	g.Meta   `path:"/tenants/{tenant}/members/batch" tags:"Member" method:"post" summary:"Batch add tenant members"`
 	Tenant   string         `v:"required"`
-	Members  []BatchMember  `json:"members" v:"required|length:1,50"`
+	Members  []BatchMember  `json:"members" v:"required"`
 }
 
 type BatchMember struct {

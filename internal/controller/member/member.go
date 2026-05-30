@@ -3,6 +3,9 @@ package member
 import (
 	"context"
 
+	"github.com/gogf/gf/v2/errors/gcode"
+	"github.com/gogf/gf/v2/errors/gerror"
+
 	apimember "multi-tenant-saas/api/member"
 	"multi-tenant-saas/api/member/v1"
 	"multi-tenant-saas/internal/service"
@@ -83,6 +86,15 @@ func (c *ControllerV1) Remove(ctx context.Context, req *v1.RemoveReq) (res *v1.A
 }
 
 func (c *ControllerV1) BatchAdd(ctx context.Context, req *v1.BatchAddReq) (res *v1.BatchAddRes, err error) {
+	// GoFrame's "length" validation rule only works on strings (it measures rune count
+	// after gconv.String conversion). For []BatchMember slices this produces the JSON
+	// string length instead of the element count. Validate slice bounds manually.
+	if len(req.Members) == 0 {
+		return nil, gerror.NewCode(gcode.CodeInvalidParameter, "at least 1 member is required")
+	}
+	if len(req.Members) > 50 {
+		return nil, gerror.NewCode(gcode.CodeInvalidParameter, "batch size must not exceed 50")
+	}
 	if err = service.RBAC().Require(ctx, service.PermissionMemberManage); err != nil {
 		return nil, err
 	}
