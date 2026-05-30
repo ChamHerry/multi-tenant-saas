@@ -19,8 +19,8 @@ export function TenantAccessPage() {
 
   const tabs = useMemo(
     () => [
-      { id: 'members' as const, label: t('tenantAccess.tabs.members', '成员'), enabled: canReadMembers },
-      { id: 'invitations' as const, label: t('tenantAccess.tabs.invitations', '邀请'), enabled: canManageInvitations },
+      { id: 'members' as const, label: t('tenantAccess.tabs.members', 'Members'), enabled: canReadMembers },
+      { id: 'invitations' as const, label: t('tenantAccess.tabs.invitations', 'Invitations'), enabled: canManageInvitations },
     ],
     [canManageInvitations, canReadMembers, t],
   )
