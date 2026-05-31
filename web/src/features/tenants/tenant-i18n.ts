@@ -1,25 +1,31 @@
 import { useMemo, useSyncExternalStore } from 'react'
+import { LANGUAGE_STORAGE_KEY, defaultLanguage, type SupportedLanguage } from '@/shared/i18n/languages'
+import { LOCALE_CHANGE_EVENT, readRuntimeLanguage } from '@/shared/i18n/locale-runtime'
+import {
+  defaultSchemaTranslator,
+  formatSchemaMessage,
+  type SchemaMessageParams,
+  type SchemaTranslator,
+} from '@/shared/lib/schema-translator'
 import tenantEnUS from './locales/en-US.json'
 import tenantZhCN from './locales/zh-CN.json'
 
-export type SchemaMessageValue = string | number | boolean | null | undefined
-export type SchemaMessageParams = Record<string, SchemaMessageValue>
-export type SchemaTranslator = (key: string, fallback: string, params?: SchemaMessageParams) => string
-
-export const TENANT_LOCALE_STORAGE_KEY = 'saas-template.locale'
-export const TENANT_LOCALE_CHANGE_EVENT = 'saas-template:locale-change'
+export const TENANT_LOCALE_STORAGE_KEY = LANGUAGE_STORAGE_KEY
+export const TENANT_LOCALE_CHANGE_EVENT = LOCALE_CHANGE_EVENT
+export type { SchemaMessageParams, SchemaTranslator } from '@/shared/lib/schema-translator'
 
 type LocaleShape<T> = {
   readonly [K in keyof T]: T[K] extends string ? string : LocaleShape<T[K]>
 }
 
-export type TenantLocale = 'en-US' | 'zh-CN'
 export type TenantMessages = LocaleShape<typeof tenantEnUS>
 
-const tenantLocaleResources: Record<TenantLocale, TenantMessages> = {
+const tenantLocaleResources = {
   'en-US': tenantEnUS,
   'zh-CN': tenantZhCN,
-}
+} as const satisfies Record<SupportedLanguage, TenantMessages>
+
+export type TenantLocale = keyof typeof tenantLocaleResources
 
 export type TenantValidationKey = keyof TenantMessages['validation']
 export type TenantRoleKey = keyof TenantMessages['roles']
@@ -27,46 +33,18 @@ export type TenantStatusKey = keyof TenantMessages['tenantStatuses']
 export type MemberStatusKey = keyof TenantMessages['memberStatuses']
 export type InvitationStatusKey = keyof TenantMessages['invitationStatuses']
 
-export const defaultTenantLocale: TenantLocale = 'zh-CN'
-export const defaultTenantMessages = tenantZhCN
+export const defaultTenantLocale: TenantLocale = defaultLanguage
+export const defaultTenantMessages = getTenantMessages(defaultTenantLocale)
 export const tenantValidationFallback = defaultTenantMessages.validation
 
-export function formatSchemaMessage(template: string, params: SchemaMessageParams = {}) {
-  return template.replace(/\{([A-Za-z0-9_]+)\}/g, (match, name: string) => {
-    const value = params[name]
-    return value === undefined || value === null ? match : String(value)
-  })
-}
+export const defaultTenantSchemaTranslator = defaultSchemaTranslator
 
-export const defaultTenantSchemaTranslator: SchemaTranslator = (_key, fallback, params) => formatSchemaMessage(fallback, params)
-
-function resolveTenantLocale(value?: string | null): TenantLocale | undefined {
-  const normalized = value?.trim().toLowerCase()
-  if (!normalized) return undefined
-  if (normalized.startsWith('zh')) return 'zh-CN'
-  if (normalized.startsWith('en')) return 'en-US'
-  return undefined
-}
-
-function readBrowserLocales(): readonly string[] {
-  if (typeof navigator === 'undefined') return []
-  return navigator.languages?.length ? navigator.languages : [navigator.language]
+function toTenantLocale(language: SupportedLanguage): TenantLocale {
+  return language in tenantLocaleResources ? language as TenantLocale : defaultTenantLocale
 }
 
 function readTenantLocale(): TenantLocale {
-  if (typeof window === 'undefined') return defaultTenantLocale
-  const storedLocale = resolveTenantLocale(window.localStorage.getItem(TENANT_LOCALE_STORAGE_KEY))
-  if (storedLocale) return storedLocale
-
-  const htmlLocale = resolveTenantLocale(document.documentElement.lang)
-  if (htmlLocale) return htmlLocale
-
-  for (const locale of readBrowserLocales()) {
-    const browserLocale = resolveTenantLocale(locale)
-    if (browserLocale) return browserLocale
-  }
-
-  return defaultTenantLocale
+  return toTenantLocale(readRuntimeLanguage({ includeDocument: true }))
 }
 
 function subscribeTenantLocale(onStoreChange: () => void) {

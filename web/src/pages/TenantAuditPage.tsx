@@ -3,6 +3,7 @@ import { Download } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useExportTenantAuditLogs, useTenantAuditLogs } from '@/features/audit/audit-hooks'
 import { useTenantStore } from '@/features/tenants/tenant-store'
+import { useDateTimeFormatter } from '@/shared/i18n'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
@@ -13,6 +14,7 @@ import { Table, Td, Th } from '@/shared/ui/Table'
 
 export function TenantAuditPage() {
   const { t } = useTranslation()
+  const dateTimeFormatter = useDateTimeFormatter()
   const tenantId = useTenantStore((state) => state.currentTenantId)
   const [action, setAction] = useState('')
   const logs = useTenantAuditLogs(tenantId, { action })
@@ -40,7 +42,7 @@ export function TenantAuditPage() {
       <Card>
         <CardHeader title={t('audit.common.logs')} description={t('common.total', { count: logs.data?.total ?? 0 })} />
         {logs.isLoading ? <LoadingView label={t('audit.common.loading')} /> : (logs.data?.logs.length ?? 0) === 0 ? <EmptyState title={t('audit.common.noLogs')} /> : (
-          <div className="overflow-x-auto"><Table><thead><tr><Th>{t('audit.common.headers.time')}</Th><Th>{t('audit.common.headers.action')}</Th><Th>{t('audit.common.headers.resource')}</Th><Th>{t('audit.common.headers.user')}</Th><Th>{t('audit.common.headers.metadata')}</Th></tr></thead><tbody>{logs.data?.logs.map((item) => <tr key={item.id}><Td>{new Date(item.created_at).toLocaleString()}</Td><Td><Badge>{item.action}</Badge></Td><Td>{item.resource_type}<div className="text-xs text-subtle">{item.resource_id}</div></Td><Td>{item.user_id}</Td><Td><code className="text-xs">{JSON.stringify(item.metadata)}</code></Td></tr>)}</tbody></Table></div>
+          <div className="overflow-x-auto"><Table><thead><tr><Th>{t('audit.common.headers.time')}</Th><Th>{t('audit.common.headers.action')}</Th><Th>{t('audit.common.headers.resource')}</Th><Th>{t('audit.common.headers.user')}</Th><Th>{t('audit.common.headers.metadata')}</Th></tr></thead><tbody>{logs.data?.logs.map((item) => <tr key={item.id}><Td>{dateTimeFormatter.format(new Date(item.created_at))}</Td><Td><Badge>{item.action}</Badge></Td><Td>{item.resource_type}<div className="text-xs text-subtle">{item.resource_id}</div></Td><Td>{item.user_id}</Td><Td><code className="text-xs">{JSON.stringify(item.metadata)}</code></Td></tr>)}</tbody></Table></div>
         )}
       </Card>
     </div>

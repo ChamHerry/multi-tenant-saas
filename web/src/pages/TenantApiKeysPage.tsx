@@ -29,7 +29,7 @@ import {
   Th,
 } from '@/shared/ui'
 import { validateForm, type FieldErrors } from '@/shared/lib/validate'
-import type { SchemaTranslator } from '@/shared/lib/schema-translator'
+import { formatSchemaMessage, type SchemaTranslator } from '@/shared/lib/schema-translator'
 
 const defaultScopes = ['user:read', 'user:tenant:read', 'tenant:read']
 
@@ -51,7 +51,7 @@ export function TenantApiKeysPage() {
   const [isCreateKeyOpen, setIsCreateKeyOpen] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
   const schemaTranslator = useCallback<SchemaTranslator>(
-    (key, fallback, params) => t(`apiKeys.validation.${key}`, { defaultValue: fallback, ...params }),
+    (key, fallback, params) => formatSchemaMessage(t(`apiKeys.validation.${key}`, { defaultValue: fallback }), params),
     [t],
   )
   const createTenantAPIKeyInputSchema = useMemo(

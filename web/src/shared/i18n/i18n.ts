@@ -1,27 +1,20 @@
 import i18next from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
-import { readStorage, writeStorage } from '@/shared/lib/storage'
-import { LANGUAGE_STORAGE_KEY, defaultLanguage, getHtmlLang, normalizeLanguage, resolveInitialLanguage, type SupportedLanguage } from './languages'
+import { writeStorage } from '@/shared/lib/storage'
+import { LANGUAGE_STORAGE_KEY, defaultLanguage, getHtmlLang, normalizeLanguage, type SupportedLanguage } from './languages'
+import { LOCALE_CHANGE_EVENT, readRuntimeLanguage } from './locale-runtime'
 import { resources } from './resources'
 
-function readBrowserLanguages(): readonly string[] {
-  if (typeof navigator === 'undefined') return []
-  return navigator.languages?.length ? navigator.languages : [navigator.language]
-}
-
 export function detectInitialLanguage(): SupportedLanguage {
-  return resolveInitialLanguage({
-    storedLanguage: readStorage(LANGUAGE_STORAGE_KEY),
-    browserLanguages: readBrowserLanguages(),
-  })
+  return readRuntimeLanguage()
 }
 
 export function syncDocumentLanguage(language: SupportedLanguage) {
   if (typeof document === 'undefined') return
   document.documentElement.lang = getHtmlLang(language)
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('saas-template:locale-change', { detail: { language } }))
+    window.dispatchEvent(new CustomEvent(LOCALE_CHANGE_EVENT, { detail: { language } }))
   }
 }
 

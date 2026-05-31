@@ -20,12 +20,22 @@ export function resolvePageTitle(t: TFunction, descriptor: PageTitleDescriptor) 
   return t(descriptor.key, descriptor.values)
 }
 
+function stringifyTitleValues(values?: PageTitleDescriptor['values']) {
+  return JSON.stringify(values ?? null)
+}
+
+function parseTitleValues(signature: string): PageTitleDescriptor['values'] {
+  return signature === 'null' ? undefined : JSON.parse(signature)
+}
+
 export function usePageTitle(title?: PageTitleDescriptor) {
   const context = useContext(PageTitleContext)
+  const titleKey = title?.key
+  const titleValuesSignature = stringifyTitleValues(title?.values)
 
   useLayoutEffect(() => {
     if (!context) return
-    context.setPageTitle(title)
+    context.setPageTitle(titleKey ? pageTitle(titleKey, parseTitleValues(titleValuesSignature)) : undefined)
     return () => context.setPageTitle(undefined)
-  }, [context, title])
+  }, [context, titleKey, titleValuesSignature])
 }

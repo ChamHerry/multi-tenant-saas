@@ -1,4 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react'
+import { LOCALE_CHANGE_EVENT, readRuntimeLanguage } from '@/shared/i18n/locale-runtime'
+import { defaultLanguage, type SupportedLanguage } from '@/shared/i18n/languages'
 import { defaultSchemaTranslator, formatSchemaMessage, type SchemaTranslator } from '@/shared/lib/schema-translator'
 import authEnUS from './locales/en-US.json'
 import authZhCN from './locales/zh-CN.json'
@@ -15,37 +17,35 @@ type LocalizedMessages<T> = {
 
 export type AuthMessages = LocalizedMessages<typeof authEnUS>
 export type AuthValidationKey = keyof AuthMessages['validation']
-export const AUTH_LOCALE_STORAGE_KEY = 'saas-template.locale'
+export const defaultAuthLocale: AuthLocale = defaultLanguage
 
-function resolveAuthLocale(value?: string | null): AuthLocale {
-  if (value?.toLowerCase().startsWith('zh')) return 'zh-CN'
-  return 'en-US'
+function toAuthLocale(language: SupportedLanguage): AuthLocale {
+  return language in authLocaleResources ? language as AuthLocale : defaultAuthLocale
 }
 
 function readAuthLocale(): AuthLocale {
-  if (typeof window === 'undefined') return 'en-US'
-  return resolveAuthLocale(window.localStorage.getItem(AUTH_LOCALE_STORAGE_KEY) ?? document.documentElement.lang ?? navigator.language)
+  return toAuthLocale(readRuntimeLanguage({ includeDocument: true }))
 }
 
 function subscribeAuthLocale(onStoreChange: () => void) {
   if (typeof window === 'undefined') return () => undefined
   window.addEventListener('storage', onStoreChange)
   window.addEventListener('languagechange', onStoreChange)
-  window.addEventListener('saas-template:locale-change', onStoreChange)
+  window.addEventListener(LOCALE_CHANGE_EVENT, onStoreChange)
   return () => {
     window.removeEventListener('storage', onStoreChange)
     window.removeEventListener('languagechange', onStoreChange)
-    window.removeEventListener('saas-template:locale-change', onStoreChange)
+    window.removeEventListener(LOCALE_CHANGE_EVENT, onStoreChange)
   }
 }
 
-export function getAuthMessages(locale: AuthLocale = 'en-US'): AuthMessages {
+export function getAuthMessages(locale: AuthLocale = defaultAuthLocale): AuthMessages {
   return authLocaleResources[locale]
 }
 
-export function createAuthSchemaTranslator(locale: AuthLocale = 'en-US'): SchemaTranslator {
+export function createAuthSchemaTranslator(locale: AuthLocale = defaultAuthLocale): SchemaTranslator {
   const messages = getAuthMessages(locale).validation
-  const fallbacks = authEnUS.validation
+  const fallbacks = getAuthMessages(defaultAuthLocale).validation
   return (key, fallback, params) => {
     const message = messages[key as AuthValidationKey] ?? fallbacks[key as AuthValidationKey] ?? fallback
     return formatSchemaMessage(message, params)
@@ -53,7 +53,7 @@ export function createAuthSchemaTranslator(locale: AuthLocale = 'en-US'): Schema
 }
 
 export function useAuthI18n() {
-  const locale = useSyncExternalStore(subscribeAuthLocale, readAuthLocale, () => 'en-US' as AuthLocale)
+  const locale = useSyncExternalStore(subscribeAuthLocale, readAuthLocale, () => defaultAuthLocale)
   return useMemo(() => {
     const messages = getAuthMessages(locale)
     return {
@@ -64,5 +64,5 @@ export function useAuthI18n() {
   }, [locale])
 }
 
-export const defaultAuthMessages = authEnUS
+export const defaultAuthMessages = getAuthMessages(defaultAuthLocale)
 export const defaultAuthSchemaTranslator = defaultSchemaTranslator
