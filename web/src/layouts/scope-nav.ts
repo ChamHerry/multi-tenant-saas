@@ -9,7 +9,7 @@ import {
 } from './menu-config'
 
 export type ScopeNavSection = {
-  title: string
+  titleKey: string
   tone: 'default' | 'platform'
   items: MenuItem[]
 }
@@ -47,17 +47,17 @@ export function buildScopeNavSections({
 }: BuildScopeNavSectionsInput): ScopeNavSection[] {
   const sections: ScopeNavSection[] = [
     {
-      title: '我的账户',
+      titleKey: 'nav.sections.account',
       tone: 'default',
       items: accountNavItems,
     },
     {
-      title: '组织管理',
+      titleKey: 'nav.sections.tenant',
       tone: 'default',
       items: tenantNavItems.filter((item) => isItemVisible(item, tenantPermissions, platformPermissions)),
     },
     {
-      title: '平台管理',
+      titleKey: 'nav.sections.platform',
       tone: 'platform',
       items: platformNavItems.filter((item) => isItemVisible(item, tenantPermissions, platformPermissions)),
     },

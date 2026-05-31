@@ -1,10 +1,11 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Building2, Plus } from 'lucide-react'
 import TinyPinyin from 'tiny-pinyin'
 import { useMyTenants } from '@/features/auth/auth-hooks'
 import { useCreateTenant } from '@/features/tenants/tenant-hooks'
-import { createTenantInputSchema, TENANT_SLUG_MAX_LENGTH } from '@/features/tenants/tenant-types'
+import { useTenantI18n } from '@/features/tenants/tenant-i18n'
+import { createCreateTenantInputSchema, TENANT_SLUG_MAX_LENGTH } from '@/features/tenants/tenant-types'
 import { useTenantStore } from '@/features/tenants/tenant-store'
 import {
   Badge,
@@ -21,7 +22,7 @@ import {
 } from '@/shared/ui'
 import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 
-const CJK_TEXT_PATTERN = /[㐀-鿿豈-﫿]+/g
+const CJK_TEXT_PATTERN = /[\u3400-\u9fff\uf900-\ufaff]+/g
 
 function slugifyTenantSlug(value: string) {
   return value
@@ -51,6 +52,8 @@ export function TenantsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
+  const { schemaTranslator, t, formatRole, formatTenantStatus } = useTenantI18n()
+  const createTenantSchema = useMemo(() => createCreateTenantInputSchema(schemaTranslator), [schemaTranslator])
 
   const resetCreateTenantForm = () => {
     setName('')
@@ -83,7 +86,7 @@ export function TenantsPage() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const result = validateForm(createTenantInputSchema, {
+    const result = validateForm(createTenantSchema, {
       name: name.trim(),
       slug: slug.trim(),
     })
@@ -100,15 +103,15 @@ export function TenantsPage() {
     })
   }
 
-  if (tenants.isLoading) return <LoadingView label="加载组织列表..." />
+  if (tenants.isLoading) return <LoadingView label={t('tenants.loading', 'Loading organizations...')} />
 
   return (
     <div className="space-y-6">
       {tenants.error ? (
-        <ErrorView error={tenants.error} title="组织列表加载失败" />
+        <ErrorView error={tenants.error} title={t('tenants.listErrorTitle', 'Organization list failed to load')} />
       ) : null}
       {createTenant.error ? (
-        <ErrorView error={createTenant.error} title="组织创建失败" />
+        <ErrorView error={createTenant.error} title={t('tenants.createErrorTitle', 'Organization creation failed')} />
       ) : null}
 
       <div className="flex justify-end">
@@ -116,27 +119,27 @@ export function TenantsPage() {
           leftIcon={<Plus className="size-4" />}
           onClick={() => setIsCreateOpen(true)}
         >
-          添加组织
+          {t('tenants.addButton', 'Add organization')}
         </Button>
       </div>
 
-      <Dialog open={isCreateOpen} title="添加组织" onClose={closeCreateDialog}>
+      <Dialog open={isCreateOpen} title={t('tenants.dialogTitle', 'Add organization')} onClose={closeCreateDialog}>
         <form className="space-y-4" onSubmit={submit}>
           <Input
-            label="组织名称"
+            label={t('tenants.nameLabel', 'Organization name')}
             value={name}
             onChange={(event) => handleNameChange(event.target.value)}
-            placeholder="Acme Demo"
+            placeholder={t('tenants.namePlaceholder', 'Acme Demo')}
             error={errors.name}
           />
           <div className="space-y-2">
             <Input
-              label="Slug"
+              label={t('tenants.slugLabel', 'Slug')}
               value={slug}
               onChange={(event) => handleSlugChange(event.target.value)}
-              placeholder="acme-demo"
+              placeholder={t('tenants.slugPlaceholder', 'acme-demo')}
               error={errors.slug}
-              hint="用于组织 URL/API 标识；中文名称会自动转为拼音，可手动修改。"
+              hint={t('tenants.slugHint', 'Used for organization URL/API identifiers. Chinese names are converted to pinyin automatically and can be edited manually.')}
             />
             <div className="flex justify-end">
               <Button
@@ -145,7 +148,7 @@ export function TenantsPage() {
                 size="sm"
                 onClick={regenerateSlug}
               >
-                按名称生成
+                {t('tenants.regenerateSlug', 'Generate from name')}
               </Button>
             </div>
           </div>
@@ -154,7 +157,7 @@ export function TenantsPage() {
             isLoading={createTenant.isPending}
             leftIcon={<Plus className="size-4" />}
           >
-            添加并切换
+            {t('tenants.submit', 'Add and switch')}
           </Button>
         </form>
       </Dialog>
@@ -162,17 +165,17 @@ export function TenantsPage() {
       <section>
         <Card>
           <CardHeader
-            title="我的组织"
-            description="选择一个组织后，成员、邀请、API Key 和审计功能会使用该上下文。"
+            title={t('tenants.listTitle', 'My organizations')}
+            description={t('tenants.listDescription', 'After selecting an organization, member, invitation, API key, and audit features use that context.')}
           />
           <div className="overflow-x-auto">
             <Table>
               <thead>
                 <tr>
-                  <Th>组织</Th>
-                  <Th>角色</Th>
-                  <Th>状态</Th>
-                  <Th>操作</Th>
+                  <Th>{t('tenants.columns.organization', 'Organization')}</Th>
+                  <Th>{t('tenants.columns.role', 'Role')}</Th>
+                  <Th>{t('tenants.columns.status', 'Status')}</Th>
+                  <Th>{t('tenants.columns.actions', 'Actions')}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -196,7 +199,7 @@ export function TenantsPage() {
                               : 'purple'
                         }
                       >
-                        {tenant.role}
+                        {formatRole(tenant.role)}
                       </Badge>
                     </Td>
                     <Td>
@@ -205,7 +208,7 @@ export function TenantsPage() {
                           tenant.tenant_status === 'active' ? 'green' : 'orange'
                         }
                       >
-                        {tenant.tenant_status}
+                        {formatTenantStatus(tenant.tenant_status)}
                       </Badge>
                     </Td>
                     <Td>
@@ -220,8 +223,8 @@ export function TenantsPage() {
                           onClick={() => setCurrentTenantId(tenant.tenant_id)}
                         >
                           {currentTenantId === tenant.tenant_id
-                            ? '当前'
-                            : '切换'}
+                            ? t('tenants.current', 'Current')
+                            : t('tenants.switch', 'Switch')}
                         </Button>
                         <Link
                           to={`/tenant/settings?tenantId=${tenant.tenant_id}`}
@@ -231,7 +234,7 @@ export function TenantsPage() {
                             variant="ghost"
                             leftIcon={<Building2 className="size-3" />}
                           >
-                            设置
+                            {t('tenants.settings', 'Settings')}
                           </Button>
                         </Link>
                       </div>

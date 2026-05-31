@@ -1,0 +1,326 @@
+{
+  "app": {
+    "offline": "You are offline. Changes will sync when the connection is restored."
+  },
+  "language": {
+    "switcherLabel": "Interface language",
+    "options": {
+      "zhCN": "简体中文",
+      "enUS": "English"
+    }
+  },
+  "common": {
+    "close": "Close",
+    "requestFailed": "Request failed",
+    "actions": {
+      "copy": "Copy",
+      "revoke": "Revoke",
+      "suspend": "Suspend",
+      "restore": "Restore",
+      "disable": "Disable",
+      "enable": "Enable"
+    },
+    "fields": {
+      "action": "Action",
+      "actions": "Actions",
+      "metadata": "Metadata",
+      "resource": "Resource",
+      "role": "Role",
+      "status": "Status",
+      "time": "Time",
+      "user": "User"
+    },
+    "loading": "Loading...",
+    "notAvailable": "-",
+    "total": "Total: {{count}}",
+    "status": {
+      "active": "Active",
+      "disabled": "Disabled",
+      "revoked": "Revoked"
+    }
+  },
+  "dashboard": {
+    "title": {
+      "default": "Organization overview",
+      "welcome": "Welcome, {{name}}"
+    },
+    "userFallback": "Dev User",
+    "hero": {
+      "createTenant": "Create first organization",
+      "manageTenants": "Manage my organizations",
+      "openAccess": "Open users and access",
+      "noTenantsTitle": "No available organizations yet",
+      "noTenantsDescription": "Go to “My organizations” to create or join an organization. The organization switcher at the top of the sidebar will then sync the current organization context automatically."
+    },
+    "system": {
+      "status": {
+        "ok": "OK",
+        "error": "ERROR",
+        "loading": "LOADING"
+      },
+      "messages": {
+        "checking": "Checking...",
+        "unavailable": "Service unavailable",
+        "migrationVersion": "migration version {{version}}",
+        "healthy": "Service healthy"
+      },
+      "healthTitle": "HTTP Health",
+      "readyTitle": "DB Ready"
+    },
+    "cards": {
+      "tenantsTitle": "My organizations",
+      "currentRoleTitle": "Current organization role",
+      "resolvingRole": "Resolving",
+      "noTenantSelected": "No organization selected",
+      "currentTenantInfo": "Current organization info",
+      "currentTenantDescription": "Organization settings and organization API keys automatically use the selected organization.",
+      "tenantInfoError": "Failed to load organization info",
+      "tenantInfoLoading": "Loading organization info...",
+      "tenantRequired": "Select or create an organization first.",
+      "shortcutsTitle": "Shortcuts",
+      "shortcutsDescription": "Quick links for the implemented organization-level management features."
+    },
+    "shortcuts": {
+      "settings": "Organization settings",
+      "access": "Users and access",
+      "apiKeys": "Organization API keys"
+    }
+  },
+  "auth": {
+    "shell": {
+      "badge": "Multi-tenant SaaS template",
+      "titlePrefix": "Secure multi-tenant",
+      "titleHighlight": "console",
+      "description": "A frontend console template built with HttpOnly cookies, organization context, and permission snapshots.",
+      "features": {
+        "httpOnly": "HttpOnly cookies",
+        "api": "Unified API client",
+        "orgContext": "Organization context"
+      }
+    },
+    "guard": {
+      "checkingSession": "Checking session...",
+      "sessionCheckFailed": "Session check failed"
+    }
+  },
+  "notFound": {
+    "description": "This path is served by the GoFrame SPA fallback, but the frontend router has no matching page.",
+    "backHome": "Back to dashboard"
+  },
+  "apiKeys": {
+    "validation": {
+      "tenantRequired": "Select an organization",
+      "scopeRequired": "Select at least one scope",
+      "nameRequired": "Enter a name",
+      "nameMax": "Name must be at most {max} characters"
+    },
+    "personal": {
+      "requireTenantTitle": "Create or join an organization first",
+      "requireTenantDescription": "Organization API keys have moved to “Organization management / Organization API keys”."
+    },
+    "tenant": {
+      "requireTenantTitle": "Create or join an organization first",
+      "requireTenantDescription": "Organization API keys require a current organization context.",
+      "operationFailed": "Organization API key operation failed",
+      "createButton": "Create organization key",
+      "rawKey": {
+        "title": "Copy the raw key now",
+        "description": "The backend returns raw_key only once. After refresh, only key_prefix is visible."
+      },
+      "dialog": {
+        "title": "Create organization key for {{tenantName}}",
+        "nameLabel": "Name",
+        "expiresAtLabel": "Expiration time, optional",
+        "scopesLabel": "Scopes",
+        "submit": "Create organization key"
+      },
+      "scopePermissionDenied": "Insufficient permissions in the current organization",
+      "table": {
+        "title": "Current organization key list",
+        "description": "Shows only keys created/held by the current user under {{tenantName}} (GET /api/v1/tenants/{tenant}/api-keys).",
+        "headers": {
+          "name": "Name",
+          "prefix": "Prefix",
+          "scopes": "Key scopes",
+          "tenantGrant": "Organization grant",
+          "status": "Status",
+          "actions": "Actions"
+        }
+      },
+      "empty": {
+        "noKeysTitle": "No organization API keys",
+        "noKeysDescription": "After creation, use the key for calls in the current organization context; organization API calls must include a tenant selector."
+      },
+      "grants": {
+        "noTenantScope": "No tenant scope",
+        "noCurrentGrant": "No active grant for the current organization"
+      }
+    }
+  },
+  "audit": {
+    "common": {
+      "filter": "Filters",
+      "logs": "Logs",
+      "loading": "Loading audit logs...",
+      "noLogs": "No logs",
+      "exportJsonl": "Export JSONL",
+      "headers": {
+        "action": "Action",
+        "ip": "IP",
+        "metadata": "Metadata",
+        "organization": "Organization",
+        "resource": "Resource",
+        "time": "Time",
+        "user": "User",
+        "userAgent": "User-Agent"
+      }
+    },
+    "tenant": {
+      "requireTenantTitle": "Select an organization first",
+      "requireTenantDescription": "Audit queries require the current organization context.",
+      "loadFailed": "Failed to load audit logs",
+      "actionPlaceholder": "tenant.invitation.create"
+    },
+    "security": {
+      "title": "Security events",
+      "loadFailed": "Failed to load security events",
+      "loading": "Loading security events...",
+      "empty": "No security events"
+    },
+    "admin": {
+      "loadFailed": "Failed to load platform audit logs",
+      "tenantIdLabel": "Organization ID",
+      "loading": "Loading audit logs..."
+    }
+  },
+  "admin": {
+    "common": {
+      "session": "Admin session",
+      "search": "Search",
+      "rolePrefix": "Role: ",
+      "roles": {
+        "super_admin": "Super admin",
+        "support": "Support",
+        "auditor": "Auditor"
+      }
+    },
+    "tenants": {
+      "unavailable": "Platform management unavailable",
+      "sessionLoading": "Verifying platform admin...",
+      "searchPlaceholder": "tenant name / slug / id",
+      "listTitle": "Organization list",
+      "loading": "Loading organizations...",
+      "headers": {
+        "organization": "Organization",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "users": {
+      "failed": "User management failed",
+      "grantAdmin": "Grant platform admin",
+      "dialogTitle": "Grant platform admin",
+      "userId": "User ID",
+      "searchUsers": "Search users",
+      "searchPlaceholder": "email / name / id",
+      "platformAdminsTitle": "Platform admin list",
+      "noPlatformAdminPermissionTitle": "No platform admin management permission",
+      "noPlatformAdminPermissionDescription": "platform:admin:manage is required to view and maintain platform admins.",
+      "loadingPlatformAdmins": "Loading platform admins...",
+      "usersTitle": "User list",
+      "loadingUsers": "Loading users...",
+      "revokePlatformPermission": "Revoke platform permission",
+      "grantedAt": "Granted at",
+      "lastLogin": "Last login"
+    }
+  },
+  "access": {
+    "guard": {
+      "loading": "Loading permissions...",
+      "loadFailed": "Permission load failed",
+      "noPlatformPermissionTitle": "No platform permission",
+      "noPlatformPermissionDescription": "Your account does not have the platform permission required for this page.",
+      "selectTenantTitle": "Select an organization first",
+      "selectTenantDescription": "This page requires an explicit organization context.",
+      "noTenantPermissionTitle": "No organization permission",
+      "noTenantPermissionDescription": "Your current organization role does not have the permission required for this page."
+    }
+  },
+  "appShell": {
+    "tenant": {
+      "selectLabel": "Switch organization",
+      "currentBadge": "Current",
+      "emptyTitle": "No organization selected",
+      "emptyDescription": "Select or create an organization to populate the organization context.",
+      "manageCta": "Manage organizations"
+    },
+    "user": {
+      "devUser": "Dev User",
+      "logoutPending": "Signing out...",
+      "logout": "Sign out"
+    },
+    "errors": {
+      "meLoad": "User profile failed to load",
+      "accessLoad": "Permissions failed to load"
+    }
+  },
+  "routes": {
+    "tenantSettings": {
+      "title": "Organization settings",
+      "dynamic": "{{name}} settings"
+    },
+    "dashboard": {
+      "title": "Organization overview"
+    },
+    "tenants": {
+      "title": "My organizations"
+    },
+    "tenantAccess": {
+      "title": "Users and access"
+    },
+    "tenantApiKeys": {
+      "title": "Organization API keys"
+    },
+    "tenantAudit": {
+      "title": "Organization audit logs"
+    },
+    "myInvitations": {
+      "title": "My invitations"
+    },
+    "securityEvents": {
+      "title": "Security events"
+    },
+    "platformTenants": {
+      "title": "Platform organizations"
+    },
+    "platformUsers": {
+      "title": "Platform users"
+    },
+    "platformAudit": {
+      "title": "Platform audit logs"
+    },
+    "notFound": {
+      "title": "Page not found"
+    }
+  },
+  "nav": {
+    "sections": {
+      "account": "Account",
+      "tenant": "Organization",
+      "platform": "Platform"
+    },
+    "items": {
+      "myInvitations": "My invitations",
+      "securityEvents": "Security events",
+      "dashboard": "Dashboard",
+      "tenants": "My organizations",
+      "tenantSettings": "Organization settings",
+      "tenantAccess": "Users and access",
+      "tenantApiKeys": "Organization API keys",
+      "tenantAudit": "Organization audit logs",
+      "platformTenants": "Platform organizations",
+      "platformUsers": "Platform users",
+      "platformAudit": "Platform audit logs"
+    }
+  }
+}

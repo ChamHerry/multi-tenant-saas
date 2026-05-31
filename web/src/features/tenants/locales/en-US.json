@@ -1,0 +1,178 @@
+{
+  "validation": {
+    "tenantNameRequired": "Enter the organization name",
+    "tenantNameMax": "Organization name can be up to {max} characters",
+    "tenantSlugRequired": "Enter the slug",
+    "tenantSlugPattern": "Slug must be 3-80 lowercase letters, numbers, or hyphens, and start and end with a letter or number",
+    "tenantNameCannotBeEmpty": "Organization name cannot be empty",
+    "tenantSlugCannotBeEmpty": "Slug cannot be empty",
+    "memberUserIdRequired": "Enter the user ID",
+    "inviteeEmailRequired": "Enter the email address",
+    "inviteeEmailInvalid": "Enter a valid email address",
+    "invitationMessageMax": "Message can be up to {max} characters",
+    "invitationTokenRequired": "Enter the invitation token"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "member": "Member",
+    "viewer": "Viewer"
+  },
+  "tenantStatuses": {
+    "active": "Active",
+    "suspended": "Suspended",
+    "deleted": "Deleted"
+  },
+  "memberStatuses": {
+    "active": "Active",
+    "invited": "Invited",
+    "suspended": "Suspended",
+    "removed": "Removed"
+  },
+  "invitationStatuses": {
+    "pending": "Pending",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "revoked": "Revoked",
+    "expired": "Expired"
+  },
+  "tenantAccess": {
+    "tabs": {
+      "members": "Members",
+      "invitations": "Invitations"
+    },
+    "noTenantTitle": "Select an organization first",
+    "noTenantDescription": "Users and access require an explicit organization context.",
+    "noAccessTitle": "No access",
+    "noAccessDescription": "Your current organization role cannot manage members or invitations."
+  },
+  "members": {
+    "noTenantTitle": "Select an organization first",
+    "noTenantDescription": "Member management requires an explicit organization context. Select an organization in the header, or create one from the organizations page.",
+    "errorTitle": "Member action failed",
+    "addButton": "Add member",
+    "dialogTitle": "Add member",
+    "userIdLabel": "User ID",
+    "userIdPlaceholder": "User UUID",
+    "roleLabel": "Role",
+    "statusLabel": "Status",
+    "submit": "Add or update member",
+    "tableTitle": "Members",
+    "tableDescription": "Calls GET /api/v1/tenants/{tenant}/members.",
+    "loading": "Loading members...",
+    "emptyTitle": "No members yet",
+    "emptyDescription": "The organization creator should be at least an owner. If no members appear, check backend data.",
+    "columns": {
+      "user": "User",
+      "role": "Role",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "updateRoleAria": "Update role",
+    "updateStatusAria": "Update status",
+    "remove": "Remove"
+  },
+  "tenantInvitations": {
+    "noTenantTitle": "Select an organization first",
+    "noTenantDescription": "Inviting members requires the current organization context.",
+    "errorTitle": "Invitation action failed",
+    "tokenTitle": "Invitation link or token",
+    "tokenDescription": "Copy this manually for the invited user when email delivery is not connected.",
+    "copy": "Copy",
+    "inviteButton": "Invite member",
+    "dialogTitle": "Invite member",
+    "emailLabel": "Email",
+    "emailPlaceholder": "member@example.com",
+    "roleLabel": "Role",
+    "messageLabel": "Message, optional",
+    "messagePlaceholder": "Welcome to our organization",
+    "submit": "Send invitation",
+    "listTitle": "Invitations",
+    "listDescription": "Pending invitations can be resent or revoked. Accepted, expired, and revoked invitations are retained for audit context.",
+    "loading": "Loading invitations...",
+    "emptyTitle": "No invitations yet",
+    "emptyDescription": "Your first sent invitation will appear here.",
+    "columns": {
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "expiresAt": "Expires at",
+      "actions": "Actions"
+    },
+    "resend": "Resend",
+    "revoke": "Revoke"
+  },
+  "myInvitations": {
+    "errorTitle": "Invitation handling failed",
+    "acceptByToken": "Accept by token",
+    "dialogTitle": "Accept by token",
+    "tokenPlaceholder": "Invitation token",
+    "submit": "Accept invitation",
+    "pendingTitle": "Pending invitations",
+    "loading": "Loading my invitations...",
+    "emptyTitle": "No pending invitations",
+    "emptyDescription": "Invitations matching your account email will appear here.",
+    "columns": {
+      "organization": "Organization",
+      "email": "Email",
+      "role": "Role",
+      "expiresAt": "Expires at",
+      "actions": "Actions"
+    },
+    "tokenRequired": "Token required",
+    "decline": "Decline"
+  },
+  "tenants": {
+    "loading": "Loading organizations...",
+    "listErrorTitle": "Organization list failed to load",
+    "createErrorTitle": "Organization creation failed",
+    "addButton": "Add organization",
+    "dialogTitle": "Add organization",
+    "nameLabel": "Organization name",
+    "namePlaceholder": "Acme Demo",
+    "slugLabel": "Slug",
+    "slugPlaceholder": "acme-demo",
+    "slugHint": "Used for organization URL/API identifiers. Chinese names are converted to pinyin automatically and can be edited manually.",
+    "regenerateSlug": "Generate from name",
+    "submit": "Add and switch",
+    "listTitle": "My organizations",
+    "listDescription": "After selecting an organization, member, invitation, API key, and audit features use that context.",
+    "columns": {
+      "organization": "Organization",
+      "role": "Role",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "current": "Current",
+    "switch": "Switch",
+    "settings": "Settings"
+  },
+  "tenantDetail": {
+    "titleFallback": "Organization settings",
+    "editBasics": "Edit basics",
+    "backToOrganizations": "Back to my organizations",
+    "operationErrorTitle": "Organization action failed",
+    "editDialogTitle": "Edit basics",
+    "updateErrorTitle": "Organization update failed",
+    "nameLabel": "Name",
+    "slugLabel": "Slug",
+    "save": "Save changes",
+    "noTenantTitle": "Select an organization first",
+    "noTenantDescription": "Organization settings require the current organization context. Go to My organizations first to select one.",
+    "goToOrganizations": "Go to my organizations",
+    "loading": "Loading organization details...",
+    "notFoundTitle": "Organization not found",
+    "notFoundDescription": "The backend did not return organization data.",
+    "capabilityTitle": "Template capability boundary",
+    "capabilityDescription": "This project keeps only generic multi-tenant SaaS administration capabilities and does not include domain-specific business models.",
+    "accessBoundaryTitle": "Access boundary",
+    "accessBoundaryDescription": "Member roles, organization API key scopes, and platform administrator permissions jointly control console access.",
+    "extensionPointTitle": "Extension point",
+    "extensionPointDescription": "Future business tables should explicitly bind tenant_id and reuse the existing RBAC and audit services.",
+    "dangerTitle": "Danger zone",
+    "dangerDescription": "These actions require tenant:manage permission and write audit logs.",
+    "suspend": "Suspend organization",
+    "restore": "Restore organization",
+    "delete": "Soft delete organization"
+  }
+}

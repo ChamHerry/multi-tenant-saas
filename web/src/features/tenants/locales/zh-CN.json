@@ -1,0 +1,178 @@
+{
+  "validation": {
+    "tenantNameRequired": "请输入组织名称",
+    "tenantNameMax": "组织名称最多 {max} 字符",
+    "tenantSlugRequired": "请输入 Slug",
+    "tenantSlugPattern": "Slug 需为 3-80 位小写字母、数字或短横线，且首尾必须是字母或数字",
+    "tenantNameCannotBeEmpty": "组织名称不能为空",
+    "tenantSlugCannotBeEmpty": "Slug 不能为空",
+    "memberUserIdRequired": "请输入用户 ID",
+    "inviteeEmailRequired": "请输入邮箱",
+    "inviteeEmailInvalid": "邮箱格式不正确",
+    "invitationMessageMax": "留言最多 {max} 字符",
+    "invitationTokenRequired": "请输入邀请 token"
+  },
+  "roles": {
+    "owner": "所有者",
+    "admin": "管理员",
+    "member": "成员",
+    "viewer": "查看者"
+  },
+  "tenantStatuses": {
+    "active": "已启用",
+    "suspended": "已暂停",
+    "deleted": "已删除"
+  },
+  "memberStatuses": {
+    "active": "已启用",
+    "invited": "已邀请",
+    "suspended": "已暂停",
+    "removed": "已移除"
+  },
+  "invitationStatuses": {
+    "pending": "待处理",
+    "accepted": "已接受",
+    "declined": "已拒绝",
+    "revoked": "已撤销",
+    "expired": "已过期"
+  },
+  "tenantAccess": {
+    "tabs": {
+      "members": "成员",
+      "invitations": "邀请"
+    },
+    "noTenantTitle": "请先选择组织",
+    "noTenantDescription": "用户与访问需要明确的组织上下文。",
+    "noAccessTitle": "无访问权限",
+    "noAccessDescription": "当前组织角色没有成员或邀请管理权限。"
+  },
+  "members": {
+    "noTenantTitle": "请先选择组织",
+    "noTenantDescription": "成员管理需要明确的组织上下文。可以在顶部选择已有组织，或先到组织页创建。",
+    "errorTitle": "成员操作失败",
+    "addButton": "添加成员",
+    "dialogTitle": "添加成员",
+    "userIdLabel": "User ID",
+    "userIdPlaceholder": "用户 UUID",
+    "roleLabel": "角色",
+    "statusLabel": "状态",
+    "submit": "添加/更新成员",
+    "tableTitle": "成员列表",
+    "tableDescription": "调用 GET /api/v1/tenants/{tenant}/members。",
+    "loading": "加载成员...",
+    "emptyTitle": "暂无成员",
+    "emptyDescription": "组织创建者应至少是 owner。如果没有成员，请检查后端数据。",
+    "columns": {
+      "user": "用户",
+      "role": "角色",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "updateRoleAria": "更新角色",
+    "updateStatusAria": "更新状态",
+    "remove": "移除"
+  },
+  "tenantInvitations": {
+    "noTenantTitle": "请先选择组织",
+    "noTenantDescription": "邀请成员需要当前组织上下文。",
+    "errorTitle": "邀请操作失败",
+    "tokenTitle": "邀请链接/Token",
+    "tokenDescription": "邮件发送未接入时可手动复制给被邀请用户。",
+    "copy": "复制",
+    "inviteButton": "邀请成员",
+    "dialogTitle": "邀请成员",
+    "emailLabel": "邮箱",
+    "emailPlaceholder": "member@example.com",
+    "roleLabel": "角色",
+    "messageLabel": "留言，可选",
+    "messagePlaceholder": "欢迎加入我们的组织",
+    "submit": "发送邀请",
+    "listTitle": "邀请列表",
+    "listDescription": "待处理邀请可重发或撤销；已接受、已过期、已撤销的邀请会保留审计线索。",
+    "loading": "加载邀请...",
+    "emptyTitle": "暂无邀请",
+    "emptyDescription": "发送第一封邀请后会显示在这里。",
+    "columns": {
+      "email": "邮箱",
+      "role": "角色",
+      "status": "状态",
+      "expiresAt": "过期时间",
+      "actions": "操作"
+    },
+    "resend": "重发",
+    "revoke": "撤销"
+  },
+  "myInvitations": {
+    "errorTitle": "邀请处理失败",
+    "acceptByToken": "通过 Token 接受邀请",
+    "dialogTitle": "通过 Token 接受邀请",
+    "tokenPlaceholder": "邀请 token",
+    "submit": "接受邀请",
+    "pendingTitle": "待处理邀请",
+    "loading": "加载我的邀请...",
+    "emptyTitle": "暂无待处理邀请",
+    "emptyDescription": "被邀请邮箱与当前账号邮箱匹配时会显示在这里。",
+    "columns": {
+      "organization": "组织",
+      "email": "邮箱",
+      "role": "角色",
+      "expiresAt": "过期时间",
+      "actions": "操作"
+    },
+    "tokenRequired": "需要 Token",
+    "decline": "拒绝"
+  },
+  "tenants": {
+    "loading": "加载组织列表...",
+    "listErrorTitle": "组织列表加载失败",
+    "createErrorTitle": "组织创建失败",
+    "addButton": "添加组织",
+    "dialogTitle": "添加组织",
+    "nameLabel": "组织名称",
+    "namePlaceholder": "Acme Demo",
+    "slugLabel": "Slug",
+    "slugPlaceholder": "acme-demo",
+    "slugHint": "用于组织 URL/API 标识；中文名称会自动转为拼音，可手动修改。",
+    "regenerateSlug": "按名称生成",
+    "submit": "添加并切换",
+    "listTitle": "我的组织",
+    "listDescription": "选择一个组织后，成员、邀请、API Key 和审计功能会使用该上下文。",
+    "columns": {
+      "organization": "组织",
+      "role": "角色",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "current": "当前",
+    "switch": "切换",
+    "settings": "设置"
+  },
+  "tenantDetail": {
+    "titleFallback": "组织设置",
+    "editBasics": "编辑基础信息",
+    "backToOrganizations": "返回我的组织",
+    "operationErrorTitle": "组织操作失败",
+    "editDialogTitle": "编辑基础信息",
+    "updateErrorTitle": "组织更新失败",
+    "nameLabel": "名称",
+    "slugLabel": "Slug",
+    "save": "保存修改",
+    "noTenantTitle": "请先选择组织",
+    "noTenantDescription": "组织设置需要当前组织上下文。可以先前往「我的组织」选择已有组织。",
+    "goToOrganizations": "前往我的组织",
+    "loading": "加载组织详情...",
+    "notFoundTitle": "组织不存在",
+    "notFoundDescription": "后端未返回组织数据",
+    "capabilityTitle": "模板能力边界",
+    "capabilityDescription": "当前项目只保留通用多租户 SaaS 管理能力，不包含具体业务域数据模型。",
+    "accessBoundaryTitle": "Access boundary",
+    "accessBoundaryDescription": "成员角色、组织 API Key scope、平台管理员权限共同控制后台入口。",
+    "extensionPointTitle": "Extension point",
+    "extensionPointDescription": "后续业务表应显式绑定 tenant_id，并复用现有 RBAC 和审计服务。",
+    "dangerTitle": "危险操作",
+    "dangerDescription": "这些操作依赖 tenant:manage 权限，并会写审计日志。",
+    "suspend": "暂停组织",
+    "restore": "恢复组织",
+    "delete": "软删除组织"
+  }
+}

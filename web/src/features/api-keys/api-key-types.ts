@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { defaultSchemaTranslator, type SchemaTranslator } from '@/shared/lib/schema-translator'
 
 export type APIKeyTenantGrant = {
   id: string
@@ -34,19 +35,26 @@ export type APIKey = {
   tenant_grants?: APIKeyTenantGrant[]
 }
 
-export const createAPIKeyTenantGrantInputSchema = z.object({
-  tenant_id: z.string().min(1, '请选择租户'),
-  scopes: z.array(z.string()).min(1, '至少选择一个 scope'),
-})
-export type CreateAPIKeyTenantGrantInput = z.infer<typeof createAPIKeyTenantGrantInputSchema>
+export function createAPIKeyTenantGrantInputSchema(t: SchemaTranslator = defaultSchemaTranslator) {
+  return z.object({
+    tenant_id: z.string().min(1, t('tenantRequired', 'Select an organization')),
+    scopes: z.array(z.string()).min(1, t('scopeRequired', 'Select at least one scope')),
+  })
+}
+export const apiKeyTenantGrantInputSchema = createAPIKeyTenantGrantInputSchema()
+export type CreateAPIKeyTenantGrantInput = z.infer<ReturnType<typeof createAPIKeyTenantGrantInputSchema>>
 
-export const createPersonalAPIKeyInputSchema = z.object({
-  name: z.string().min(1, '请输入名称').max(100, '名称最多 100 字符'),
-  scopes: z.array(z.string()).min(1, '至少选择一个 scope'),
-  grants: z.array(createAPIKeyTenantGrantInputSchema).optional(),
-  expires_at: z.string().optional(),
-})
-export type CreatePersonalAPIKeyInput = z.infer<typeof createPersonalAPIKeyInputSchema>
+export function createPersonalAPIKeyInputSchema(t: SchemaTranslator = defaultSchemaTranslator) {
+  const grantSchema = createAPIKeyTenantGrantInputSchema(t)
+  return z.object({
+    name: z.string().min(1, t('nameRequired', 'Enter a name')).max(100, t('nameMax', 'Name must be at most {max} characters', { max: 100 })),
+    scopes: z.array(z.string()).min(1, t('scopeRequired', 'Select at least one scope')),
+    grants: z.array(grantSchema).optional(),
+    expires_at: z.string().optional(),
+  })
+}
+export const personalAPIKeyInputSchema = createPersonalAPIKeyInputSchema()
+export type CreatePersonalAPIKeyInput = z.infer<ReturnType<typeof createPersonalAPIKeyInputSchema>>
 
 export type CreatedAPIKey = {
   api_key: APIKey

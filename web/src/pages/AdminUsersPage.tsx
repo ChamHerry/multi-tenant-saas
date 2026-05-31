@@ -1,6 +1,8 @@
 import { FormEvent, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCanPlatform } from '@/features/access/access-hooks'
 import { useAdminUsers, usePlatformAdminMutations, usePlatformAdmins } from '@/features/admin/admin-hooks'
+import { useDateTimeFormatter } from '@/shared/i18n'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardHeader } from '@/shared/ui/Card'
@@ -14,6 +16,8 @@ import { Table, Td, Th } from '@/shared/ui/Table'
 const roles = ['super_admin', 'support', 'auditor']
 
 export function AdminUsersPage() {
+  const { t } = useTranslation()
+  const dateTimeFormatter = useDateTimeFormatter()
   const [query, setQuery] = useState('')
   const params = { query }
   const canManageUsers = useCanPlatform('platform:user:manage')
@@ -39,24 +43,24 @@ export function AdminUsersPage() {
   }
   return (
     <div className="space-y-6">
-      {firstError ? <ErrorView error={firstError} title="用户管理失败" /> : null}
+      {firstError ? <ErrorView error={firstError} title={t('admin.users.failed')} /> : null}
       <div className="flex justify-end">
-        <Button disabled={!canManagePlatformAdmins} onClick={() => setIsGrantOpen(true)}>授权平台管理员</Button>
+        <Button disabled={!canManagePlatformAdmins} onClick={() => setIsGrantOpen(true)}>{t('admin.users.grantAdmin')}</Button>
       </div>
 
-      <Dialog open={isGrantOpen} title="授权平台管理员" onClose={() => setIsGrantOpen(false)}>
+      <Dialog open={isGrantOpen} title={t('admin.users.dialogTitle')} onClose={() => setIsGrantOpen(false)}>
         <form className="space-y-4" onSubmit={submit}>
-          <Input label="User ID" value={userId} onChange={(event) => setUserId(event.target.value)} required />
-          <Select label="角色" value={role} onChange={(event) => setRole(event.target.value)}>
-            {roles.map((item) => <option key={item} value={item}>{item}</option>)}
+          <Input label={t('admin.users.userId')} value={userId} onChange={(event) => setUserId(event.target.value)} required />
+          <Select label={t('common.fields.role')} value={role} onChange={(event) => setRole(event.target.value)}>
+            {roles.map((item) => <option key={item} value={item}>{t(`admin.common.roles.${item}`, { defaultValue: item })}</option>)}
           </Select>
-          <Button type="submit" isLoading={mutations.grant.isPending}>授权</Button>
+          <Button type="submit" isLoading={mutations.grant.isPending}>{t('admin.users.grantAdmin')}</Button>
         </form>
       </Dialog>
 
-      <Card><CardHeader title="搜索用户" /><Input label="搜索" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="email / name / id" /></Card>
-      <Card><CardHeader title="平台管理员列表" description={`Total: ${platformAdmins.data?.total ?? 0}`} />{!canManagePlatformAdmins ? <EmptyState title="无平台管理员管理权限" description="需要 platform:admin:manage 才能查看和维护平台管理员列表。" /> : platformAdmins.isLoading ? <LoadingView label="加载平台管理员..." /> : <div className="overflow-x-auto"><Table><thead><tr><Th>User ID</Th><Th>角色</Th><Th>状态</Th><Th>授权时间</Th><Th>操作</Th></tr></thead><tbody>{platformAdmins.data?.items.map((admin) => <tr key={admin.user_id}><Td><code className="text-xs">{admin.user_id}</code></Td><Td><Badge tone="red">{admin.role}</Badge></Td><Td><Badge tone={admin.status === 'active' ? 'green' : 'orange'}>{admin.status}</Badge></Td><Td>{new Date(admin.created_at).toLocaleString()}</Td><Td><Button size="sm" variant="danger" disabled={!canManagePlatformAdmins} onClick={() => mutations.revoke.mutate(admin.user_id)} isLoading={mutations.revoke.isPending}>撤销平台权限</Button></Td></tr>)}</tbody></Table></div>}</Card>
-      <Card><CardHeader title="用户列表" description={`Total: ${users.data?.total ?? 0}`} />{users.isLoading ? <LoadingView label="加载用户..." /> : <div className="overflow-x-auto"><Table><thead><tr><Th>用户</Th><Th>状态</Th><Th>最后登录</Th><Th>操作</Th></tr></thead><tbody>{users.data?.items.map((user) => <tr key={user.id}><Td><div className="font-bold text-ink">{user.display_name || user.email}</div><div className="text-xs text-subtle">{user.id}</div></Td><Td><Badge tone={user.status === 'active' ? 'green' : 'orange'}>{user.status}</Badge></Td><Td>{user.last_login_at ? new Date(user.last_login_at).toLocaleString() : '-'}</Td><Td><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={!canManageUsers} onClick={() => mutations.updateUserStatus.mutate({ userId: user.id, status: user.status === 'active' ? 'disabled' : 'active' })} isLoading={mutations.updateUserStatus.isPending}>{user.status === 'active' ? '禁用' : '启用'}</Button><Button size="sm" variant="danger" disabled={!canManagePlatformAdmins} onClick={() => mutations.revoke.mutate(user.id)} isLoading={mutations.revoke.isPending}>撤销平台权限</Button></div></Td></tr>)}</tbody></Table></div>}</Card>
+      <Card><CardHeader title={t('admin.users.searchUsers')} /><Input label={t('admin.common.search')} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.users.searchPlaceholder')} /></Card>
+      <Card><CardHeader title={t('admin.users.platformAdminsTitle')} description={t('common.total', { count: platformAdmins.data?.total ?? 0 })} />{!canManagePlatformAdmins ? <EmptyState title={t('admin.users.noPlatformAdminPermissionTitle')} description={t('admin.users.noPlatformAdminPermissionDescription')} /> : platformAdmins.isLoading ? <LoadingView label={t('admin.users.loadingPlatformAdmins')} /> : <div className="overflow-x-auto"><Table><thead><tr><Th>{t('admin.users.userId')}</Th><Th>{t('common.fields.role')}</Th><Th>{t('common.fields.status')}</Th><Th>{t('admin.users.grantedAt')}</Th><Th>{t('common.fields.actions')}</Th></tr></thead><tbody>{platformAdmins.data?.items.map((admin) => <tr key={admin.user_id}><Td><code className="text-xs">{admin.user_id}</code></Td><Td><Badge tone="red">{t(`admin.common.roles.${admin.role}`, { defaultValue: admin.role })}</Badge></Td><Td><Badge tone={admin.status === 'active' ? 'green' : 'orange'}>{t(`common.status.${admin.status}`, { defaultValue: admin.status })}</Badge></Td><Td>{dateTimeFormatter.format(new Date(admin.created_at))}</Td><Td><Button size="sm" variant="danger" disabled={!canManagePlatformAdmins} onClick={() => mutations.revoke.mutate(admin.user_id)} isLoading={mutations.revoke.isPending}>{t('admin.users.revokePlatformPermission')}</Button></Td></tr>)}</tbody></Table></div>}</Card>
+      <Card><CardHeader title={t('admin.users.usersTitle')} description={t('common.total', { count: users.data?.total ?? 0 })} />{users.isLoading ? <LoadingView label={t('admin.users.loadingUsers')} /> : <div className="overflow-x-auto"><Table><thead><tr><Th>{t('common.fields.user')}</Th><Th>{t('common.fields.status')}</Th><Th>{t('admin.users.lastLogin')}</Th><Th>{t('common.fields.actions')}</Th></tr></thead><tbody>{users.data?.items.map((user) => <tr key={user.id}><Td><div className="font-bold text-ink">{user.display_name || user.email}</div><div className="text-xs text-subtle">{user.id}</div></Td><Td><Badge tone={user.status === 'active' ? 'green' : 'orange'}>{t(`common.status.${user.status}`, { defaultValue: user.status })}</Badge></Td><Td>{user.last_login_at ? dateTimeFormatter.format(new Date(user.last_login_at)) : t('common.notAvailable')}</Td><Td><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={!canManageUsers} onClick={() => mutations.updateUserStatus.mutate({ userId: user.id, status: user.status === 'active' ? 'disabled' : 'active' })} isLoading={mutations.updateUserStatus.isPending}>{user.status === 'active' ? t('common.actions.disable') : t('common.actions.enable')}</Button><Button size="sm" variant="danger" disabled={!canManagePlatformAdmins} onClick={() => mutations.revoke.mutate(user.id)} isLoading={mutations.revoke.isPending}>{t('admin.users.revokePlatformPermission')}</Button></div></Td></tr>)}</tbody></Table></div>}</Card>
     </div>
   )
 }

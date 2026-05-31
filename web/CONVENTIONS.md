@@ -199,7 +199,7 @@ features/tenant-access/
 - 每个页面一个文件，以 `Page` 后缀命名（如 `LoginPage.tsx`）
 - 页面组件只做三件事：组装 hooks + 摆放 shared UI + 处理页面级交互
 - 页面间导航使用 `react-router-dom` 的 `useNavigate` / `Link`
-- 路由对应的页面标题通过 `handle: { title: '...' }` 定义在 `router.tsx` 中
+- 路由对应的页面标题通过 `handle: { titleKey: 'routes.xxx.title' }` 定义在 `router.tsx` 中
 
 ---
 
@@ -210,13 +210,13 @@ features/tenant-access/
 - 公开路由（`/login`、`/register`）放在顶层，无鉴权
 - 需鉴权的路由放在 `RequireAuth` 的 `children` 中
 - 需要权限控制的路由，用 `<RequirePermission>` 包裹
-- `handle.title` 提供页面标题，AppShell 会自动读取并显示
+- `handle.titleKey` 提供页面标题 locale key，AppShell 会自动读取并显示
 
 ```tsx
 // ✅ 正确
 {
   path: 'tenant/api-keys',
-  handle: { title: '组织 API Keys' },
+  handle: { titleKey: 'routes.tenantApiKeys.title' },
   element: (
     <RequirePermission tenant={['tenant:read']}>
       <TenantApiKeysPage />
@@ -468,7 +468,17 @@ import { errorMessage } from '@/shared/api/errors'
 
 ## 14. 国际化
 
-当前项目 UI 文案使用**中文**。所有用户可见文本（页面标题、按钮、提示、错误信息）统一用中文，代码注释和变量名用英文。
+新增或修改用户可见文案时必须接入前端国际化资源，不再在页面、布局、路由或共享 UI 中新增裸字符串。
+
+- 当前支持 `zh-CN` / `en-US`，默认语言为 `zh-CN`，新增语言时必须同时补齐 shared 与 feature locale JSON。
+- 通用 Locale JSON 放在 `shared/i18n/locales/*.json`，feature 专属校验/业务文案可放在对应 `features/*/locales/*.json`；`shared/i18n/resources.ts` 只负责注册通用资源。
+- 语言持久化 key 固定为 `saas-template.locale`；只在用户手动切换语言时写入，浏览器探测结果不得持久化为显式偏好。
+- 页面级 key 按路由/业务域分组：`dashboard.*`、`apiKeys.tenant.*`、`audit.tenant.*`、`admin.users.*`。
+- 跨页面复用文案放在 `common.*`、`audit.common.*`、`admin.common.*`，避免同义文案在多个页面重复定义。
+- 机器值和协议值保持原样展示或用 `<code>`/`Badge` 包裹，不翻译：权限字符串、scope、ID、API 字段名、HTTP 路径、后端 enum 提交值。
+- 后端 enum 如需对用户展示友好标签，使用前端 label map（例如 `common.status.active`、`admin.common.roles.support`），提交值仍使用原始 enum。
+- Zod schema 仍通过 `validateForm` 输出字段错误；新增 schema 时错误消息应走同一命名空间规划，避免临时内联文案扩散。
+- 路由标题、菜单标签和页面标题应共享同一组 locale key，保证语言切换后导航、浏览位置和页面头部不漂移。
 
 ---
 
@@ -486,4 +496,4 @@ import { errorMessage } from '@/shared/api/errors'
 | 创建未在 `@theme` 中定义的新 token | 所有样式 token 必须集中管理 |
 | 手写表单校验逻辑 | 必须使用 Zod schema + `validateForm` |
 | 直接导入 `@/shared/ui/X` 单文件 | 必须从 `@/shared/ui` barrel 导入 |
-| 在 Zod schema 中不含中文错误消息 | 校验消息必须对用户友好 |
+| 在 Zod schema 中新增裸错误文案 | 校验消息必须通过 schema translator / locale 资源输出 |

@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import type { SchemaTranslator } from '@/shared/lib/schema-translator'
+import { defaultAuthMessages, defaultAuthSchemaTranslator } from './auth-i18n'
 
 export const userSchema = z.object({
   id: z.string(),
@@ -38,36 +40,48 @@ export const authSessionResponseSchema = z.object({
 })
 export type AuthSessionResponse = z.infer<typeof authSessionResponseSchema>
 
-export const loginPayloadSchema = z.object({
-  email: z.string().min(1, '请输入邮箱').email('邮箱格式不正确'),
-  password: z.string().min(1, '请输入密码'),
-})
-export type LoginPayload = z.infer<typeof loginPayloadSchema>
+const validationFallback = defaultAuthMessages.validation
 
-export const registerPayloadSchema = z
-  .object({
-    email: z.string().min(1, '请输入邮箱').email('邮箱格式不正确'),
-    password: z.string().min(15, '密码至少 15 个字符'),
-    confirmPassword: z.string().min(1, '请确认密码'),
-    display_name: z.string().max(50, '显示名称最多 50 字符').optional(),
+export function createLoginPayloadSchema(t: SchemaTranslator = defaultAuthSchemaTranslator) {
+  return z.object({
+    email: z.string().min(1, t('emailRequired', validationFallback.emailRequired)).email(t('emailInvalid', validationFallback.emailInvalid)),
+    password: z.string().min(1, t('passwordRequired', validationFallback.passwordRequired)),
   })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: '两次输入的密码不一致',
-    path: ['confirmPassword'],
-  })
-export type RegisterPayload = z.infer<typeof registerPayloadSchema>
+}
 
-export const changePasswordPayloadSchema = z
-  .object({
-    old_password: z.string().min(1, '请输入当前密码'),
-    new_password: z.string().min(15, '新密码至少 15 个字符'),
-    confirm_new_password: z.string().min(1, '请确认新密码'),
-  })
-  .refine((data) => data.new_password === data.confirm_new_password, {
-    message: '两次输入的新密码不一致',
-    path: ['confirm_new_password'],
-  })
-export type ChangePasswordPayload = z.infer<typeof changePasswordPayloadSchema>
+export const loginPayloadSchema = createLoginPayloadSchema()
+export type LoginPayload = z.infer<ReturnType<typeof createLoginPayloadSchema>>
+
+export function createRegisterPayloadSchema(t: SchemaTranslator = defaultAuthSchemaTranslator) {
+  return z
+    .object({
+      email: z.string().min(1, t('emailRequired', validationFallback.emailRequired)).email(t('emailInvalid', validationFallback.emailInvalid)),
+      password: z.string().min(15, t('passwordMin', validationFallback.passwordMin, { min: 15 })),
+      confirmPassword: z.string().min(1, t('confirmPasswordRequired', validationFallback.confirmPasswordRequired)),
+      display_name: z.string().max(50, t('displayNameMax', validationFallback.displayNameMax, { max: 50 })).optional(),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: t('passwordsMustMatch', validationFallback.passwordsMustMatch),
+      path: ['confirmPassword'],
+    })
+}
+export const registerPayloadSchema = createRegisterPayloadSchema()
+export type RegisterPayload = z.infer<ReturnType<typeof createRegisterPayloadSchema>>
+
+export function createChangePasswordPayloadSchema(t: SchemaTranslator = defaultAuthSchemaTranslator) {
+  return z
+    .object({
+      old_password: z.string().min(1, t('currentPasswordRequired', validationFallback.currentPasswordRequired)),
+      new_password: z.string().min(15, t('newPasswordMin', validationFallback.newPasswordMin, { min: 15 })),
+      confirm_new_password: z.string().min(1, t('confirmNewPasswordRequired', validationFallback.confirmNewPasswordRequired)),
+    })
+    .refine((data) => data.new_password === data.confirm_new_password, {
+      message: t('newPasswordsMustMatch', validationFallback.newPasswordsMustMatch),
+      path: ['confirm_new_password'],
+    })
+}
+export const changePasswordPayloadSchema = createChangePasswordPayloadSchema()
+export type ChangePasswordPayload = z.infer<ReturnType<typeof createChangePasswordPayloadSchema>>
 
 export const actionResponseSchema = z.object({
   ok: z.boolean(),
