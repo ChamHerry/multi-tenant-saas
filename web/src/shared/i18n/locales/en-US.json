@@ -97,6 +97,10 @@
         "api": "Unified API client",
         "orgContext": "Organization context"
       }
+    },
+    "guard": {
+      "checkingSession": "Checking session...",
+      "sessionCheckFailed": "Session check failed"
     }
   },
   "notFound": {
@@ -228,6 +232,95 @@
       "revokePlatformPermission": "Revoke platform permission",
       "grantedAt": "Granted at",
       "lastLogin": "Last login"
+    }
+  },
+  "access": {
+    "guard": {
+      "loading": "Loading permissions...",
+      "loadFailed": "Permission load failed",
+      "noPlatformPermissionTitle": "No platform permission",
+      "noPlatformPermissionDescription": "Your account does not have the platform permission required for this page.",
+      "selectTenantTitle": "Select an organization first",
+      "selectTenantDescription": "This page requires an explicit organization context.",
+      "noTenantPermissionTitle": "No organization permission",
+      "noTenantPermissionDescription": "Your current organization role does not have the permission required for this page."
+    }
+  },
+  "appShell": {
+    "tenant": {
+      "selectLabel": "Switch organization",
+      "currentBadge": "Current",
+      "emptyTitle": "No organization selected",
+      "emptyDescription": "Select or create an organization to populate the organization context.",
+      "manageCta": "Manage organizations"
+    },
+    "user": {
+      "devUser": "Dev User",
+      "logoutPending": "Signing out...",
+      "logout": "Sign out"
+    },
+    "errors": {
+      "meLoad": "User profile failed to load",
+      "accessLoad": "Permissions failed to load"
+    }
+  },
+  "routes": {
+    "tenantSettings": {
+      "title": "Organization settings",
+      "dynamic": "{{name}} settings"
+    },
+    "dashboard": {
+      "title": "Organization overview"
+    },
+    "tenants": {
+      "title": "My organizations"
+    },
+    "tenantAccess": {
+      "title": "Users and access"
+    },
+    "tenantApiKeys": {
+      "title": "Organization API keys"
+    },
+    "tenantAudit": {
+      "title": "Organization audit logs"
+    },
+    "myInvitations": {
+      "title": "My invitations"
+    },
+    "securityEvents": {
+      "title": "Security events"
+    },
+    "platformTenants": {
+      "title": "Platform organizations"
+    },
+    "platformUsers": {
+      "title": "Platform users"
+    },
+    "platformAudit": {
+      "title": "Platform audit logs"
+    },
+    "notFound": {
+      "title": "Page not found"
+    }
+  },
+  "nav": {
+    "sections": {
+      "account": "Account",
+      "tenant": "Organization",
+      "platform": "Platform"
+    },
+    "items": {
+      "myInvitations": "My invitations",
+      "securityEvents": "Security events",
+      "dashboard": "Dashboard",
+      "tenants": "My organizations",
+      "tenantSettings": "Organization settings",
+      "tenantAccess": "Users and access",
+      "tenantApiKeys": "Organization API keys",
+      "tenantAudit": "Organization audit logs",
+      "platformTenants": "Platform organizations",
+      "platformUsers": "Platform users",
+      "platformAudit": "Platform audit logs"
     }
   }
 }
