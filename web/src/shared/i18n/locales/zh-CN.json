@@ -1,0 +1,326 @@
+{
+  "app": {
+    "offline": "当前处于离线状态，连接恢复后会自动同步。"
+  },
+  "language": {
+    "switcherLabel": "界面语言",
+    "options": {
+      "zhCN": "简体中文",
+      "enUS": "English"
+    }
+  },
+  "common": {
+    "close": "关闭",
+    "requestFailed": "请求失败",
+    "actions": {
+      "copy": "复制",
+      "revoke": "吊销",
+      "suspend": "暂停",
+      "restore": "恢复",
+      "disable": "禁用",
+      "enable": "启用"
+    },
+    "fields": {
+      "action": "Action",
+      "actions": "操作",
+      "metadata": "Metadata",
+      "resource": "资源",
+      "role": "角色",
+      "status": "状态",
+      "time": "时间",
+      "user": "用户"
+    },
+    "loading": "加载中...",
+    "notAvailable": "-",
+    "total": "总计：{{count}}",
+    "status": {
+      "active": "启用",
+      "disabled": "禁用",
+      "revoked": "已吊销"
+    }
+  },
+  "dashboard": {
+    "title": {
+      "default": "组织概览",
+      "welcome": "欢迎，{{name}}"
+    },
+    "userFallback": "Dev User",
+    "hero": {
+      "createTenant": "创建第一个组织",
+      "manageTenants": "管理我的组织",
+      "openAccess": "进入用户与访问",
+      "noTenantsTitle": "还没有可用组织",
+      "noTenantsDescription": "请进入“我的组织”创建或加入组织。之后左侧顶部组织切换器会自动同步当前组织上下文。"
+    },
+    "system": {
+      "status": {
+        "ok": "OK",
+        "error": "ERROR",
+        "loading": "LOADING"
+      },
+      "messages": {
+        "checking": "检查中...",
+        "unavailable": "服务不可用",
+        "migrationVersion": "migration version {{version}}",
+        "healthy": "服务正常"
+      },
+      "healthTitle": "HTTP Health",
+      "readyTitle": "DB Ready"
+    },
+    "cards": {
+      "tenantsTitle": "我的组织",
+      "currentRoleTitle": "当前组织角色",
+      "resolvingRole": "解析中",
+      "noTenantSelected": "未选择组织",
+      "currentTenantInfo": "当前组织信息",
+      "currentTenantDescription": "组织管理页面和组织 API Keys 会自动使用已选择的组织。",
+      "tenantInfoError": "组织信息加载失败",
+      "tenantInfoLoading": "加载组织信息...",
+      "tenantRequired": "请先选择或创建一个组织。",
+      "shortcutsTitle": "快捷入口",
+      "shortcutsDescription": "覆盖当前已经实现的组织级管理能力。"
+    },
+    "shortcuts": {
+      "settings": "组织设置",
+      "access": "用户与访问",
+      "apiKeys": "组织 API Keys"
+    }
+  },
+  "auth": {
+    "shell": {
+      "badge": "多租户 SaaS 模板",
+      "titlePrefix": "安全多租户",
+      "titleHighlight": "控制台",
+      "description": "使用 HttpOnly Cookie、组织上下文和权限快照构建的前端控制台模板。",
+      "features": {
+        "httpOnly": "HttpOnly Cookie",
+        "api": "统一 API 客户端",
+        "orgContext": "组织上下文"
+      }
+    },
+    "guard": {
+      "checkingSession": "正在检查登录状态...",
+      "sessionCheckFailed": "登录状态检查失败"
+    }
+  },
+  "notFound": {
+    "description": "该路径会由 GoFrame SPA fallback 返回前端入口，但前端路由没有匹配页面。",
+    "backHome": "回到仪表盘"
+  },
+  "apiKeys": {
+    "validation": {
+      "tenantRequired": "请选择租户",
+      "scopeRequired": "至少选择一个 scope",
+      "nameRequired": "请输入名称",
+      "nameMax": "名称最多 {max} 字符"
+    },
+    "personal": {
+      "requireTenantTitle": "请先创建或加入组织",
+      "requireTenantDescription": "组织 API Keys 已迁移到“组织管理 / 组织 API Keys”。"
+    },
+    "tenant": {
+      "requireTenantTitle": "请先创建或加入组织",
+      "requireTenantDescription": "组织 API Keys 需要当前组织上下文。",
+      "operationFailed": "组织 API Key 操作失败",
+      "createButton": "创建组织 Key",
+      "rawKey": {
+        "title": "请立即复制 raw key",
+        "description": "后端只返回一次 raw_key。刷新页面后只能看到 key_prefix。"
+      },
+      "dialog": {
+        "title": "为 {{tenantName}} 创建组织 Key",
+        "nameLabel": "名称",
+        "expiresAtLabel": "过期时间，可选",
+        "scopesLabel": "Scopes",
+        "submit": "创建组织 Key"
+      },
+      "scopePermissionDenied": "当前组织权限不足",
+      "table": {
+        "title": "当前组织 Key 列表",
+        "description": "仅展示当前用户在 {{tenantName}} 下创建/持有的 Key（GET /api/v1/tenants/{tenant}/api-keys）。",
+        "headers": {
+          "name": "名称",
+          "prefix": "前缀",
+          "scopes": "Key Scopes",
+          "tenantGrant": "组织授权",
+          "status": "状态",
+          "actions": "操作"
+        }
+      },
+      "empty": {
+        "noKeysTitle": "暂无组织 API Key",
+        "noKeysDescription": "创建后可用于当前组织上下文下的接口调用；调用组织接口时必须携带 tenant selector。"
+      },
+      "grants": {
+        "noTenantScope": "无 tenant scope",
+        "noCurrentGrant": "当前组织无有效授权"
+      }
+    }
+  },
+  "audit": {
+    "common": {
+      "filter": "过滤",
+      "logs": "日志",
+      "loading": "加载审计日志...",
+      "noLogs": "暂无日志",
+      "exportJsonl": "导出 JSONL",
+      "headers": {
+        "action": "Action",
+        "ip": "IP",
+        "metadata": "Metadata",
+        "organization": "组织",
+        "resource": "资源",
+        "time": "时间",
+        "user": "用户",
+        "userAgent": "User-Agent"
+      }
+    },
+    "tenant": {
+      "requireTenantTitle": "请先选择组织",
+      "requireTenantDescription": "审计查询需要当前组织上下文。",
+      "loadFailed": "审计日志加载失败",
+      "actionPlaceholder": "tenant.invitation.create"
+    },
+    "security": {
+      "title": "安全事件",
+      "loadFailed": "安全事件加载失败",
+      "loading": "加载安全事件...",
+      "empty": "暂无安全事件"
+    },
+    "admin": {
+      "loadFailed": "平台审计加载失败",
+      "tenantIdLabel": "组织 ID",
+      "loading": "加载审计..."
+    }
+  },
+  "admin": {
+    "common": {
+      "session": "管理员会话",
+      "search": "搜索",
+      "rolePrefix": "角色：",
+      "roles": {
+        "super_admin": "超级管理员",
+        "support": "支持人员",
+        "auditor": "审计员"
+      }
+    },
+    "tenants": {
+      "unavailable": "平台管理不可用",
+      "sessionLoading": "校验平台管理员...",
+      "searchPlaceholder": "tenant name / slug / id",
+      "listTitle": "组织列表",
+      "loading": "加载组织...",
+      "headers": {
+        "organization": "组织",
+        "status": "状态",
+        "actions": "操作"
+      }
+    },
+    "users": {
+      "failed": "用户管理失败",
+      "grantAdmin": "授权平台管理员",
+      "dialogTitle": "授权平台管理员",
+      "userId": "User ID",
+      "searchUsers": "搜索用户",
+      "searchPlaceholder": "email / name / id",
+      "platformAdminsTitle": "平台管理员列表",
+      "noPlatformAdminPermissionTitle": "无平台管理员管理权限",
+      "noPlatformAdminPermissionDescription": "需要 platform:admin:manage 才能查看和维护平台管理员列表。",
+      "loadingPlatformAdmins": "加载平台管理员...",
+      "usersTitle": "用户列表",
+      "loadingUsers": "加载用户...",
+      "revokePlatformPermission": "撤销平台权限",
+      "grantedAt": "授权时间",
+      "lastLogin": "最后登录"
+    }
+  },
+  "access": {
+    "guard": {
+      "loading": "正在加载权限...",
+      "loadFailed": "权限加载失败",
+      "noPlatformPermissionTitle": "无平台权限",
+      "noPlatformPermissionDescription": "当前账号缺少访问该平台管理页面所需的权限。",
+      "selectTenantTitle": "请先选择组织",
+      "selectTenantDescription": "该页面需要明确的组织上下文。",
+      "noTenantPermissionTitle": "无组织权限",
+      "noTenantPermissionDescription": "当前组织角色缺少访问该页面所需的权限。"
+    }
+  },
+  "appShell": {
+    "tenant": {
+      "selectLabel": "切换组织",
+      "currentBadge": "当前",
+      "emptyTitle": "尚未选择组织",
+      "emptyDescription": "选择或创建组织后，侧边栏会显示组织上下文。",
+      "manageCta": "管理组织"
+    },
+    "user": {
+      "devUser": "Dev User",
+      "logoutPending": "正在退出...",
+      "logout": "退出登录"
+    },
+    "errors": {
+      "meLoad": "用户信息加载失败",
+      "accessLoad": "权限信息加载失败"
+    }
+  },
+  "routes": {
+    "tenantSettings": {
+      "title": "组织设置",
+      "dynamic": "{{name}} 设置"
+    },
+    "dashboard": {
+      "title": "组织概览"
+    },
+    "tenants": {
+      "title": "我的组织"
+    },
+    "tenantAccess": {
+      "title": "用户与访问"
+    },
+    "tenantApiKeys": {
+      "title": "组织 API Keys"
+    },
+    "tenantAudit": {
+      "title": "组织审计日志"
+    },
+    "myInvitations": {
+      "title": "我的邀请"
+    },
+    "securityEvents": {
+      "title": "安全事件"
+    },
+    "platformTenants": {
+      "title": "平台组织"
+    },
+    "platformUsers": {
+      "title": "平台用户"
+    },
+    "platformAudit": {
+      "title": "平台审计日志"
+    },
+    "notFound": {
+      "title": "页面不存在"
+    }
+  },
+  "nav": {
+    "sections": {
+      "account": "账号",
+      "tenant": "组织",
+      "platform": "平台"
+    },
+    "items": {
+      "myInvitations": "我的邀请",
+      "securityEvents": "安全事件",
+      "dashboard": "仪表盘",
+      "tenants": "我的组织",
+      "tenantSettings": "组织设置",
+      "tenantAccess": "用户与访问",
+      "tenantApiKeys": "组织 API Keys",
+      "tenantAudit": "组织审计日志",
+      "platformTenants": "平台组织",
+      "platformUsers": "平台用户",
+      "platformAudit": "平台审计日志"
+    }
+  }
+}

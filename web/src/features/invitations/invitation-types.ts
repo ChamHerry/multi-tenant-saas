@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  defaultTenantSchemaTranslator,
+  tenantValidationFallback,
+  type SchemaTranslator,
+} from '@/features/tenants/tenant-i18n'
 import { tenantRoleSchema } from '@/features/tenants/tenant-types'
 import type { TenantMembership } from '@/features/tenants/tenant-types'
 
@@ -28,13 +33,19 @@ export type InvitationListResponse = {
   total: number
 }
 
-export const createInvitationSchema = z.object({
-  invitee_email: z.string().min(1, '请输入邮箱').email('邮箱格式不正确'),
-  role: tenantRoleSchema,
-  message: z.string().max(500, '留言最多 500 字符').optional(),
-  expires_hours: z.number().int().min(1).max(720).optional(),
-})
-export type CreateInvitationInput = z.infer<typeof createInvitationSchema>
+export function createCreateInvitationSchema(t: SchemaTranslator = defaultTenantSchemaTranslator) {
+  return z.object({
+    invitee_email: z
+      .string()
+      .min(1, t('inviteeEmailRequired', tenantValidationFallback.inviteeEmailRequired))
+      .email(t('inviteeEmailInvalid', tenantValidationFallback.inviteeEmailInvalid)),
+    role: tenantRoleSchema,
+    message: z.string().max(500, t('invitationMessageMax', tenantValidationFallback.invitationMessageMax, { max: 500 })).optional(),
+    expires_hours: z.number().int().min(1).max(720).optional(),
+  })
+}
+export const createInvitationSchema = createCreateInvitationSchema()
+export type CreateInvitationInput = z.infer<ReturnType<typeof createCreateInvitationSchema>>
 
 export type CreateInvitationResponse = {
   invitation: TenantInvitation
@@ -46,6 +57,10 @@ export type AcceptInvitationResponse = {
   member: TenantMembership
 }
 
-export const acceptInvitationTokenSchema = z.object({
-  token: z.string().min(1, '请输入邀请 token'),
-})
+export function createAcceptInvitationTokenSchema(t: SchemaTranslator = defaultTenantSchemaTranslator) {
+  return z.object({
+    token: z.string().min(1, t('invitationTokenRequired', tenantValidationFallback.invitationTokenRequired)),
+  })
+}
+
+export const acceptInvitationTokenSchema = createAcceptInvitationTokenSchema()

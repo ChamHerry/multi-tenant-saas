@@ -3,29 +3,26 @@ import { useSearchParams } from 'react-router-dom'
 import { useCanTenant } from '@/features/access/access-hooks'
 import { TenantInvitationsPanel } from '@/features/tenant-access/TenantInvitationsPanel'
 import { TenantMembersPanel } from '@/features/tenant-access/TenantMembersPanel'
+import { useTenantI18n } from '@/features/tenants/tenant-i18n'
 import { useTenantStore } from '@/features/tenants/tenant-store'
 import { Button } from '@/shared/ui/Button'
 import { EmptyState } from '@/shared/ui/EmptyState'
 
-const tabLabels = {
-  members: '成员',
-  invitations: '邀请',
-} as const
-
-type TenantAccessTab = keyof typeof tabLabels
+type TenantAccessTab = 'members' | 'invitations'
 
 export function TenantAccessPage() {
   const tenantId = useTenantStore((state) => state.currentTenantId)
   const canReadMembers = useCanTenant('member:read', tenantId)
   const canManageInvitations = useCanTenant('tenant:invitation:manage', tenantId)
   const [searchParams, setSearchParams] = useSearchParams()
+  const { t } = useTenantI18n()
 
   const tabs = useMemo(
     () => [
-      { id: 'members' as const, label: tabLabels.members, enabled: canReadMembers },
-      { id: 'invitations' as const, label: tabLabels.invitations, enabled: canManageInvitations },
+      { id: 'members' as const, label: t('tenantAccess.tabs.members', 'Members'), enabled: canReadMembers },
+      { id: 'invitations' as const, label: t('tenantAccess.tabs.invitations', 'Invitations'), enabled: canManageInvitations },
     ],
-    [canManageInvitations, canReadMembers],
+    [canManageInvitations, canReadMembers, t],
   )
   const availableTabs = tabs.filter((tab) => tab.enabled)
   const requestedTab = searchParams.get('tab') as TenantAccessTab | null
@@ -39,11 +36,11 @@ export function TenantAccessPage() {
   }, [activeTab, availableTabs.length, requestedTab, setSearchParams])
 
   if (!tenantId) {
-    return <EmptyState title="请先选择组织" description="用户与访问需要明确的组织上下文。" />
+    return <EmptyState title={t('tenantAccess.noTenantTitle', 'Select an organization first')} description={t('tenantAccess.noTenantDescription', 'Users and access require an explicit organization context.')} />
   }
 
   if (!availableTabs.length || !activeTab) {
-    return <EmptyState title="无访问权限" description="当前组织角色没有成员或邀请管理权限。" />
+    return <EmptyState title={t('tenantAccess.noAccessTitle', 'No access')} description={t('tenantAccess.noAccessDescription', 'Your current organization role cannot manage members or invitations.')} />
   }
 
   return (

@@ -1,77 +1,65 @@
-import type { ReactNode } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { EmptyState } from "@/shared/ui/EmptyState";
-import { ErrorView, LoadingView } from "@/shared/ui/StatusView";
-import { hasAll, hasAny } from "./can";
-import { useAccess } from "./access-hooks";
-import { useTenantStore } from "@/features/tenants/tenant-store";
-import type { PlatformPermission, TenantPermission } from "./access-types";
+import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useParams, useSearchParams } from 'react-router-dom'
+import { EmptyState } from '@/shared/ui/EmptyState'
+import { ErrorView, LoadingView } from '@/shared/ui/StatusView'
+import { hasAll, hasAny } from './can'
+import { useAccess } from './access-hooks'
+import { useTenantStore } from '@/features/tenants/tenant-store'
+import type { PlatformPermission, TenantPermission } from './access-types'
 
 type RequirePermissionProps = {
-  children: ReactNode;
-  tenant?: TenantPermission[];
-  platform?: PlatformPermission[];
-  mode?: "all" | "any";
-};
+  children: ReactNode
+  tenant?: TenantPermission[]
+  platform?: PlatformPermission[]
+  mode?: 'all' | 'any'
+}
 
-export function RequirePermission({
-  children,
-  tenant,
-  platform,
-  mode = "all",
-}: RequirePermissionProps) {
-  const params = useParams();
-  const [searchParams] = useSearchParams();
-  const currentTenantId = useTenantStore((state) => state.currentTenantId);
-  const access = useAccess();
+export function RequirePermission({ children, tenant, platform, mode = 'all' }: RequirePermissionProps) {
+  const params = useParams()
+  const [searchParams] = useSearchParams()
+  const { t } = useTranslation()
+  const currentTenantId = useTenantStore((state) => state.currentTenantId)
+  const access = useAccess()
 
-  if (access.isLoading) return <LoadingView label="正在加载权限上下文..." />;
-  if (access.isError)
-    return <ErrorView title="权限上下文加载失败" error={access.error} />;
+  if (access.isLoading) return <LoadingView label={t('access.guard.loading')} />
+  if (access.isError) return <ErrorView title={t('access.guard.loadFailed')} error={access.error} />
 
   if (platform && platform.length > 0) {
-    const permissions = access.data?.platform_admin?.permissions;
-    const allowed =
-      mode === "all"
-        ? hasAll(permissions, platform)
-        : hasAny(permissions, platform);
+    const permissions = access.data?.platform_admin?.permissions
+    const allowed = mode === 'all' ? hasAll(permissions, platform) : hasAny(permissions, platform)
     if (!allowed) {
       return (
         <EmptyState
-          title="无平台权限"
-          description="当前账号没有访问该平台管理页面所需的权限。真实 API 仍由后端授权保护。"
+          title={t('access.guard.noPlatformPermissionTitle')}
+          description={t('access.guard.noPlatformPermissionDescription')}
         />
-      );
+      )
     }
   }
 
   if (tenant && tenant.length > 0) {
-    const tenantId =
-      params.tenantId ?? searchParams.get("tenantId") ?? currentTenantId;
-    const tenantAccess = access.data?.tenants.find(
-      (item) => item.tenant_id === tenantId,
-    );
+    const tenantId = params.tenantId ?? searchParams.get('tenantId') ?? currentTenantId
+    const tenantAccess = access.data?.tenants.find((item) => item.tenant_id === tenantId)
     const allowed =
-      mode === "all"
-        ? hasAll(tenantAccess?.permissions, tenant)
-        : hasAny(tenantAccess?.permissions, tenant);
+      mode === 'all' ? hasAll(tenantAccess?.permissions, tenant) : hasAny(tenantAccess?.permissions, tenant)
     if (!tenantId) {
       return (
         <EmptyState
-          title="请先选择组织"
-          description="该页面需要组织上下文。可以在左侧顶部选择已有组织，或先创建组织。"
+          title={t('access.guard.selectTenantTitle')}
+          description={t('access.guard.selectTenantDescription')}
         />
-      );
+      )
     }
     if (!allowed) {
       return (
         <EmptyState
-          title="无组织权限"
-          description="当前组织角色没有访问该页面所需的权限。真实 API 仍由后端 RBAC 保护。"
+          title={t('access.guard.noTenantPermissionTitle')}
+          description={t('access.guard.noTenantPermissionDescription')}
         />
-      );
+      )
     }
   }
 
-  return children;
+  return children
 }
