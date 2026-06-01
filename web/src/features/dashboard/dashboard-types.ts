@@ -1,17 +1,20 @@
 // web/src/features/dashboard/dashboard-types.ts
 
 export interface TrendPoint {
+  [key: string]: string | number
   date: string
   count: number
 }
 
 export interface GrowthTrendPoint {
+  [key: string]: string | number
   date: string
   tenants: number
   users: number
 }
 
 export interface DistributionItem {
+  [key: string]: string | number
   label: string
   count: number
 }
