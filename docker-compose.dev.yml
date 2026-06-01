@@ -1,0 +1,43 @@
+# Dev compose overlay — fast iterative development inside Docker.
+# Source is mounted at /app. The Go backend serves both the API and
+# the built SPA on a single port; no separate Vite process.
+#
+# Usage:
+#   bash scripts/manage-docker.sh dev        # start dev stack
+#   bash scripts/manage-docker.sh dev-down   # stop dev stack
+#   bash scripts/manage-docker.sh dev-logs   # follow dev logs
+#
+# To rebuild the SPA after frontend changes:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml exec dev npm run build --prefix /app/web
+#
+# To restart the Go backend after Go changes:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml restart dev
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: multi-tenant-saas-dev
+    container_name: multi-tenant-saas-dev
+    working_dir: /app
+    entrypoint: ["sh", "/app/scripts/dev-entrypoint.sh"]
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      GF_GCFG_PATH: /app/manifest/docker
+      GF_GCFG_FILE: config.yaml
+    volumes:
+      - .:/app
+      - go-build-cache:/root/.cache/go-build
+      - go-pkg-mod:/go/pkg/mod
+      # Anonymous volume: prevent host node_modules from leaking in
+      - /app/web/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  go-build-cache:
+  go-pkg-mod:

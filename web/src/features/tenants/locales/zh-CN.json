@@ -173,6 +173,6 @@
     "dangerDescription": "这些操作依赖 tenant:manage 权限，并会写审计日志。",
     "suspend": "暂停组织",
     "restore": "恢复组织",
-    "delete": "软删除组织"
+    "delete": "删除组织"
   }
 }
