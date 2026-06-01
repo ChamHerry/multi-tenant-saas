@@ -42,18 +42,23 @@ export function KpiCard({ icon, label, value, trend, trendUp, tone = 'default', 
             <span className="text-xs font-bold uppercase tracking-wide text-subtle">{label}</span>
           </div>
           <div className="text-2xl font-black text-ink tabular-nums">{value}</div>
-          {trend ? (
-            <div
-              className={cn(
-                'mt-1 text-xs font-semibold',
-                trendUp === true && 'text-success-strong',
-                trendUp === false && 'text-danger',
-                trendUp === undefined && 'text-subtle',
-              )}
-            >
-              {trendUp === true ? '↑' : trendUp === false ? '↓' : ''} {trend}
-            </div>
-          ) : null}
+          <div
+            className={cn(
+              'mt-1 text-xs font-semibold min-h-[1em]',
+              trend
+                ? trendUp === true
+                  ? 'text-success-strong'
+                  : trendUp === false
+                  ? 'text-danger'
+                  : 'text-subtle'
+                : 'invisible',
+            )}
+            aria-hidden={!trend}
+          >
+            {trend
+              ? `${trendUp === true ? '↑' : trendUp === false ? '↓' : ''} ${trend}`
+              : ' '}
+          </div>
         </>
       )}
     </div>
