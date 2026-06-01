@@ -44,46 +44,61 @@
       "default": "组织概览",
       "welcome": "欢迎，{{name}}"
     },
-    "userFallback": "Dev User",
-    "hero": {
-      "createTenant": "创建第一个组织",
-      "manageTenants": "管理我的组织",
-      "openAccess": "进入用户与访问",
-      "noTenantsTitle": "还没有可用组织",
-      "noTenantsDescription": "请进入“我的组织”创建或加入组织。之后左侧顶部组织切换器会自动同步当前组织上下文。"
+    "userFallback": "用户",
+    "kpi": {
+      "memberCount": "成员总数",
+      "pendingInvitations": "待处理邀请",
+      "activeApiKeys": "活跃 API Key",
+      "monthlyAuditEvents": "本月审计事件",
+      "systemStatus": "系统状态",
+      "tenantCount": "组织总数",
+      "userCount": "用户总数",
+      "dailyAuditEvents": "24h 审计事件",
+      "newThisMonth": "{{count}} 本月新增",
+      "expiringSoon": "{{count}} 即将过期",
+      "anomalyEvents": "{{count}} 异常事件"
     },
-    "system": {
-      "status": {
-        "ok": "OK",
-        "error": "ERROR",
-        "loading": "LOADING"
-      },
-      "messages": {
-        "checking": "检查中...",
-        "unavailable": "服务不可用",
-        "migrationVersion": "migration version {{version}}",
-        "healthy": "服务正常"
-      },
-      "healthTitle": "HTTP Health",
-      "readyTitle": "DB Ready"
+    "chart": {
+      "memberGrowth": "成员增长趋势",
+      "roleDistribution": "角色权限分布",
+      "auditTrend": "审计事件趋势",
+      "growthTrend": "组织 & 用户增长",
+      "tenantSize": "组织规模分布",
+      "auditType": "审计事件类型分布",
+      "members": "成员",
+      "events": "事件",
+      "tenants": "组织",
+      "users": "用户"
     },
-    "cards": {
-      "tenantsTitle": "我的组织",
-      "currentRoleTitle": "当前组织角色",
-      "resolvingRole": "解析中",
-      "noTenantSelected": "未选择组织",
-      "currentTenantInfo": "当前组织信息",
-      "currentTenantDescription": "组织管理页面和组织 API Keys 会自动使用已选择的组织。",
-      "tenantInfoError": "组织信息加载失败",
-      "tenantInfoLoading": "加载组织信息...",
-      "tenantRequired": "请先选择或创建一个组织。",
-      "shortcutsTitle": "快捷入口",
-      "shortcutsDescription": "覆盖当前已经实现的组织级管理能力。"
+    "activity": {
+      "title": "最近操作活动",
+      "viewAll": "查看全部",
+      "empty": "暂无活动记录"
     },
-    "shortcuts": {
-      "settings": "组织设置",
-      "access": "用户与访问",
-      "apiKeys": "组织 API Keys"
+    "health": {
+      "title": "系统健康",
+      "ok": "正常",
+      "database": "数据库",
+      "migration": "迁移版本"
+    },
+    "quickActions": {
+      "title": "快捷操作",
+      "invite": "邀请成员",
+      "apiKey": "创建 API Key",
+      "audit": "查看审计日志"
+    },
+    "platformActions": {
+      "tenants": "管理所有组织",
+      "users": "管理所有用户",
+      "audit": "查看全局审计"
+    },
+    "empty": {
+      "noData": "暂无数据",
+      "noMemberData": "暂无成员数据",
+      "noAuditData": "暂无审计数据"
+    },
+    "errors": {
+      "loadFailed": "仪表盘数据加载失败"
     }
   },
   "auth": {
