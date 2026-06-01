@@ -24,7 +24,7 @@ export function KpiCard({ icon, label, value, trend, trendUp, tone = 'default', 
   const content = (
     <div
       className={cn(
-        'rounded-card border border-line bg-white p-4 transition hover:shadow-brand',
+        'rounded-card border border-line bg-surface p-5 shadow-soft transition hover:border-brand-ring hover:shadow-brand',
         tone !== 'default' && `border-l-4 ${toneBorder[tone]}`,
         to && 'cursor-pointer',
       )}
