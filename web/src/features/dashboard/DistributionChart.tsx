@@ -3,7 +3,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,8 +10,6 @@ import {
 } from 'recharts'
 import { Card, CardHeader } from '@/shared/ui/Card'
 import type { DistributionItem } from './dashboard-types'
-
-const COLORS = ['#1761ff', '#7c3aed', '#10b981', '#ea580c', '#94a3b8', '#f59e0b']
 
 interface DistributionChartProps {
   title: string
@@ -53,11 +50,7 @@ export function DistributionChart({
             <Tooltip
               contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
             />
-            <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-              {data.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Bar>
+            <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#1761ff" />
           </BarChart>
         </ResponsiveContainer>
       ) : (
@@ -69,11 +62,7 @@ export function DistributionChart({
             <Tooltip
               contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
             />
-            <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-              {data.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Bar>
+            <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#1761ff" />
           </BarChart>
         </ResponsiveContainer>
       )}
