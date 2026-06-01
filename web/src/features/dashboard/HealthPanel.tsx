@@ -34,7 +34,7 @@ export function HealthPanel({ health, quickActions, loading }: HealthPanelProps)
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-card border border-line bg-white p-4">
+      <div className="rounded-card border border-line bg-surface p-5 shadow-soft">
         <h3 className="mb-3 text-sm font-black text-ink">{t('dashboard.health.title')}</h3>
         {loading ? (
           <div className="space-y-2">
@@ -68,7 +68,7 @@ export function HealthPanel({ health, quickActions, loading }: HealthPanelProps)
         )}
       </div>
 
-      <div className="rounded-card border border-line bg-white p-4">
+      <div className="rounded-card border border-line bg-surface p-5 shadow-soft">
         <h3 className="mb-3 text-sm font-black text-ink">{t('dashboard.quickActions.title')}</h3>
         <div className="flex flex-col gap-2">
           {quickActions.map((action) => (
