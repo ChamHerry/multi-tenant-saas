@@ -41,49 +41,64 @@
   },
   "dashboard": {
     "title": {
-      "default": "Organization overview",
+      "default": "Organization Overview",
       "welcome": "Welcome, {{name}}"
     },
-    "userFallback": "Dev User",
-    "hero": {
-      "createTenant": "Create first organization",
-      "manageTenants": "Manage my organizations",
-      "openAccess": "Open users and access",
-      "noTenantsTitle": "No available organizations yet",
-      "noTenantsDescription": "Go to “My organizations” to create or join an organization. The organization switcher at the top of the sidebar will then sync the current organization context automatically."
+    "userFallback": "User",
+    "kpi": {
+      "memberCount": "Total Members",
+      "pendingInvitations": "Pending Invites",
+      "activeApiKeys": "Active API Keys",
+      "monthlyAuditEvents": "Monthly Audit Events",
+      "systemStatus": "System Status",
+      "tenantCount": "Total Tenants",
+      "userCount": "Total Users",
+      "dailyAuditEvents": "24h Audit Events",
+      "newThisMonth": "{{count}} new this month",
+      "expiringSoon": "{{count}} expiring soon",
+      "anomalyEvents": "{{count}} anomalies"
     },
-    "system": {
-      "status": {
-        "ok": "OK",
-        "error": "ERROR",
-        "loading": "LOADING"
-      },
-      "messages": {
-        "checking": "Checking...",
-        "unavailable": "Service unavailable",
-        "migrationVersion": "migration version {{version}}",
-        "healthy": "Service healthy"
-      },
-      "healthTitle": "HTTP Health",
-      "readyTitle": "DB Ready"
+    "chart": {
+      "memberGrowth": "Member Growth Trend",
+      "roleDistribution": "Role Distribution",
+      "auditTrend": "Audit Event Trend",
+      "growthTrend": "Tenant & User Growth",
+      "tenantSize": "Tenant Size Distribution",
+      "auditType": "Audit Event Types",
+      "members": "Members",
+      "events": "Events",
+      "tenants": "Tenants",
+      "users": "Users"
     },
-    "cards": {
-      "tenantsTitle": "My organizations",
-      "currentRoleTitle": "Current organization role",
-      "resolvingRole": "Resolving",
-      "noTenantSelected": "No organization selected",
-      "currentTenantInfo": "Current organization info",
-      "currentTenantDescription": "Organization settings and organization API keys automatically use the selected organization.",
-      "tenantInfoError": "Failed to load organization info",
-      "tenantInfoLoading": "Loading organization info...",
-      "tenantRequired": "Select or create an organization first.",
-      "shortcutsTitle": "Shortcuts",
-      "shortcutsDescription": "Quick links for the implemented organization-level management features."
+    "activity": {
+      "title": "Recent Activities",
+      "viewAll": "View All",
+      "empty": "No activity records"
     },
-    "shortcuts": {
-      "settings": "Organization settings",
-      "access": "Users and access",
-      "apiKeys": "Organization API keys"
+    "health": {
+      "title": "System Health",
+      "ok": "Healthy",
+      "database": "Database",
+      "migration": "Migration Version"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "invite": "Invite Member",
+      "apiKey": "Create API Key",
+      "audit": "View Audit Logs"
+    },
+    "platformActions": {
+      "tenants": "Manage Tenants",
+      "users": "Manage Users",
+      "audit": "View Global Audit"
+    },
+    "empty": {
+      "noData": "No data available",
+      "noMemberData": "No member data",
+      "noAuditData": "No audit data"
+    },
+    "errors": {
+      "loadFailed": "Failed to load dashboard data"
     }
   },
   "auth": {
