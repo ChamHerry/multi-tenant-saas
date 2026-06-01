@@ -11,6 +11,7 @@ import (
 	"multi-tenant-saas/internal/controller/apikey"
 	"multi-tenant-saas/internal/controller/audit"
 	authcontroller "multi-tenant-saas/internal/controller/auth"
+	"multi-tenant-saas/internal/controller/dashboard"
 	"multi-tenant-saas/internal/controller/hello"
 	"multi-tenant-saas/internal/controller/invitation"
 	"multi-tenant-saas/internal/controller/me"
@@ -77,6 +78,18 @@ func getAllRoutes() []RouteConfig {
 				invitation.NewV1(),
 				audit.NewV1(),
 				apikey.NewV1(),
+			},
+		},
+		{
+			Prefix: "/dashboard",
+			Middlewares: []ghttp.HandlerFunc{
+				middleware.RateLimit,
+				middleware.Auth,
+				middleware.CSRF,
+				middleware.TenantResolver,
+			},
+			Controllers: []interface{}{
+				dashboard.NewV1(),
 			},
 		},
 		{
