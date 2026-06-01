@@ -9,7 +9,6 @@ import {
   UserCog,
   Users,
 } from 'lucide-react'
-import { useAccess } from '@/features/access/access-hooks'
 import { useDashboardSummary } from './dashboard-api'
 import { KpiCard } from './KpiCard'
 import { KpiCardRow } from './KpiCardRow'
@@ -22,8 +21,6 @@ import type { DashboardSummary } from './dashboard-types'
 export function DashboardShell() {
   const { t } = useTranslation()
   const { data: summary, isLoading, isError, error } = useDashboardSummary()
-  const { data: access } = useAccess()
-  const isPlatformAdmin = (access?.platform_admin?.permissions?.length ?? 0) > 0
 
   if (isError) {
     return (
@@ -34,18 +31,18 @@ export function DashboardShell() {
     )
   }
 
-  const scope = summary?.scope ?? 'tenant'
+  const isPlatformView = summary?.scope === 'platform'
 
   return (
     <div className="space-y-5">
       <KpiCardRow>
-        {scope === 'platform'
+        {isPlatformView
           ? renderPlatformKpi(summary!, isLoading, t)
           : renderTenantKpi(summary, isLoading, t)}
       </KpiCardRow>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {scope === 'platform'
+        {isPlatformView
           ? renderPlatformCharts(summary!, isLoading, t)
           : renderTenantCharts(summary, isLoading, t)}
       </div>
@@ -53,13 +50,13 @@ export function DashboardShell() {
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <RecentActivityList
           activities={summary?.recent_activities ?? []}
-          auditLogLink={isPlatformAdmin ? '/admin/audit-logs' : '/tenant/audit-logs'}
+          auditLogLink={isPlatformView ? '/admin/audit-logs' : '/tenant/audit-logs'}
           loading={isLoading}
         />
         <HealthPanel
           health={summary?.system_health ?? { api: 'loading', database: 'loading', migration_version: 0 }}
           quickActions={
-            isPlatformAdmin
+            isPlatformView
               ? [
                   { label: t('dashboard.platformActions.tenants'), to: '/admin/tenants', icon: <Building2 className="size-3.5" /> },
                   { label: t('dashboard.platformActions.users'), to: '/admin/users', icon: <UserCog className="size-3.5" /> },
