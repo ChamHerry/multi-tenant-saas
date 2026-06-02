@@ -28,6 +28,11 @@ type RegisterPasswordUserInput struct {
 	DisplayName string
 }
 
+type UnlockUserInput struct {
+	UserID string
+	Email  string
+}
+
 type IPasswordAuth interface {
 	Login(ctx context.Context, in PasswordLoginInput) (*PasswordLoginResult, error)
 	RegisterPasswordUser(ctx context.Context, in RegisterPasswordUserInput) (*User, error)
@@ -41,6 +46,9 @@ type IPasswordAuth interface {
 	// ResetPassword verifies a reset token and sets a new password.
 	// On success, all existing sessions for the user are revoked.
 	ResetPassword(ctx context.Context, token, newPassword, ip string) error
+	// UnlockUser clears the lockout state for a user identified by email.
+	// It is idempotent -- returns nil even if the user was not locked.
+	UnlockUser(ctx context.Context, in UnlockUserInput) error
 }
 
 var localPasswordAuth IPasswordAuth

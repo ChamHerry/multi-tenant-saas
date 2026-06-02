@@ -26,7 +26,9 @@
     "localAccountTitle": "Create the first local account",
     "localAccountCommand": "go run . user-password-create --email admin@example.com --password '0123456789abcde' --name Admin --email-verified true",
     "forgotPasswordTitle": "Forgot your password?",
-    "forgotPasswordLink": "Reset password"
+    "forgotPasswordLink": "Reset password",
+    "lockedOutMessage": "Account temporarily locked. Try again in {time}.",
+    "attemptsRemaining": "{count} attempt(s) remaining"
   },
   "forgotPassword": {
     "title": "Reset your password",

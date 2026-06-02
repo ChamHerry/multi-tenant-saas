@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -7,7 +7,7 @@ import { accessKeys } from '@/features/access/access-hooks'
 import { authKeys, useLoginMutation } from '@/features/auth/auth-hooks'
 import { resendVerification } from '@/features/auth/auth-api'
 import { useAuthI18n } from '@/features/auth/auth-i18n'
-import { createLoginPayloadSchema } from '@/features/auth/auth-types'
+import { createLoginPayloadSchema, LOCKOUT_DURATION_MINUTES, LOCKOUT_MAX_ATTEMPTS } from '@/features/auth/auth-types'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { Button, Card, CardHeader, Input, Toast } from '@/shared/ui'
 import { validateForm, type FieldErrors } from '@/shared/lib/validate'
@@ -35,6 +35,36 @@ export function LoginPage() {
   const [emailNotVerified, setEmailNotVerified] = useState(false)
   const [resending, setResending] = useState(false)
   const [resendDone, setResendDone] = useState(false)
+
+  // Lockout state (client-side tracking for UX; server-side lockout is authoritative)
+  const [failedCount, setFailedCount] = useState(0)
+  const [lockedUntil, setLockedUntil] = useState<Date | null>(null)
+  const [countdown, setCountdown] = useState('')
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (!lockedUntil) return
+    const update = () => {
+      const remaining = lockedUntil.getTime() - Date.now()
+      if (remaining <= 0) {
+        setLockedUntil(null)
+        setFailedCount(0)
+        setCountdown('')
+        if (timerRef.current) clearInterval(timerRef.current)
+        return
+      }
+      const mins = Math.floor(remaining / 60000)
+      const secs = Math.floor((remaining % 60000) / 1000)
+      setCountdown(`${mins}:${secs.toString().padStart(2, '0')}`)
+    }
+    update()
+    timerRef.current = setInterval(update, 1000)
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [lockedUntil])
+
   const loginPayloadSchema = useMemo(() => createLoginPayloadSchema(schemaTranslator), [schemaTranslator])
   const from = useMemo(() => {
     const state = location.state as LoginLocationState | null
@@ -44,6 +74,7 @@ export function LoginPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
+    if (lockedUntil) return // Prevent submission while locked
     const result = validateForm(loginPayloadSchema, { email: email.trim(), password })
     if (result.errors) {
       setErrors(result.errors)
@@ -52,17 +83,26 @@ export function LoginPage() {
     setErrors({})
     setLastLoginEmail(result.data.email)
     setEmailNotVerified(false)
-    const loginResult = await loginMutation.mutateAsync({ email: result.data.email, password: result.data.password })
-    if (!loginResult.user.email_verified) {
-      setEmailNotVerified(true)
+    try {
+      const loginResult = await loginMutation.mutateAsync({ email: result.data.email, password: result.data.password })
+      setFailedCount(0) // Reset on success
+      if (!loginResult.user.email_verified) {
+        setEmailNotVerified(true)
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: authKeys.me }),
+        queryClient.invalidateQueries({ queryKey: authKeys.tenants }),
+        queryClient.invalidateQueries({ queryKey: authKeys.session }),
+        queryClient.invalidateQueries({ queryKey: accessKeys.snapshot }),
+      ])
+      navigate(from, { replace: true })
+    } catch {
+      const newCount = failedCount + 1
+      setFailedCount(newCount)
+      if (newCount >= LOCKOUT_MAX_ATTEMPTS) {
+        setLockedUntil(new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60000))
+      }
     }
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: authKeys.me }),
-      queryClient.invalidateQueries({ queryKey: authKeys.tenants }),
-      queryClient.invalidateQueries({ queryKey: authKeys.session }),
-      queryClient.invalidateQueries({ queryKey: accessKeys.snapshot }),
-    ])
-    navigate(from, { replace: true })
   }
 
   const handleResend = async () => {
@@ -106,6 +146,16 @@ export function LoginPage() {
             {copy.submit}
           </Button>
           <Toast tone="red" message={loginMutation.isError ? errorMessage(loginMutation.error) : undefined} />
+          {lockedUntil && countdown && (
+            <div className="rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              {copy.lockedOutMessage.replace('{time}', countdown)}
+            </div>
+          )}
+          {!lockedUntil && failedCount > 0 && (
+            <div className="text-xs text-muted">
+              {copy.attemptsRemaining.replace('{count}', String(LOCKOUT_MAX_ATTEMPTS - failedCount))}
+            </div>
+          )}
           {emailNotVerified && (
             <div className="mt-3 rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               <p className="font-bold">Your email is not yet verified.</p>
