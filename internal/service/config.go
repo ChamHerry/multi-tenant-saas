@@ -1,4 +1,4 @@
-// Package service defines the IConfig interface for system configuration management.
+// Package service defines the IConfig interface for global system configuration management.
 package service
 
 import (
@@ -11,17 +11,14 @@ type ConfigSetParams struct {
 	Key         string
 	Value       string
 	ValueType   string // string | number | bool | json | secret
-	TenantID    *string
 	Description string
 }
 
-// IConfig provides unified access to system configuration stored in the database
-// with Redis caching and tenant-level override support.
+// IConfig provides unified access to global system configuration stored in the database
+// with Redis read-through caching.
 //
-// All Get* methods automatically resolve tenant from BizCtx.
-// Reading order: tenant Redis → global Redis → DB tenant → DB global → default value.
+// Reading order: Redis → DB → default value.
 type IConfig interface {
-	// Single-key typed getters. Tenant resolved from bizctx; nil tenant → global only.
 	GetString(ctx context.Context, key string, defaultVal string) string
 	GetInt(ctx context.Context, key string, defaultVal int) int
 	GetFloat(ctx context.Context, key string, defaultVal float64) float64
@@ -31,9 +28,9 @@ type IConfig interface {
 	// GetStrings batch-fetches multiple config keys using Redis MGET (single round trip).
 	GetStrings(ctx context.Context, keys []string) (map[string]string, error)
 
-	// Admin operations. TenantID nil = global.
+	// Admin operations.
 	Set(ctx context.Context, params *ConfigSetParams) error
-	Delete(ctx context.Context, key string, tenantID *string) error
+	Delete(ctx context.Context, key string) error
 }
 
 var localConfig IConfig

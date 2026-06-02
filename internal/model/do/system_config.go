@@ -14,7 +14,6 @@ type SystemConfig struct {
 	Key         any // key
 	Value       any // value
 	ValueType   any // value_type
-	TenantId    any // tenant_id
 	Description any // description
 	IsEncrypted any // is_encrypted
 	CreatedAt   any // created_at

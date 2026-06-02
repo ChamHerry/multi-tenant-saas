@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
-# Dev image: Go 1.23 + Node 22 on Alpine.
+# Dev image: Go 1.24 + Node 22 on Alpine.
 # Node is only needed to build the SPA (npm run build). At runtime,
 # the Go backend serves both the API and the built SPA static files.
 
-FROM golang:1.23-alpine
+FROM golang:1.24-alpine
 
 RUN apk add --no-cache nodejs npm git
 
