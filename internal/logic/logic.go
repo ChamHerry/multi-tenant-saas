@@ -20,6 +20,7 @@ import (
 	_ "multi-tenant-saas/internal/logic/invitation"
 	_ "multi-tenant-saas/internal/logic/lifecycle"
 	_ "multi-tenant-saas/internal/logic/membership"
+	_ "multi-tenant-saas/internal/logic/oauth"
 	_ "multi-tenant-saas/internal/logic/passwordauth"
 	_ "multi-tenant-saas/internal/logic/platformadmin"
 	_ "multi-tenant-saas/internal/logic/rbac"

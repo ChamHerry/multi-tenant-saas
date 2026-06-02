@@ -14,6 +14,10 @@ services:
     environment:
       GF_GCFG_PATH: /app/config
       GF_GCFG_FILE: config.yaml
+      NO_PROXY: "localhost,127.0.0.1,::1,10.0.0.0/8,10.*,172.16.0.0/12,172.16.*,192.168.0.0/16,192.168.*,host.internal,host.docker.internal"
+      no_proxy: "localhost,127.0.0.1,::1,10.0.0.0/8,10.*,172.16.0.0/12,172.16.*,192.168.0.0/16,192.168.*,host.internal,host.docker.internal"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${APP_PORT:-8000}:8000"
 

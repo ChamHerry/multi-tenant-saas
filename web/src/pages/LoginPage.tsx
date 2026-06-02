@@ -1,11 +1,11 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LogIn } from 'lucide-react'
+import { Globe, LogIn } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { AuthShell } from '@/layouts/AuthShell'
 import { accessKeys } from '@/features/access/access-hooks'
-import { authKeys, useLoginMutation } from '@/features/auth/auth-hooks'
-import { resendVerification } from '@/features/auth/auth-api'
+import { authKeys, useLoginMutation, useOAuthProviders } from '@/features/auth/auth-hooks'
+import { oauthLoginUrl, resendVerification, type OAuthProvider } from '@/features/auth/auth-api'
 import { useAuthI18n } from '@/features/auth/auth-i18n'
 import { createLoginPayloadSchema, LOCKOUT_DURATION_MINUTES, LOCKOUT_MAX_ATTEMPTS } from '@/features/auth/auth-types'
 import { useAuthStore } from '@/features/auth/auth-store'
@@ -25,8 +25,10 @@ export function LoginPage() {
   const location = useLocation()
   const queryClient = useQueryClient()
   const loginMutation = useLoginMutation()
+  const oauthProviders = useOAuthProviders()
   const { messages, schemaTranslator } = useAuthI18n()
   const copy = messages.login
+  const oauthCopy = copy.oauth
   const lastLoginEmail = useAuthStore((state) => state.lastLoginEmail)
   const setLastLoginEmail = useAuthStore((state) => state.setLastLoginEmail)
   const setPendingTOTPToken = useAuthStore((state) => state.setPendingTOTPToken)
@@ -73,6 +75,13 @@ export function LoginPage() {
     const path = state?.from?.pathname && state.from.pathname !== '/login' ? state.from.pathname : '/'
     return `${path}${state?.from?.search ?? ''}`
   }, [location.state])
+  const oauthError = useMemo(() => new URLSearchParams(location.search).get('oauth_error') ?? '', [location.search])
+  const oauthErrorMessage = useMemo(() => oauthErrorMessageFor(oauthError, oauthCopy.errors as Record<string, string>), [oauthError, oauthCopy.errors])
+  const enabledOAuthProviders = oauthProviders.data?.providers.filter((provider) => provider.enabled) ?? []
+
+  const startOAuthLogin = (provider: OAuthProvider) => {
+    window.location.assign(oauthLoginUrl(provider.provider, from))
+  }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -153,7 +162,7 @@ export function LoginPage() {
           <Button className="w-full" type="submit" isLoading={loginMutation.isPending} leftIcon={<LogIn className="size-4" />}>
             {copy.submit}
           </Button>
-          <Toast tone="red" message={loginMutation.isError ? errorMessage(loginMutation.error) : undefined} />
+          <Toast tone="red" message={oauthErrorMessage || (loginMutation.isError ? errorMessage(loginMutation.error) : undefined)} />
           {lockedUntil && countdown && (
             <div className="rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               {copy.lockedOutMessage.replace('{time}', countdown)}
@@ -183,6 +192,33 @@ export function LoginPage() {
             </div>
           )}
         </form>
+
+        <div className="my-5 flex items-center gap-3 text-xs font-bold uppercase tracking-wide text-muted">
+          <div className="h-px flex-1 bg-line" />
+          <span>{oauthCopy.divider}</span>
+          <div className="h-px flex-1 bg-line" />
+        </div>
+        <div className="space-y-2">
+          {oauthProviders.isLoading ? (
+            <p className="text-center text-sm text-muted">{oauthCopy.loadingProviders}</p>
+          ) : enabledOAuthProviders.length > 0 ? (
+            enabledOAuthProviders.map((provider) => (
+              <Button
+                key={provider.provider}
+                className="w-full"
+                type="button"
+                variant="secondary"
+                leftIcon={<Globe className="size-4" />}
+                onClick={() => startOAuthLogin(provider)}
+              >
+                {oauthCopy.button.replace('{provider}', provider.name)}
+              </Button>
+            ))
+          ) : (
+            <p className="text-center text-xs text-muted">{oauthCopy.noProviders}</p>
+          )}
+        </div>
+
         <div className="mt-5 space-y-3 rounded-panel border border-line bg-surface-soft p-3 text-xs leading-6 text-muted">
           <div>
             <div className="font-bold text-ink">{copy.forgotPasswordTitle}</div>
@@ -206,4 +242,9 @@ export function LoginPage() {
       </Card>
     </AuthShell>
   )
+}
+
+function oauthErrorMessageFor(error: string, messages: Record<string, string>) {
+  if (!error) return ''
+  return messages[error] ?? messages.oauth_failed ?? error
 }

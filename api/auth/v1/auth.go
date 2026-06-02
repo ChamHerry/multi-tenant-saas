@@ -19,6 +19,39 @@ type RegisterReq struct {
 	DisplayName string `json:"display_name"`
 }
 
+type OAuthProvidersReq struct {
+	g.Meta `path:"/auth/oauth/providers" tags:"Auth" method:"get" summary:"List OAuth providers"`
+}
+
+type OAuthProviderInfo struct {
+	Provider string `json:"provider"`
+	Name     string `json:"name"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type OAuthProvidersRes struct {
+	Providers []OAuthProviderInfo `json:"providers"`
+}
+
+type OAuthLoginReq struct {
+	g.Meta   `path:"/auth/oauth/{provider}" tags:"Auth" method:"get" summary:"Initiate OAuth login"`
+	Provider string `v:"required|in:github,google"`
+	Redirect string `json:"redirect" in:"query"`
+}
+
+type OAuthLoginRes struct{}
+
+type OAuthCallbackReq struct {
+	g.Meta           `path:"/auth/oauth/{provider}/callback" tags:"Auth" method:"get" summary:"OAuth callback"`
+	Provider         string `v:"required|in:github,google"`
+	Code             string `json:"code" in:"query"`
+	State            string `json:"state" v:"required" in:"query"`
+	Error            string `json:"error" in:"query"`
+	ErrorDescription string `json:"error_description" in:"query"`
+}
+
+type OAuthCallbackRes struct{}
+
 type SessionReq struct {
 	g.Meta `path:"/auth/session" tags:"Auth" method:"get" summary:"Get current auth session"`
 }
@@ -38,6 +71,8 @@ type AuthUserRes struct {
 	Requires2FA          bool          `json:"requires_2fa,omitempty"`
 	TOTPToken            string        `json:"totp_token,omitempty"`
 	BackupCodesRemaining *int          `json:"backup_codes_remaining,omitempty"`
+	ChallengeToken       string        `json:"challenge_token,omitempty"`
+	RedirectURI          string        `json:"redirect_uri,omitempty"`
 }
 
 type SessionRes struct {

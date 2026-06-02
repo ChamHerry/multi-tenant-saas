@@ -28,7 +28,31 @@
     "forgotPasswordTitle": "Forgot your password?",
     "forgotPasswordLink": "Reset password",
     "lockedOutMessage": "Account temporarily locked. Try again in {time}.",
-    "attemptsRemaining": "{count} attempt(s) remaining"
+    "attemptsRemaining": "{count} attempt(s) remaining",
+    "oauth": {
+      "divider": "or continue with",
+      "loadingProviders": "Loading social login options...",
+      "noProviders": "No social login providers are enabled.",
+      "button": "Continue with {provider}",
+      "errors": {
+        "provider_disabled": "This social login provider is not enabled.",
+        "oauth_provider_disabled": "This social login provider is not enabled.",
+        "oauth_provider_invalid": "This social login provider is not supported.",
+        "oauth_denied": "Social login was cancelled.",
+        "oauth_state_invalid": "Social login session expired. Please try again.",
+        "oauth_state_missing": "Social login session expired. Please try again.",
+        "oauth_redirect_invalid": "The requested return path is invalid.",
+        "oauth_code_missing": "The provider did not return an authorization code.",
+        "oauth_verified_email_missing": "The provider did not return a verified email address.",
+        "oauth_email_missing": "The provider did not return an email address.",
+        "oauth_auth_id_missing": "The provider did not return a stable account identifier.",
+        "oauth_token_exchange_failed": "The provider token exchange failed. Please try again.",
+        "oauth_github_profile_failed": "GitHub profile lookup failed. Please try again.",
+        "oauth_github_email_failed": "GitHub email lookup failed. Please try again.",
+        "oauth_google_profile_failed": "Google profile lookup failed. Please try again.",
+        "oauth_failed": "Social login failed. Please try again."
+      }
+    }
   },
   "forgotPassword": {
     "title": "Reset your password",

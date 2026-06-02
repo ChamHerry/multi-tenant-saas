@@ -22,7 +22,8 @@ export const totpStatusResponseSchema = z.object({
 export type TOTPStatusResponse = z.infer<typeof totpStatusResponseSchema>
 
 export const verifyTOTPPayloadSchema = z.object({
-  totp_token: z.string().min(1),
+  totp_token: z.string().min(1).optional(),
+  challenge_token: z.string().min(1).optional(),
   code: z.string().min(1),
 })
 export type VerifyTOTPPayload = z.infer<typeof verifyTOTPPayloadSchema>

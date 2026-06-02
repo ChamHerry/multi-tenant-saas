@@ -21,6 +21,7 @@ var (
 		"github":   {},
 		"gitlab":   {},
 		"gitea":    {},
+		"google":   {},
 		"oidc":     {},
 		"password": {},
 	}

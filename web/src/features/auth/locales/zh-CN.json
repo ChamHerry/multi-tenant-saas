@@ -28,7 +28,31 @@
     "forgotPasswordTitle": "忘记密码？",
     "forgotPasswordLink": "重置密码",
     "lockedOutMessage": "账号已被临时锁定，请在 {time} 后重试。",
-    "attemptsRemaining": "剩余 {count} 次尝试机会"
+    "attemptsRemaining": "剩余 {count} 次尝试机会",
+    "oauth": {
+      "divider": "或使用以下方式继续",
+      "loadingProviders": "正在加载社交登录选项...",
+      "noProviders": "当前未启用社交登录。",
+      "button": "使用 {provider} 继续",
+      "errors": {
+        "provider_disabled": "该社交登录提供方尚未启用。",
+        "oauth_provider_disabled": "该社交登录提供方尚未启用。",
+        "oauth_provider_invalid": "不支持该社交登录提供方。",
+        "oauth_denied": "社交登录已取消。",
+        "oauth_state_invalid": "社交登录会话已过期，请重试。",
+        "oauth_state_missing": "社交登录会话已过期，请重试。",
+        "oauth_redirect_invalid": "登录返回路径无效。",
+        "oauth_code_missing": "提供方未返回授权码。",
+        "oauth_verified_email_missing": "提供方未返回已验证的邮箱。",
+        "oauth_email_missing": "提供方未返回邮箱地址。",
+        "oauth_auth_id_missing": "提供方未返回稳定账号标识。",
+        "oauth_token_exchange_failed": "提供方令牌交换失败，请重试。",
+        "oauth_github_profile_failed": "GitHub 资料获取失败，请重试。",
+        "oauth_github_email_failed": "GitHub 邮箱获取失败，请重试。",
+        "oauth_google_profile_failed": "Google 资料获取失败，请重试。",
+        "oauth_failed": "社交登录失败，请重试。"
+      }
+    }
   },
   "forgotPassword": {
     "title": "重置密码",

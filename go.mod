@@ -1,6 +1,6 @@
 module multi-tenant-saas
 
-go 1.24
+go 1.25.0
 
 require (
 	github.com/gogf/gf/contrib/drivers/pgsql/v2 v2.10.2
@@ -10,9 +10,11 @@ require (
 	github.com/pquerna/otp v1.5.0
 	github.com/redis/go-redis/v9 v9.20.0
 	golang.org/x/crypto v0.38.0
+	golang.org/x/oauth2 v0.36.0
 )
 
 require (
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

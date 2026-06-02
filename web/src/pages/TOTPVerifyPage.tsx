@@ -29,32 +29,45 @@ export function TOTPVerifyPage() {
   const [useBackupCode, setUseBackupCode] = useState(false)
   const [successWarning, setSuccessWarning] = useState('')
   const state = location.state as VerifyLocationState | null
-  const from = useMemo(() => (state?.from && state.from !== '/login' ? state.from : '/'), [state?.from])
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const challengeToken = searchParams.get('challenge_token') ?? undefined
+  const queryEmail = searchParams.get('email') ?? undefined
+  const from = useMemo(() => {
+    const queryFrom = searchParams.get('from')
+    if (queryFrom && queryFrom !== '/login') return queryFrom
+    return state?.from && state.from !== '/login' ? state.from : '/'
+  }, [searchParams, state?.from])
   const token = pendingToken
 
-  const finishLogin = async () => {
-    clearPendingTOTPToken()
+  const finishLogin = async (redirectOverride?: string) => {
+    if (!challengeToken) {
+      clearPendingTOTPToken()
+    }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: authKeys.me }),
       queryClient.invalidateQueries({ queryKey: authKeys.tenants }),
       queryClient.invalidateQueries({ queryKey: authKeys.session }),
       queryClient.invalidateQueries({ queryKey: accessKeys.snapshot }),
     ])
-    navigate(from, { replace: true })
+    navigate(redirectOverride || from, { replace: true })
   }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!token || !code.trim()) return
+    if ((!token && !challengeToken) || !code.trim()) return
     setSuccessWarning('')
-    const result = await verifyMutation.mutateAsync({ totp_token: token, code: code.trim() })
+    const result = await verifyMutation.mutateAsync(
+      challengeToken
+        ? { challenge_token: challengeToken, code: code.trim() }
+        : { totp_token: token, code: code.trim() },
+    )
     if (typeof result.backup_codes_remaining === 'number') {
       setSuccessWarning(backupCopy.remainingWarning.replace('{count}', String(result.backup_codes_remaining)))
       if (result.backup_codes_remaining <= 2) {
         return
       }
     }
-    await finishLogin()
+    await finishLogin(result.redirect_uri)
   }
 
   return (
@@ -62,9 +75,9 @@ export function TOTPVerifyPage() {
       <Card className="mx-auto max-w-md bg-white/95 hover:border-line hover:shadow-soft">
         <CardHeader
           title={copy.title}
-          description={state?.email ? `${copy.description} (${state.email})` : copy.description}
+          description={(state?.email || queryEmail) ? `${copy.description} (${state?.email || queryEmail})` : copy.description}
         />
-        {!token ? (
+        {!token && !challengeToken ? (
           <div className="space-y-4">
             <Toast tone="red" message={copy.errors.tokenExpired} />
             <Link to="/login">
@@ -99,7 +112,7 @@ export function TOTPVerifyPage() {
             <Toast tone="red" message={verifyMutation.isError ? errorMessage(verifyMutation.error) : undefined} />
             <Toast tone="blue" message={successWarning} />
             {successWarning ? (
-              <Button className="w-full" type="button" variant="secondary" onClick={finishLogin}>
+              <Button className="w-full" type="button" variant="secondary" onClick={() => finishLogin()}>
                 {copy.continue}
               </Button>
             ) : null}
