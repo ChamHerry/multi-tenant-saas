@@ -3,7 +3,10 @@ import { accessKeys } from '@/features/access/access-hooks'
 import {
   getPlatformSession,
   grantPlatformAdmin,
+  deleteAdminSystemConfig,
+  getAdminSystemConfig,
   listAdminAuditLogs,
+  listAdminSystemConfigs,
   listAdminTenants,
   listAdminUsers,
   listPlatformAdmins,
@@ -11,7 +14,9 @@ import {
   revokePlatformAdmin,
   suspendAdminTenant,
   updateAdminUserStatus,
+  upsertAdminSystemConfig,
 } from './admin-api'
+import type { UpsertSystemConfigPayload } from './admin-types'
 
 export const adminKeys = {
   session: ['admin', 'session'] as const,
@@ -19,6 +24,8 @@ export const adminKeys = {
   users: (params: Record<string, string | number | undefined> = {}) => ['admin', 'users', params] as const,
   platformAdmins: (params: Record<string, string | number | undefined> = {}) => ['admin', 'platform-admins', params] as const,
   audit: (params: Record<string, string | number | undefined> = {}) => ['admin', 'audit', params] as const,
+  systemConfigs: (params: Record<string, string | number | undefined> = {}) => ['admin', 'system-config', params] as const,
+  systemConfig: (key: string) => ['admin', 'system-config', key] as const,
 }
 
 export function usePlatformSession() {
@@ -62,4 +69,30 @@ export function usePlatformAdminMutations(params: Record<string, string | number
 
 export function useAdminAuditLogs(params: Record<string, string | number | undefined> = {}) {
   return useQuery({ queryKey: adminKeys.audit(params), queryFn: () => listAdminAuditLogs(params), retry: false })
+}
+
+export function useAdminSystemConfigs(params: Record<string, string | number | undefined> = {}) {
+  return useQuery({ queryKey: adminKeys.systemConfigs(params), queryFn: () => listAdminSystemConfigs(params), retry: false })
+}
+
+export function useAdminSystemConfig(key: string, enabled = true) {
+  return useQuery({ queryKey: adminKeys.systemConfig(key), queryFn: () => getAdminSystemConfig(key), enabled: enabled && key.length > 0, retry: false })
+}
+
+export function useAdminSystemConfigMutations(params: Record<string, string | number | undefined> = {}) {
+  const queryClient = useQueryClient()
+  const invalidate = (key?: string) => {
+    void queryClient.invalidateQueries({ queryKey: adminKeys.systemConfigs(params) })
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'system-config'] })
+    void queryClient.invalidateQueries({ queryKey: adminKeys.audit({ action: 'system_config.updated' }) })
+    void queryClient.invalidateQueries({ queryKey: adminKeys.audit({ action: 'system_config.deleted' }) })
+    if (key) void queryClient.invalidateQueries({ queryKey: adminKeys.systemConfig(key) })
+  }
+  return {
+    upsert: useMutation({
+      mutationFn: ({ key, payload }: { key: string; payload: UpsertSystemConfigPayload }) => upsertAdminSystemConfig(key, payload),
+      onSuccess: (_, variables) => invalidate(variables.key),
+    }),
+    deleteConfig: useMutation({ mutationFn: deleteAdminSystemConfig, onSuccess: (_, key) => invalidate(key) }),
+  }
 }

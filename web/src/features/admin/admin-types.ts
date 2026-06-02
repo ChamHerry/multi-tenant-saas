@@ -44,3 +44,35 @@ export type AdminAuditListResponse = {
   logs: AuditLog[]
   total: number
 }
+
+export type SystemConfigValueType = 'string' | 'number' | 'bool' | 'json' | 'secret'
+
+export type SystemConfigItem = {
+  key: string
+  value: string
+  value_type: SystemConfigValueType
+  description: string
+  category: string
+  is_encrypted: boolean
+  is_secret: boolean
+  has_value: boolean
+  masked_value?: string
+  created_at: string
+  updated_at: string
+}
+
+export type SystemConfigListResponse = {
+  items: SystemConfigItem[]
+  total: number
+}
+
+export type SystemConfigResponse = {
+  config: SystemConfigItem
+}
+
+export type UpsertSystemConfigPayload = {
+  value: string
+  value_provided: boolean
+  value_type: SystemConfigValueType
+  description: string
+}

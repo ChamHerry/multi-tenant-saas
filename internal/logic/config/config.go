@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	cacheKeyFmt = "config:%s"       // config:auth.session.absoluteTTL
+	cacheKeyFmt = "config:%s"        // config:auth.session.absoluteTTL
 	cacheTTL    = 3600 * time.Second // 1 hour
 )
 
@@ -226,6 +226,7 @@ func (s *sConfig) Set(ctx context.Context, params *service.ConfigSetParams) erro
 			dao.SystemConfig.Columns().ValueType:   params.ValueType,
 			dao.SystemConfig.Columns().Description: params.Description,
 			dao.SystemConfig.Columns().IsEncrypted: isEncrypted,
+			dao.SystemConfig.Columns().UpdatedAt:   time.Now(),
 		}).
 		OnConflict(dao.SystemConfig.Columns().Key).
 		Save()

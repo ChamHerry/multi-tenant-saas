@@ -24,6 +24,7 @@ import (
 	_ "multi-tenant-saas/internal/logic/passwordauth"
 	_ "multi-tenant-saas/internal/logic/platformadmin"
 	_ "multi-tenant-saas/internal/logic/rbac"
+	_ "multi-tenant-saas/internal/logic/systemconfigadmin"
 	_ "multi-tenant-saas/internal/logic/tenant"
 	_ "multi-tenant-saas/internal/logic/totp"
 	_ "multi-tenant-saas/internal/logic/user"

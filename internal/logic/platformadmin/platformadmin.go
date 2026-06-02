@@ -25,15 +25,19 @@ var rolePermissions = map[string][]service.PlatformPermission{
 		service.PlatformPermissionUserManage,
 		service.PlatformPermissionAuditRead,
 		service.PlatformPermissionAdminManage,
+		service.PlatformPermissionConfigRead,
+		service.PlatformPermissionConfigManage,
 	},
 	"support": {
 		service.PlatformPermissionTenantRead,
 		service.PlatformPermissionUserRead,
 		service.PlatformPermissionAuditRead,
+		service.PlatformPermissionConfigRead,
 	},
 	"auditor": {
 		service.PlatformPermissionTenantRead,
 		service.PlatformPermissionAuditRead,
+		service.PlatformPermissionConfigRead,
 	},
 }
 

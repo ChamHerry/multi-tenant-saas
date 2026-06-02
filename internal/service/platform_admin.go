@@ -14,6 +14,8 @@ const (
 	PlatformPermissionUserManage   PlatformPermission = "platform:user:manage"
 	PlatformPermissionAuditRead    PlatformPermission = "platform:audit:read"
 	PlatformPermissionAdminManage  PlatformPermission = "platform:admin:manage"
+	PlatformPermissionConfigRead   PlatformPermission = "platform:config:read"
+	PlatformPermissionConfigManage PlatformPermission = "platform:config:manage"
 )
 
 type PlatformAdminContext struct {

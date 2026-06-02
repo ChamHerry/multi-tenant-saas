@@ -19,4 +19,8 @@ type IAdminV1 interface {
 	GrantPlatformAdmin(ctx context.Context, req *v1.GrantPlatformAdminReq) (res *v1.ActionRes, err error)
 	RevokePlatformAdmin(ctx context.Context, req *v1.RevokePlatformAdminReq) (res *v1.ActionRes, err error)
 	ListAuditLogs(ctx context.Context, req *v1.ListAuditLogsReq) (res *v1.AuditListRes, err error)
+	ListSystemConfigs(ctx context.Context, req *v1.ListSystemConfigsReq) (res *v1.SystemConfigListRes, err error)
+	GetSystemConfig(ctx context.Context, req *v1.GetSystemConfigReq) (res *v1.SystemConfigRes, err error)
+	UpsertSystemConfig(ctx context.Context, req *v1.UpsertSystemConfigReq) (res *v1.SystemConfigRes, err error)
+	DeleteSystemConfig(ctx context.Context, req *v1.DeleteSystemConfigReq) (res *v1.ActionRes, err error)
 }
