@@ -15,6 +15,8 @@ import (
 	_ "multi-tenant-saas/internal/logic/authsession"
 	_ "multi-tenant-saas/internal/logic/automigrate"
 	_ "multi-tenant-saas/internal/logic/config"
+	_ "multi-tenant-saas/internal/logic/email"
+	_ "multi-tenant-saas/internal/logic/emailverification"
 	_ "multi-tenant-saas/internal/logic/invitation"
 	_ "multi-tenant-saas/internal/logic/lifecycle"
 	_ "multi-tenant-saas/internal/logic/membership"

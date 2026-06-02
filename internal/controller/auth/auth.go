@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
+	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	authapi "multi-tenant-saas/api/auth"
@@ -66,6 +67,17 @@ func (c *PublicControllerV1) Register(ctx context.Context, req *v1.RegisterReq) 
 		setAuthCookies(ghttp.RequestFromCtx(ctx), login.Cookies)
 		user = login.User
 	}
+
+	// Send verification email asynchronously (does not block the registration response).
+	go func(email, userID string) {
+		sendCtx := context.Background()
+		if err := service.EmailVerification().CreateAndSend(sendCtx,
+			service.CreateVerificationTokenInput{UserID: userID, Email: email},
+		); err != nil {
+			g.Log().Errorf(sendCtx, "failed to send verification email for %s: %v", email, err)
+		}
+	}(req.Email, user.ID)
+
 	return &v1.AuthUserRes{User: user}, nil
 }
 
@@ -110,6 +122,20 @@ func (c *ControllerV1) ChangePassword(ctx context.Context, req *v1.ChangePasswor
 		return nil, err
 	}
 	return &v1.ActionRes{OK: true}, nil
+}
+
+func (c *PublicControllerV1) VerifyEmail(ctx context.Context, req *v1.VerifyEmailReq) (res *v1.VerifyEmailRes, err error) {
+	if err = service.EmailVerification().Verify(ctx, service.VerifyEmailInput{Token: req.Token}); err != nil {
+		return nil, err
+	}
+	return &v1.VerifyEmailRes{OK: true, Message: "Email verified successfully"}, nil
+}
+
+func (c *PublicControllerV1) ResendVerification(ctx context.Context, req *v1.ResendVerificationReq) (res *v1.ResendVerificationRes, err error) {
+	if err = service.EmailVerification().ResendVerification(ctx, req.Email); err != nil {
+		return nil, err
+	}
+	return &v1.ResendVerificationRes{OK: true, Message: "Verification email sent"}, nil
 }
 
 func setAuthCookies(r *ghttp.Request, cookies *service.AuthSessionCookies) {

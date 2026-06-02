@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AuthShell } from '@/layouts/AuthShell'
 import { accessKeys } from '@/features/access/access-hooks'
 import { authKeys, useLoginMutation } from '@/features/auth/auth-hooks'
+import { resendVerification } from '@/features/auth/auth-api'
 import { useAuthI18n } from '@/features/auth/auth-i18n'
 import { createLoginPayloadSchema } from '@/features/auth/auth-types'
 import { useAuthStore } from '@/features/auth/auth-store'
@@ -31,6 +32,9 @@ export function LoginPage() {
   const [email, setEmail] = useState(lastLoginEmail ?? '')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
+  const [emailNotVerified, setEmailNotVerified] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendDone, setResendDone] = useState(false)
   const loginPayloadSchema = useMemo(() => createLoginPayloadSchema(schemaTranslator), [schemaTranslator])
   const from = useMemo(() => {
     const state = location.state as LoginLocationState | null
@@ -47,7 +51,11 @@ export function LoginPage() {
     }
     setErrors({})
     setLastLoginEmail(result.data.email)
-    await loginMutation.mutateAsync({ email: result.data.email, password: result.data.password })
+    setEmailNotVerified(false)
+    const loginResult = await loginMutation.mutateAsync({ email: result.data.email, password: result.data.password })
+    if (!loginResult.user.email_verified) {
+      setEmailNotVerified(true)
+    }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: authKeys.me }),
       queryClient.invalidateQueries({ queryKey: authKeys.tenants }),
@@ -55,6 +63,19 @@ export function LoginPage() {
       queryClient.invalidateQueries({ queryKey: accessKeys.snapshot }),
     ])
     navigate(from, { replace: true })
+  }
+
+  const handleResend = async () => {
+    if (!lastLoginEmail) return
+    setResending(true)
+    try {
+      await resendVerification(lastLoginEmail)
+      setResendDone(true)
+    } catch {
+      setResendDone(true) // API returns success regardless for security
+    } finally {
+      setResending(false)
+    }
   }
 
   return (
@@ -85,6 +106,24 @@ export function LoginPage() {
             {copy.submit}
           </Button>
           <Toast tone="red" message={loginMutation.isError ? errorMessage(loginMutation.error) : undefined} />
+          {emailNotVerified && (
+            <div className="mt-3 rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="font-bold">Your email is not yet verified.</p>
+              <p className="mt-1">Some features may be limited. Please check your inbox for the verification email.</p>
+              {!resendDone ? (
+                <button
+                  type="button"
+                  className="mt-2 font-bold text-brand hover:text-brand-hover disabled:opacity-50"
+                  onClick={handleResend}
+                  disabled={resending}
+                >
+                  {resending ? 'Sending...' : 'Resend verification email'}
+                </button>
+              ) : (
+                <p className="mt-2 text-green-700">Verification email sent!</p>
+              )}
+            </div>
+          )}
         </form>
         <div className="mt-5 space-y-3 rounded-panel border border-line bg-surface-soft p-3 text-xs leading-6 text-muted">
           <div>

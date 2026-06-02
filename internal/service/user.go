@@ -17,15 +17,16 @@ type EnsureUserByIdentityInput struct {
 }
 
 type User struct {
-	ID          string         `json:"id"`
-	Email       string         `json:"email"`
-	DisplayName string         `json:"display_name"`
-	AvatarURL   string         `json:"avatar_url"`
-	Status      string         `json:"status"`
-	LastLoginAt *time.Time     `json:"last_login_at,omitempty"`
-	Metadata    map[string]any `json:"metadata"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID            string         `json:"id"`
+	Email         string         `json:"email"`
+	DisplayName   string         `json:"display_name"`
+	AvatarURL     string         `json:"avatar_url"`
+	Status        string         `json:"status"`
+	EmailVerified bool           `json:"email_verified"`
+	LastLoginAt   *time.Time     `json:"last_login_at,omitempty"`
+	Metadata      map[string]any `json:"metadata"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
 }
 
 type UserIdentity struct {
@@ -50,6 +51,10 @@ type IUser interface {
 	EnsureUserByIdentity(ctx context.Context, in EnsureUserByIdentityInput) (*User, error)
 	GetUser(ctx context.Context, userID string) (*User, error)
 	UpdateProfile(ctx context.Context, in UpdateProfileInput) (*User, error)
+	// SetEmailVerified marks the email as verified for a given user identity.
+	SetEmailVerified(ctx context.Context, userID, email string) error
+	// GetIdentityByEmail looks up a user identity by provider and email.
+	GetIdentityByEmail(ctx context.Context, provider, email string) (*UserIdentity, error)
 }
 
 var localUser IUser

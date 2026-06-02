@@ -57,7 +57,7 @@ func (s *sPasswordAuth) Login(ctx context.Context, in service.PasswordLoginInput
 	}
 	// 3-table JOIN via GoFrame DAO
 	record, err := dao.Users.Ctx(ctx).
-		Fields("users.*, c.password_hash").
+		Fields("users.*, c.password_hash, ui.email_verified").
 		InnerJoin("user_identities ui", "ui.user_id = users.id").
 		InnerJoin("user_password_credentials c", "c.user_id = users.id").
 		Where("ui.provider", passwordProvider).
@@ -664,16 +664,21 @@ func mapUser(record gdb.Record) (*service.User, error) {
 	if raw := record["metadata"].String(); raw != "" {
 		_ = json.Unmarshal([]byte(raw), &metadata)
 	}
+	emailVerified := false
+	if ev := record["email_verified"]; ev != nil {
+		emailVerified = ev.Bool()
+	}
 	return &service.User{
-		ID:          id,
-		Email:       record["email"].String(),
-		DisplayName: record["display_name"].String(),
-		AvatarURL:   record["avatar_url"].String(),
-		Status:      record["status"].String(),
-		LastLoginAt: nullableTime(record["last_login_at"]),
-		Metadata:    metadata,
-		CreatedAt:   record["created_at"].Time(),
-		UpdatedAt:   record["updated_at"].Time(),
+		ID:            id,
+		Email:         record["email"].String(),
+		DisplayName:   record["display_name"].String(),
+		AvatarURL:     record["avatar_url"].String(),
+		Status:        record["status"].String(),
+		EmailVerified: emailVerified,
+		LastLoginAt:   nullableTime(record["last_login_at"]),
+		Metadata:      metadata,
+		CreatedAt:     record["created_at"].Time(),
+		UpdatedAt:     record["updated_at"].Time(),
 	}, nil
 }
 

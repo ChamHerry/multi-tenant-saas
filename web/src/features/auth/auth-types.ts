@@ -8,6 +8,7 @@ export const userSchema = z.object({
   display_name: z.string(),
   avatar_url: z.string().optional(),
   status: z.string(),
+  email_verified: z.boolean().optional(),
   last_login_at: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   created_at: z.string(),

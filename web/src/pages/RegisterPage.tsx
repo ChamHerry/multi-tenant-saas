@@ -32,6 +32,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
+  const [verificationSent, setVerificationSent] = useState(false)
   const registerPayloadSchema = useMemo(() => createRegisterPayloadSchema(schemaTranslator), [schemaTranslator])
   const from = useMemo(() => {
     const state = location.state as RegisterLocationState | null
@@ -58,6 +59,7 @@ export function RegisterPage() {
       display_name: result.data.display_name,
     })
     setLastLoginEmail(result.data.email)
+    setVerificationSent(true)
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: authKeys.me }),
       queryClient.invalidateQueries({ queryKey: authKeys.tenants }),
@@ -112,6 +114,11 @@ export function RegisterPage() {
             {copy.submit}
           </Button>
           <Toast tone="red" message={registerMutation.isError ? errorMessage(registerMutation.error) : undefined} />
+          {verificationSent && (
+            <div className="mt-3 rounded-panel border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+              Registration successful! Please check your email and verify your address.
+            </div>
+          )}
         </form>
         <div className="mt-5 rounded-panel border border-line bg-surface-soft p-3 text-xs leading-6 text-muted">
           <div className="font-bold text-ink">{copy.hasAccountTitle}</div>

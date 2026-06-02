@@ -35,3 +35,17 @@ export function getMe() {
 export function getMyTenants() {
   return apiRequest<{ tenants: TenantMembershipWithTenant[] }>('/api/v1/me/tenants', { skipTenant: true })
 }
+
+export function verifyEmail(token: string) {
+  return apiRequest<{ ok: boolean; message: string }>(
+    '/api/v1/auth/verify-email',
+    { method: 'POST', body: { token }, skipAuth: true, skipTenant: true },
+  )
+}
+
+export function resendVerification(email: string) {
+  return apiRequest<{ ok: boolean; message: string }>(
+    '/api/v1/auth/resend-verification',
+    { method: 'POST', body: { email }, skipAuth: true, skipTenant: true },
+  )
+}

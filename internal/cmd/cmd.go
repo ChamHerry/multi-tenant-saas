@@ -505,7 +505,7 @@ func validateRuntimeAuthConfig(ctx context.Context) error {
 }
 
 // startBackgroundJobs launches background goroutines for periodic tasks
-// such as expiring pending invitations.
+// such as expiring pending invitations and cleaning up expired verification tokens.
 func startBackgroundJobs(ctx context.Context) {
 	go func() {
 		interval := service.Config().GetDuration(ctx, "invitation.autoExpireInterval", 5*time.Minute)
@@ -522,6 +522,24 @@ func startBackgroundJobs(ctx context.Context) {
 			}
 			if expired > 0 {
 				g.Log().Infof(ctx, "[background] expired %d pending invitations", expired)
+			}
+		}
+	}()
+
+	// Clean up expired email verification tokens every hour.
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		g.Log().Infof(ctx, "[background] email verification token cleanup started with interval 1h")
+		for range ticker.C {
+			result, err := g.DB().Exec(ctx,
+				"DELETE FROM email_verification_tokens WHERE expires_at < now() - INTERVAL '1 hour'")
+			if err != nil {
+				g.Log().Warningf(ctx, "[background] email verification token cleanup error: %v", err)
+				continue
+			}
+			if n, _ := result.RowsAffected(); n > 0 {
+				g.Log().Infof(ctx, "[background] cleaned up %d expired verification tokens", n)
 			}
 		}
 	}()
