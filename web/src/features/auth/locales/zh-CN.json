@@ -52,7 +52,12 @@
         "oauth_google_profile_failed": "Google 资料获取失败，请重试。",
         "oauth_failed": "社交登录失败，请重试。"
       }
-    }
+    },
+    "emailNotVerifiedTitle": "您的邮箱尚未验证。",
+    "emailNotVerifiedDescription": "部分功能可能受限。请查收收件箱中的验证邮件。",
+    "resendVerification": "重新发送验证邮件",
+    "resendVerificationSending": "正在发送...",
+    "resendVerificationSent": "验证邮件已发送！"
   },
   "forgotPassword": {
     "title": "重置密码",
@@ -99,7 +104,14 @@
     "error": "验证失败，链接可能已过期或已被使用。",
     "missingToken": "缺少验证令牌。",
     "resend": "重新发送验证邮件",
-    "goToLogin": "前往登录"
+    "goToLogin": "前往登录",
+    "successTitle": "邮箱已验证",
+    "successDescription": "您的邮箱已成功完成验证。",
+    "redirecting": "3 秒后跳转到登录页...",
+    "errorTitle": "验证失败",
+    "errorDescription": "我们无法验证您的邮箱地址。",
+    "resendSent": "验证邮件已发送！请查收收件箱。",
+    "resendEmailPlaceholder": "输入邮箱以重新发送"
   },
   "totp": {
     "title": "双因素认证",

@@ -246,7 +246,8 @@
       "loadingUsers": "Loading users...",
       "revokePlatformPermission": "Revoke platform permission",
       "grantedAt": "Granted at",
-      "lastLogin": "Last login"
+      "lastLogin": "Last login",
+      "unlockAccount": "Unlock account"
     }
   },
   "access": {
@@ -277,6 +278,13 @@
     "errors": {
       "meLoad": "User profile failed to load",
       "accessLoad": "Permissions failed to load"
+    },
+    "emailVerification": {
+      "title": "Your email is not yet verified.",
+      "description": "Some features may be limited. Please check your inbox for the verification email.",
+      "resend": "Resend verification email",
+      "sending": "Sending...",
+      "sent": "Verification email sent!"
     }
   },
   "routes": {

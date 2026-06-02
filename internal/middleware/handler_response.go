@@ -62,11 +62,15 @@ func HandlerResponse(r *ghttp.Request) {
 }
 
 func statusFromCode(code gcode.Code) int {
-	switch code.Code() {
+	numericCode := code.Code()
+	switch numericCode {
 	case 409001:
 		return http.StatusConflict
 	case 429001:
 		return http.StatusTooManyRequests
+	}
+	if numericCode >= http.StatusBadRequest && numericCode < http.StatusNetworkAuthenticationRequired {
+		return numericCode
 	}
 	switch code {
 	case gcode.CodeOK:
