@@ -38,6 +38,9 @@ func (c *PublicControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *
 	if err != nil {
 		return nil, err
 	}
+	if login.Requires2FA {
+		return &v1.AuthUserRes{User: login.User, Requires2FA: true, TOTPToken: login.TOTPToken}, nil
+	}
 	setAuthCookies(ghttp.RequestFromCtx(ctx), login.Cookies)
 	return &v1.AuthUserRes{User: login.User}, nil
 }

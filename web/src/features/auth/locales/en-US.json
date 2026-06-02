@@ -76,5 +76,69 @@
     "missingToken": "Missing verification token.",
     "resend": "Resend verification email",
     "goToLogin": "Go to login"
+  },
+  "totp": {
+    "title": "Two-Factor Authentication",
+    "description": "Add an extra layer of security to your account with a one-time code from an authenticator app.",
+    "verify": {
+      "title": "Two-Factor Authentication",
+      "description": "Enter the code from your authenticator app",
+      "codeLabel": "Authentication code",
+      "codePlaceholder": "000000",
+      "submit": "Verify",
+      "continue": "Continue",
+      "useBackupCode": "Use a backup code instead",
+      "useAuthenticatorCode": "Use an authenticator code instead",
+      "backupCodeLabel": "Backup code",
+      "backupCodePlaceholder": "Enter 8-character code",
+      "errors": {
+        "invalidCode": "Invalid code. Please try again.",
+        "tokenExpired": "Your verification session has expired. Please sign in again.",
+        "tooManyAttempts": "Too many attempts. Please try again later."
+      }
+    },
+    "setup": {
+      "title": "Set Up Two-Factor Authentication",
+      "description": "Confirm your password, scan the QR code, then verify a 6-digit code to turn on 2FA.",
+      "passwordLabel": "Current password",
+      "start": "Start setup",
+      "step1Title": "Scan QR Code",
+      "step1Description": "Scan this QR code with Google Authenticator, Authy, 1Password, or another TOTP app.",
+      "manualEntry": "Manual entry secret",
+      "qrAlt": "TOTP QR code",
+      "qrLoading": "Generating QR code...",
+      "next": "Next",
+      "step2Title": "Verify Setup",
+      "step2Description": "Enter the 6-digit code from your app to confirm the setup works.",
+      "codeLabel": "Authentication code",
+      "codePlaceholder": "000000",
+      "verify": "Enable 2FA",
+      "errors": {
+        "invalidCode": "Invalid code. Please try again."
+      }
+    },
+    "backupCodes": {
+      "title": "Save Your Backup Codes",
+      "description": "Store these codes in a safe place. Each code can be used once if you lose access to your authenticator app.",
+      "savedConfirmation": "I have saved my backup codes in a secure location",
+      "complete": "Complete Setup",
+      "regenerate": "Regenerate Backup Codes",
+      "regeneratePasswordLabel": "Current password",
+      "remainingWarning": "You have {count} backup code(s) remaining. Consider regenerating backup codes soon."
+    },
+    "status": {
+      "enabled": "Two-factor authentication is enabled",
+      "enabledBadge": "Enabled",
+      "disabled": "Two-factor authentication is not set up",
+      "disabledBadge": "Disabled",
+      "disabledDescription": "Set up an authenticator app so password login also requires a one-time code.",
+      "enable": "Set Up 2FA",
+      "disable": "Disable 2FA",
+      "disablePasswordLabel": "Password (or use code)",
+      "disableCodeLabel": "TOTP code (optional)",
+      "enabledAt": "Enabled at {time}",
+      "backupCodesRemaining": "{count} backup code(s) remaining",
+      "loadFailed": "Failed to load 2FA status"
+    }
   }
 }

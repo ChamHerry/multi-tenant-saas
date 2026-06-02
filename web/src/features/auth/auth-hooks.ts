@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { changePassword, forgotPassword, getAuthSession, getMe, getMyTenants, login, logout, register, resetPassword, unlockUser } from './auth-api'
+import { changePassword, forgotPassword, getAuthSession, getMe, getMyTenants, login, logout, register, resetPassword, unlockUser, verifyTOTP } from './auth-api'
 
 export const authKeys = {
   me: ['auth', 'me'] as const,
   session: ['auth', 'session'] as const,
   tenants: ['auth', 'tenants'] as const,
+  totpStatus: ['auth', 'totp-status'] as const,
 }
 
 export function useMe() {
@@ -33,6 +34,10 @@ export function useMyTenants() {
 
 export function useLoginMutation() {
   return useMutation({ mutationFn: login })
+}
+
+export function useVerifyTOTPMutation() {
+  return useMutation({ mutationFn: verifyTOTP })
 }
 
 export function useRegisterMutation() {

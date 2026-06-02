@@ -11,6 +11,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/crypto"
 
 	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"
 	_ "multi-tenant-saas/internal/logic"
@@ -30,6 +31,9 @@ const (
 func SetupTestDB(t *testing.T) gdb.DB {
 	t.Helper()
 	ctx := context.Background()
+	if err := crypto.InitEncryption(ctx); err != nil {
+		t.Fatalf("init encryption: %v", err)
+	}
 
 	// 1. Connect to main database via database/sql to create test database.
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -103,6 +107,8 @@ func TruncateAllTables(ctx context.Context, t *testing.T) {
 		"audit_logs",
 		"auth_login_attempts",
 		"auth_sessions",
+		"user_totp_backup_codes",
+		"user_totp_configs",
 		"tenant_lifecycle_jobs",
 		"tenant_invitations",
 		"tenant_memberships",

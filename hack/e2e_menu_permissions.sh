@@ -46,6 +46,12 @@ psql_query() {
   compose exec -T -e PGPASSWORD=secret "$DB_SERVICE" psql -U saas_template -d saas_template -Atc "$sql"
 }
 
+enable_dev_header_auth() {
+  psql_query "UPDATE public.system_config SET value='true', updated_at=now() WHERE key='auth.devHeader.enabled';" >/dev/null
+  psql_query "UPDATE public.system_config SET value='local', updated_at=now() WHERE key='server.env';" >/dev/null
+  compose exec -T redis redis-cli DEL config:auth.devHeader.enabled config:server.env >/dev/null 2>&1 || true
+}
+
 print_failure_context() {
   {
     echo "--- docker compose ps ---"
@@ -85,6 +91,7 @@ ensure_stack_ready() {
   esac
   log "[E2E] wait for /readyz"
   manage_docker ready >/dev/null
+  enable_dev_header_auth
 }
 
 create_user() {

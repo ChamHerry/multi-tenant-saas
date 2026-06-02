@@ -46,7 +46,9 @@ type sPasswordAuth struct{}
 
 func init() {
 	dummyPasswordHash, _ = bcrypt.GenerateFromPassword([]byte("repomind-dummy-password"), bcrypt.MinCost)
-	service.RegisterPasswordAuth(&sPasswordAuth{})
+	impl := &sPasswordAuth{}
+	service.RegisterPasswordAuth(impl)
+	service.RegisterLoginSuccess(impl)
 }
 
 func (s *sPasswordAuth) Login(ctx context.Context, in service.PasswordLoginInput) (*service.PasswordLoginResult, error) {
@@ -90,19 +92,64 @@ func (s *sPasswordAuth) Login(ctx context.Context, in service.PasswordLoginInput
 		_ = service.Audit().Write(ctx, service.AuditLogInput{UserID: user.ID, Action: "auth.login.failed", ResourceType: "auth", IP: normalizeIP(in.IP), UserAgent: in.UserAgent, Metadata: map[string]any{"email": email}})
 		return nil, loginError()
 	}
-	if err = s.recordLoginSuccess(ctx, email); err != nil {
+	totpEnabled, err := service.TOTP().IsEnabled(ctx, user.ID)
+	if err != nil {
 		return nil, err
 	}
-	if err = touchPasswordIdentityLogin(ctx, user.ID, email); err != nil {
-		return nil, err
+	if totpEnabled {
+		token, err := service.TOTP().GenerateToken(ctx, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		_ = service.Audit().Write(ctx, service.AuditLogInput{
+			UserID:       user.ID,
+			Action:       "auth.login.2fa_required",
+			ResourceType: "auth",
+			IP:           normalizeIP(in.IP),
+			UserAgent:    in.UserAgent,
+			Metadata:     map[string]any{"email": email},
+		})
+		user, _ = service.UserService().GetUser(ctx, user.ID)
+		return &service.PasswordLoginResult{User: user, Requires2FA: true, TOTPToken: token}, nil
 	}
 	session, cookies, err := service.AuthSessionService().Create(ctx, user.ID, in.UserAgent, in.IP)
 	if err != nil {
 		return nil, err
 	}
-	_ = service.Audit().Write(ctx, service.AuditLogInput{UserID: user.ID, Action: "auth.login.success", ResourceType: "auth_session", ResourceID: session.ID, IP: normalizeIP(in.IP), UserAgent: in.UserAgent, Metadata: map[string]any{"email": email}})
+	if err = s.Complete(ctx, service.CompleteLoginSuccessInput{
+		UserID:    user.ID,
+		Email:     email,
+		SessionID: session.ID,
+		IP:        in.IP,
+		UserAgent: in.UserAgent,
+	}); err != nil {
+		return nil, err
+	}
 	user, _ = service.UserService().GetUser(ctx, user.ID)
 	return &service.PasswordLoginResult{User: user, Session: session, Cookies: cookies}, nil
+}
+
+func (s *sPasswordAuth) Complete(ctx context.Context, in service.CompleteLoginSuccessInput) error {
+	email := normalizeEmail(in.Email)
+	if email == "" {
+		return gerror.NewCode(gcode.CodeMissingParameter, "email is required")
+	}
+	if err := s.recordLoginSuccess(ctx, email); err != nil {
+		return err
+	}
+	if err := touchPasswordIdentityLogin(ctx, in.UserID, email); err != nil {
+		return err
+	}
+	_ = service.Audit().Write(ctx, service.AuditLogInput{
+		UserID:       in.UserID,
+		Action:       "auth.login.success",
+		ResourceType: "auth_session",
+		ResourceID:   in.SessionID,
+		IP:           normalizeIP(in.IP),
+		UserAgent:    in.UserAgent,
+		Metadata:     map[string]any{"email": email},
+	})
+	return nil
 }
 
 func (s *sPasswordAuth) RegisterPasswordUser(ctx context.Context, in service.RegisterPasswordUserInput) (*service.User, error) {
@@ -140,10 +187,13 @@ func (s *sPasswordAuth) RegisterPasswordUser(ctx context.Context, in service.Reg
 	displayName := strings.TrimSpace(in.DisplayName)
 	hashCost := passwordCost(ctx)
 
+	// Hold the bootstrap lock until the transaction helper has committed.
+	// Releasing inside the callback races with commit and can let concurrent
+	// first-user registrations observe user_count=0 more than once.
+	bootstrapMu.Lock()
+	defer bootstrapMu.Unlock()
+
 	err = dao.Users.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		// Use Go mutex instead of pg_advisory_xact_lock
-		bootstrapMu.Lock()
-		defer bootstrapMu.Unlock()
 		exists, err := passwordIdentityExistsTx(ctx, tx, email)
 		if err != nil {
 			return err

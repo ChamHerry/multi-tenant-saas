@@ -15,6 +15,7 @@ import {
   TenantAuditPage,
   TenantDetailPage,
   TenantsPage,
+  TOTPSetupPage,
 } from './lazy-routes'
 
 // Eagerly loaded: auth pages and shell
@@ -23,6 +24,7 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
+import { TOTPVerifyPage } from '@/pages/TOTPVerifyPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export const router = createBrowserRouter([
@@ -45,6 +47,10 @@ export const router = createBrowserRouter([
   {
     path: '/reset-password',
     element: <ResetPasswordPage />,
+  },
+  {
+    path: '/verify-totp',
+    element: <TOTPVerifyPage />,
   },
   {
     path: '/',
@@ -140,6 +146,15 @@ export const router = createBrowserRouter([
           </LazyRoute>
         ),
         handle: { titleKey: 'routes.securityEvents.title' },
+      },
+      {
+        path: 'me/security/totp/setup',
+        element: (
+          <LazyRoute>
+            <TOTPSetupPage />
+          </LazyRoute>
+        ),
+        handle: { titleKey: 'routes.totpSetup.title' },
       },
       {
         path: 'api-keys',

@@ -52,6 +52,15 @@ func (a *RedisAdapter) Get(ctx context.Context, key string) (string, error) {
 	return a.client.Get(ctx, key).Result()
 }
 
+// GetInt64 retrieves an integer value by key. Missing keys return 0.
+func (a *RedisAdapter) GetInt64(ctx context.Context, key string) (int64, error) {
+	value, err := a.client.Get(ctx, key).Int64()
+	if err == redis.Nil {
+		return 0, nil
+	}
+	return value, err
+}
+
 // Set stores a string value with TTL.
 func (a *RedisAdapter) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
 	return a.client.Set(ctx, key, value, ttl).Err()
@@ -75,6 +84,25 @@ func (a *RedisAdapter) Exists(ctx context.Context, keys ...string) (int64, error
 // Expire sets a TTL on a key.
 func (a *RedisAdapter) Expire(ctx context.Context, key string, ttl time.Duration) (bool, error) {
 	return a.client.Expire(ctx, key, ttl).Result()
+}
+
+// IncrementWithTTL increments a counter and applies ttl when the counter is created.
+func (a *RedisAdapter) IncrementWithTTL(ctx context.Context, key string, ttl time.Duration) (int64, error) {
+	count, err := a.client.Incr(ctx, key).Result()
+	if err != nil {
+		return 0, err
+	}
+	if count == 1 {
+		if err = a.client.Expire(ctx, key, ttl).Err(); err != nil {
+			return count, err
+		}
+	}
+	return count, nil
+}
+
+// TTL returns the remaining time to live for a key.
+func (a *RedisAdapter) TTL(ctx context.Context, key string) (time.Duration, error) {
+	return a.client.TTL(ctx, key).Result()
 }
 
 // Ping tests the connection.

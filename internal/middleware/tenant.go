@@ -85,10 +85,10 @@ func tenantOptionalRoute(r *ghttp.Request) bool {
 // require a tenant selector. Add new entries here instead of scattering
 // hardcoded path checks.
 var tenantOptionalRoutes = []struct {
-	Method      string
-	Path        string // exact match after trimming trailing slash
-	Prefix      string // prefix match (mutually exclusive with Path)
-	Suffix      string // suffix match (used with Prefix)
+	Method string
+	Path   string // exact match after trimming trailing slash
+	Prefix string // prefix match (mutually exclusive with Path)
+	Suffix string // suffix match (used with Prefix)
 }{
 	{Method: http.MethodGet, Path: "/api/v1/me"},
 	{Method: http.MethodGet, Path: "/api/v1/me/tenants"},
@@ -96,6 +96,11 @@ var tenantOptionalRoutes = []struct {
 	{Method: http.MethodGet, Path: "/api/v1/me/invitations"},
 	{Method: http.MethodPost, Prefix: "/api/v1/me/invitations/", Suffix: "/decline"},
 	{Method: http.MethodGet, Path: "/api/v1/me/security-events"},
+	{Method: http.MethodGet, Path: "/api/v1/me/totp/status"},
+	{Method: http.MethodPost, Path: "/api/v1/me/totp/setup"},
+	{Method: http.MethodPost, Path: "/api/v1/me/totp/enable"},
+	{Method: http.MethodPost, Path: "/api/v1/me/totp/disable"},
+	{Method: http.MethodPost, Path: "/api/v1/me/totp/backup-codes/regenerate"},
 	{Method: http.MethodPost, Path: "/api/v1/invitations/accept"},
 	{Method: http.MethodPost, Path: "/api/v1/tenants"},
 }
