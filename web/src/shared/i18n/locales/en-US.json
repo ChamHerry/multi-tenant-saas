@@ -319,6 +319,9 @@
     },
     "totpSetup": {
       "title": "Set up two-factor authentication"
+    },
+    "sessions": {
+      "title": "Active sessions"
     }
   },
   "nav": {
@@ -338,7 +341,8 @@
       "tenantAudit": "Organization audit logs",
       "platformTenants": "Platform organizations",
       "platformUsers": "Platform users",
-      "platformAudit": "Platform audit logs"
+      "platformAudit": "Platform audit logs",
+      "sessions": "Active sessions"
     }
   }
 }

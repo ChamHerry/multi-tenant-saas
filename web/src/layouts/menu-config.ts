@@ -3,6 +3,7 @@ import {
   Inbox,
   KeyRound,
   LayoutDashboard,
+  Monitor,
   ScrollText,
   Settings2,
   ShieldCheck,
@@ -26,6 +27,7 @@ export type MenuItem = {
 export const accountNavItems: MenuItem[] = [
   { to: '/me/invitations', labelKey: 'nav.items.myInvitations', icon: Inbox },
   { to: '/me/security', labelKey: 'nav.items.securityEvents', icon: ShieldCheck },
+  { to: '/me/sessions', labelKey: 'nav.items.sessions', icon: Monitor },
 ]
 
 export const tenantNavItems: MenuItem[] = [

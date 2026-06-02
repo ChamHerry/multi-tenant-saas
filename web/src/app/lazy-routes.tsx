@@ -14,6 +14,9 @@ export const TenantAuditPage = lazy(() => import('@/pages/TenantAuditPage').then
 export const SecurityEventsPage = lazy(() =>
   import('@/pages/SecurityEventsPage').then((m) => ({ default: m.SecurityEventsPage })),
 )
+export const SessionManagementPage = lazy(() =>
+  import('@/pages/SessionManagementPage').then((m) => ({ default: m.SessionManagementPage })),
+)
 export const TOTPSetupPage = lazy(() => import('@/pages/TOTPSetupPage').then((m) => ({ default: m.TOTPSetupPage })))
 export const TenantAccessPage = lazy(() => import('@/pages/TenantAccessPage').then((m) => ({ default: m.TenantAccessPage })))
 export const TenantApiKeysPage = lazy(() =>

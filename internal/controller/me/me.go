@@ -2,6 +2,11 @@ package me
 
 import (
 	"context"
+	"strings"
+	"time"
+
+	"github.com/gogf/gf/v2/errors/gcode"
+	"github.com/gogf/gf/v2/errors/gerror"
 
 	apime "multi-tenant-saas/api/me"
 	"multi-tenant-saas/api/me/v1"
@@ -91,4 +96,96 @@ func (c *ControllerV1) UpdateMe(ctx context.Context, req *v1.UpdateMeReq) (res *
 		return nil, err
 	}
 	return &v1.UpdateMeRes{User: user}, nil
+}
+
+func (c *ControllerV1) ListSessions(ctx context.Context, req *v1.ListSessionsReq) (res *v1.ListSessionsRes, err error) {
+	identity, err := requireSessionIdentity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = service.RBAC().RequireAuthScope(ctx, service.PermissionUserSecurityRead); err != nil {
+		return nil, err
+	}
+	sessions, err := service.AuthSessionService().ListUserSessions(ctx, identity.UserID)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]v1.SessionItem, 0, len(sessions))
+	for _, session := range sessions {
+		items = append(items, toSessionItem(session, identity.SessionID))
+	}
+	return &v1.ListSessionsRes{Sessions: items}, nil
+}
+
+func (c *ControllerV1) RevokeSession(ctx context.Context, req *v1.RevokeSessionReq) (res *v1.RevokeSessionRes, err error) {
+	identity, err := requireSessionIdentity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.Session) == "" {
+		return nil, gerror.NewCode(gcode.CodeMissingParameter, "session is required")
+	}
+	if req.Session == identity.SessionID {
+		return nil, gerror.NewCode(gcode.CodeInvalidParameter, "current session cannot be revoked here; use logout")
+	}
+	session, err := service.AuthSessionService().Get(ctx, req.Session)
+	if err != nil {
+		return nil, gerror.NewCode(gcode.CodeNotFound, "session not found")
+	}
+	if session.UserID != identity.UserID {
+		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "session does not belong to current user")
+	}
+	now := time.Now().UTC()
+	if session.RevokedAt != nil || !session.ExpiresAt.After(now) || !session.IdleExpiresAt.After(now) {
+		return nil, gerror.NewCode(gcode.CodeNotFound, "session not found")
+	}
+	if err = service.AuthSessionService().Revoke(ctx, req.Session, "user_revoke"); err != nil {
+		return nil, err
+	}
+	_ = service.Audit().Write(ctx, service.AuditLogInput{
+		UserID:       identity.UserID,
+		Action:       "auth.session.revoke",
+		ResourceType: "auth_session",
+		ResourceID:   req.Session,
+	})
+	return &v1.RevokeSessionRes{OK: true}, nil
+}
+
+func (c *ControllerV1) RevokeOtherSessions(ctx context.Context, req *v1.RevokeOtherSessionsReq) (res *v1.RevokeOtherSessionsRes, err error) {
+	identity, err := requireSessionIdentity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sessions, err := service.AuthSessionService().ListUserSessions(ctx, identity.UserID)
+	if err != nil {
+		return nil, err
+	}
+	revokedCount := 0
+	for _, session := range sessions {
+		if session.ID != identity.SessionID {
+			revokedCount++
+		}
+	}
+	if err = service.AuthSessionService().RevokeUserSessions(ctx, identity.UserID, identity.SessionID, "user_revoke_others"); err != nil {
+		return nil, err
+	}
+	_ = service.Audit().Write(ctx, service.AuditLogInput{
+		UserID:       identity.UserID,
+		Action:       "auth.session.revoke_others",
+		ResourceType: "auth_session",
+		ResourceID:   identity.SessionID,
+		Metadata:     map[string]any{"revoked_count": revokedCount},
+	})
+	return &v1.RevokeOtherSessionsRes{OK: true, RevokedCount: revokedCount}, nil
+}
+
+func requireSessionIdentity(ctx context.Context) (*service.AuthIdentity, error) {
+	identity, err := service.MustAuthIdentity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if identity.Type != "session" || strings.TrimSpace(identity.SessionID) == "" {
+		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "session authentication is required")
+	}
+	return identity, nil
 }
