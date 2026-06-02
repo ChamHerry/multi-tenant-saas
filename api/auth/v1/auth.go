@@ -42,6 +42,26 @@ type SessionRes struct {
 	Session *service.AuthSession `json:"session,omitempty"`
 }
 
+type VerifyEmailReq struct {
+	g.Meta `path:"/auth/verify-email" tags:"Auth" method:"post" summary:"Verify email address"`
+	Token  string `json:"token" v:"required"`
+}
+
+type VerifyEmailRes struct {
+	OK      bool   `json:"ok"`
+	Message string `json:"message"`
+}
+
+type ResendVerificationReq struct {
+	g.Meta `path:"/auth/resend-verification" tags:"Auth" method:"post" summary:"Resend email verification"`
+	Email  string `json:"email" v:"required|email"`
+}
+
+type ResendVerificationRes struct {
+	OK      bool   `json:"ok"`
+	Message string `json:"message"`
+}
+
 type ActionRes struct {
 	OK bool `json:"ok"`
 }

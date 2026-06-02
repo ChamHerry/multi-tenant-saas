@@ -112,8 +112,10 @@ func (s *sUser) GetUser(ctx context.Context, userID string) (*service.User, erro
 	}
 	userCols := dao.Users.Columns()
 	record, err := dao.Users.Ctx(ctx).
+		Fields("users.*, ui.email_verified").
+		LeftJoin("user_identities ui", "ui.user_id = users.id AND ui.provider = 'password'").
 		Where(userCols.Id, userID).
-		Where("deleted_at IS NULL").
+		Where("users.deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select public user")
@@ -146,6 +148,47 @@ func (s *sUser) UpdateProfile(ctx context.Context, in service.UpdateProfileInput
 		return nil, gerror.Wrap(err, "update user profile")
 	}
 	return s.GetUser(ctx, in.UserID)
+}
+
+// SetEmailVerified marks the email as verified for a given user identity.
+func (s *sUser) SetEmailVerified(ctx context.Context, userID, email string) error {
+	if err := validateInternalID(userID); err != nil {
+		return err
+	}
+	identCols := dao.UserIdentities.Columns()
+	_, err := dao.UserIdentities.Ctx(ctx).
+		Where(identCols.UserId, userID).
+		Where("lower("+identCols.Email+") = lower(?)", email).
+		Data(g.Map{identCols.EmailVerified: true, identCols.UpdatedAt: "now()"}).
+		Update()
+	return gerror.Wrap(err, "set email verified")
+}
+
+// GetIdentityByEmail looks up a user identity by provider and email (case-insensitive).
+func (s *sUser) GetIdentityByEmail(ctx context.Context, provider, email string) (*service.UserIdentity, error) {
+	identCols := dao.UserIdentities.Columns()
+	record, err := dao.UserIdentities.Ctx(ctx).
+		Where(identCols.Provider, provider).
+		Where("lower("+identCols.Email+") = lower(?)", email).
+		One()
+	if err != nil {
+		return nil, gerror.Wrap(err, "select user identity by email")
+	}
+	if record.IsEmpty() {
+		return nil, nil
+	}
+	identity := &service.UserIdentity{
+		ID:            record[identCols.Id].String(),
+		UserID:        record[identCols.UserId].String(),
+		Provider:      record[identCols.Provider].String(),
+		AuthID:        record[identCols.AuthId].String(),
+		Email:         record[identCols.Email].String(),
+		EmailVerified: record[identCols.EmailVerified].Bool(),
+		LastLoginAt:   nullableTime(record[identCols.LastLoginAt]),
+		CreatedAt:     record[identCols.CreatedAt].Time(),
+		UpdatedAt:     record[identCols.UpdatedAt].Time(),
+	}
+	return identity, nil
 }
 
 func fetchUserByIdentity(ctx context.Context, provider, authID string) (*service.User, error) {
@@ -188,10 +231,13 @@ func touchIdentityLogin(ctx context.Context, userID string, in service.EnsureUse
 	// Update user_identities
 	identCols := dao.UserIdentities.Columns()
 	identData := g.Map{
-		identCols.EmailVerified: in.EmailVerified,
-		identCols.RawProfile:    rawProfile,
-		identCols.LastLoginAt:   "now()",
-		identCols.UpdatedAt:     "now()",
+		identCols.RawProfile:  rawProfile,
+		identCols.LastLoginAt: "now()",
+		identCols.UpdatedAt:   "now()",
+	}
+	// Only set email_verified to true; never overwrite an existing true with false.
+	if in.EmailVerified {
+		identData[identCols.EmailVerified] = true
 	}
 	if in.Email != "" {
 		identData[identCols.Email] = in.Email
@@ -257,16 +303,21 @@ func mapUser(record gdb.Record) (*service.User, error) {
 	if raw := record["metadata"].String(); raw != "" {
 		_ = json.Unmarshal([]byte(raw), &metadata)
 	}
+	emailVerified := false
+	if ev := record["email_verified"]; ev != nil {
+		emailVerified = ev.Bool()
+	}
 	return &service.User{
-		ID:          id,
-		Email:       record["email"].String(),
-		DisplayName: record["display_name"].String(),
-		AvatarURL:   record["avatar_url"].String(),
-		Status:      record["status"].String(),
-		LastLoginAt: nullableTime(record["last_login_at"]),
-		Metadata:    metadata,
-		CreatedAt:   record["created_at"].Time(),
-		UpdatedAt:   record["updated_at"].Time(),
+		ID:            id,
+		Email:         record["email"].String(),
+		DisplayName:   record["display_name"].String(),
+		AvatarURL:     record["avatar_url"].String(),
+		Status:        record["status"].String(),
+		EmailVerified: emailVerified,
+		LastLoginAt:   nullableTime(record["last_login_at"]),
+		Metadata:      metadata,
+		CreatedAt:     record["created_at"].Time(),
+		UpdatedAt:     record["updated_at"].Time(),
 	}, nil
 }
 

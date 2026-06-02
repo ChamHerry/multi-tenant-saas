@@ -20,6 +20,7 @@ import {
 // Eagerly loaded: auth pages and shell
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export const router = createBrowserRouter([
@@ -30,6 +31,10 @@ export const router = createBrowserRouter([
   {
     path: '/register',
     element: <RegisterPage />,
+  },
+  {
+    path: '/verify-email',
+    element: <VerifyEmailPage />,
   },
   {
     path: '/',

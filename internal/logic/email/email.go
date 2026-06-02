@@ -38,6 +38,50 @@ func (s *sEmail) SendInvitation(ctx context.Context, in service.SendInvitationIn
 	return smtp.SendMail(addr, auth, from, []string{in.ToEmail}, []byte(body))
 }
 
+func (s *sEmail) SendEmailVerification(ctx context.Context, in service.SendEmailVerificationInput) error {
+	host := service.Config().GetString(ctx, "email.smtp.host", "")
+	if host == "" {
+		g.Log().Infof(ctx, "[email] verification email to %s skipped (no SMTP configured) — verify URL: %s", in.ToEmail, in.VerifyURL)
+		return nil
+	}
+	port := service.Config().GetInt(ctx, "email.smtp.port", 587)
+	username := service.Config().GetString(ctx, "email.smtp.username", "")
+	password := service.Config().GetString(ctx, "email.smtp.password", "")
+	from := service.Config().GetString(ctx, "email.from", "noreply@example.com")
+
+	body := buildVerificationBody(from, in)
+	addr := fmt.Sprintf("%s:%d", host, port)
+	var auth smtp.Auth
+	if username != "" {
+		auth = smtp.PlainAuth("", username, password, host)
+	}
+	g.Log().Infof(ctx, "[email] sending verification email to %s via %s", in.ToEmail, addr)
+	return smtp.SendMail(addr, auth, from, []string{in.ToEmail}, []byte(body))
+}
+
+func buildVerificationBody(from string, in service.SendEmailVerificationInput) string {
+	appName := "SaaS Console"
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("From: %s\r\n", from))
+	b.WriteString(fmt.Sprintf("To: %s\r\n", in.ToEmail))
+	b.WriteString(fmt.Sprintf("Subject: Verify your email address for %s\r\n", appName))
+	b.WriteString("MIME-Version: 1.0\r\n")
+	b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	b.WriteString("\r\n")
+	b.WriteString("Hello,\r\n")
+	b.WriteString("\r\n")
+	b.WriteString("Please verify your email address by clicking the link below:\r\n")
+	b.WriteString("\r\n")
+	b.WriteString(fmt.Sprintf("%s\r\n", in.VerifyURL))
+	b.WriteString("\r\n")
+	b.WriteString("This link will expire in 24 hours.\r\n")
+	b.WriteString("\r\n")
+	b.WriteString("If you didn't create an account, you can safely ignore this email.\r\n")
+	b.WriteString("\r\n")
+	b.WriteString(fmt.Sprintf("—\r\n%s Team\r\n", appName))
+	return b.String()
+}
+
 func buildInvitationBody(from string, in service.SendInvitationInput) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("From: %s\r\n", from))

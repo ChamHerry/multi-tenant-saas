@@ -39,6 +39,16 @@
     "submit": "注册并进入控制台",
     "hasAccountTitle": "已有账号？",
     "loginLink": "返回登录",
-    "registrationDisabledHint": "如果后端关闭了公开注册，请在配置中开启 auth.password.registrationEnabled 或使用管理员 CLI 创建账号。平台管理员身份只由后端根据用户表是否为空自动授予。"
+    "registrationDisabledHint": "如果后端关闭了公开注册，请在配置中开启 auth.password.registrationEnabled 或使用管理员 CLI 创建账号。平台管理员身份只由后端根据用户表是否为空自动授予。",
+    "verificationSent": "注册成功！请查收验证邮件并完成邮箱验证。"
+  },
+  "verifyEmail": {
+    "title": "邮箱验证",
+    "verifying": "正在验证您的邮箱...",
+    "success": "邮箱验证成功！即将跳转到登录页...",
+    "error": "验证失败，链接可能已过期或已被使用。",
+    "missingToken": "缺少验证令牌。",
+    "resend": "重新发送验证邮件",
+    "goToLogin": "前往登录"
   }
 }

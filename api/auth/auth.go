@@ -9,6 +9,8 @@ import (
 type IAuthPublicV1 interface {
 	Login(ctx context.Context, req *v1.LoginReq) (res *v1.AuthUserRes, err error)
 	Register(ctx context.Context, req *v1.RegisterReq) (res *v1.AuthUserRes, err error)
+	VerifyEmail(ctx context.Context, req *v1.VerifyEmailReq) (res *v1.VerifyEmailRes, err error)
+	ResendVerification(ctx context.Context, req *v1.ResendVerificationReq) (res *v1.ResendVerificationRes, err error)
 }
 
 type IAuthV1 interface {

@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAccess } from '@/features/access/access-hooks'
 import { useLogoutMutation, useMe } from '@/features/auth/auth-hooks'
 import { useTenantStore } from '@/features/tenants/tenant-store'
+import { resendVerification } from '@/features/auth/auth-api'
 import { LanguageSwitcher } from '@/shared/i18n'
 import { Badge, Button, ErrorView } from '@/shared/ui'
 import { cn } from '@/shared/lib/cn'
@@ -40,8 +41,11 @@ export function AppShell() {
   const [pageTitleOverride, setPageTitleOverride] = useState<PageTitleDescriptor>()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isTenantMenuOpen, setIsTenantMenuOpen] = useState(false)
+  const [verificationResending, setVerificationResending] = useState(false)
+  const [verificationResent, setVerificationResent] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const tenantMenuRef = useRef<HTMLDivElement>(null)
+  const emailNotVerified = me?.user.email_verified === false
   const tenants = useMemo(() => access?.tenants ?? [], [access?.tenants])
   const currentMembership = tenants.find((tenant) => tenant.tenant_id === currentTenantId)
   const currentUserLabel = me?.user.display_name || me?.user.email || t('appShell.user.devUser')
@@ -121,6 +125,19 @@ export function AppShell() {
       setCurrentTenantId(undefined);
       queryClient.clear();
       navigate("/login", { replace: true });
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!me?.user.email) return
+    setVerificationResending(true)
+    try {
+      await resendVerification(me.user.email)
+      setVerificationResent(true)
+    } catch {
+      setVerificationResent(true) // API returns success regardless for security
+    } finally {
+      setVerificationResending(false)
     }
   };
 
@@ -272,6 +289,24 @@ export function AppShell() {
             </div>
           </header>
           <main className="mx-auto max-w-7xl p-4 sm:p-6">
+            {emailNotVerified && (
+              <div className="mb-4 rounded-panel border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                <p className="font-bold">Your email is not yet verified.</p>
+                <p className="mt-1">Some features may be limited. Please check your inbox for the verification email.</p>
+                {!verificationResent ? (
+                  <button
+                    type="button"
+                    className="mt-2 font-bold text-brand hover:text-brand-hover disabled:opacity-50"
+                    onClick={handleResendVerification}
+                    disabled={verificationResending}
+                  >
+                    {verificationResending ? 'Sending...' : 'Resend verification email'}
+                  </button>
+                ) : (
+                  <p className="mt-2 text-green-700">Verification email sent!</p>
+                )}
+              </div>
+            )}
             {meError ? (
               <ErrorView title={t('appShell.errors.meLoad')} error={meError} />
             ) : accessError ? (

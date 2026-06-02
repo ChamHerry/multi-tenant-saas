@@ -39,6 +39,16 @@
     "submit": "Register and enter the console",
     "hasAccountTitle": "Already have an account?",
     "loginLink": "Back to sign in",
-    "registrationDisabledHint": "If public registration is disabled on the backend, enable auth.password.registrationEnabled in configuration or create an account with the administrator CLI. Platform administrator access is granted only by the backend when the user table is empty."
+    "registrationDisabledHint": "If public registration is disabled on the backend, enable auth.password.registrationEnabled in configuration or create an account with the administrator CLI. Platform administrator access is granted only by the backend when the user table is empty.",
+    "verificationSent": "Registration successful! Please check your email and verify your address."
+  },
+  "verifyEmail": {
+    "title": "Email Verification",
+    "verifying": "Verifying your email address...",
+    "success": "Email verified successfully! Redirecting to login...",
+    "error": "Verification failed. The link may be expired or already used.",
+    "missingToken": "Missing verification token.",
+    "resend": "Resend verification email",
+    "goToLogin": "Go to login"
   }
 }
