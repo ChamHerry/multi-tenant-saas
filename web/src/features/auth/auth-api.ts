@@ -3,10 +3,27 @@ import type { ActionResponse, AuthSessionResponse, ChangePasswordPayload, LoginP
 import type { VerifyTOTPPayload } from './totp-types'
 import type { TenantMembershipWithTenant } from '@/features/tenants/tenant-types'
 
+export type OAuthProvider = {
+  provider: 'github' | 'google'
+  name: string
+  enabled: boolean
+}
+
+
 export type RegisterBody = {
   email: string
   password: string
   display_name?: string
+}
+
+
+export function getOAuthProviders() {
+  return apiRequest<{ providers: OAuthProvider[] }>('/api/v1/auth/oauth/providers', { skipAuth: true, skipTenant: true })
+}
+
+export function oauthLoginUrl(provider: OAuthProvider['provider'], redirect = '/') {
+  const params = new URLSearchParams({ redirect })
+  return `/api/v1/auth/oauth/${provider}?${params.toString()}`
 }
 
 export function login(payload: LoginPayload) {

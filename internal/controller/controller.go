@@ -53,7 +53,7 @@ func getAllRoutes() []RouteConfig {
 		{
 			Prefix:      "",
 			Middlewares: []ghttp.HandlerFunc{middleware.RateLimit},
-			Controllers: []interface{}{authcontroller.NewPublicV1(), totpcontroller.NewAuthPublicV1()},
+			Controllers: []interface{}{authcontroller.NewPublicV1(), totpcontroller.NewAuthPublicV1(), authcontroller.NewOAuthV1()},
 		},
 		{
 			Prefix: "",

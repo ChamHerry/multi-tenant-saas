@@ -11,9 +11,10 @@ import (
 type AuthUserRes = authv1.AuthUserRes
 
 type VerifyTOTPReq struct {
-	g.Meta    `path:"/auth/verify-totp" tags:"Auth" method:"post" summary:"Verify TOTP code and authenticate"`
-	TOTPToken string `json:"totp_token" v:"required"`
-	Code      string `json:"code" v:"required"`
+	g.Meta         `path:"/auth/verify-totp" tags:"Auth" method:"post" summary:"Verify TOTP code and authenticate"`
+	TOTPToken      string `json:"totp_token"`
+	ChallengeToken string `json:"challenge_token"`
+	Code           string `json:"code" v:"required"`
 }
 
 type SetupReq struct {

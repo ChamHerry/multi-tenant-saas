@@ -107,6 +107,8 @@ func TruncateAllTables(ctx context.Context, t *testing.T) {
 		"audit_logs",
 		"auth_login_attempts",
 		"auth_sessions",
+		"auth_login_challenges",
+		"oauth_states",
 		"user_totp_backup_codes",
 		"user_totp_configs",
 		"tenant_lifecycle_jobs",

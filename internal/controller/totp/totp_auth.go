@@ -21,6 +21,12 @@ func NewAuthPublicV1() totpapi.IAuthPublicV1 {
 }
 
 func (c *AuthPublicControllerV1) VerifyTOTP(ctx context.Context, req *v1.VerifyTOTPReq) (res *v1.AuthUserRes, err error) {
+	if req.ChallengeToken != "" {
+		return c.verifyOAuthChallenge(ctx, req)
+	}
+	if req.TOTPToken == "" {
+		return nil, gerror.NewCode(gcode.CodeMissingParameter, "totp_token or challenge_token is required")
+	}
 	userID, err := service.TOTP().ValidateToken(ctx, req.TOTPToken)
 	if err != nil {
 		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "TOTP token is invalid or expired")
@@ -82,6 +88,27 @@ func (c *AuthPublicControllerV1) VerifyTOTP(ctx context.Context, req *v1.VerifyT
 		remaining = &result.BackupCodesRemaining
 	}
 	return &v1.AuthUserRes{User: user, BackupCodesRemaining: remaining}, nil
+}
+
+func (c *AuthPublicControllerV1) verifyOAuthChallenge(ctx context.Context, req *v1.VerifyTOTPReq) (res *v1.AuthUserRes, err error) {
+	if req.TOTPToken != "" {
+		return nil, gerror.NewCode(gcode.CodeInvalidParameter, "provide either totp_token or challenge_token")
+	}
+	result, err := service.OAuth().VerifyChallenge(
+		ctx,
+		req.ChallengeToken,
+		req.Code,
+		service.BizCtx().GetUserAgent(ctx),
+		service.BizCtx().GetClientIP(ctx),
+	)
+	if err != nil {
+		if gerror.Code(err).Code() == 429001 {
+			setTOTPVerifyRetryAfterHeader(ctx)
+		}
+		return nil, err
+	}
+	setAuthCookies(ghttp.RequestFromCtx(ctx), result.Cookies)
+	return &v1.AuthUserRes{User: result.User, RedirectURI: result.RedirectURI}, nil
 }
 
 func setTOTPVerifyRetryAfterHeader(ctx context.Context) {

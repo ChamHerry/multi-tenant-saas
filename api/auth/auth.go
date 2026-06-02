@@ -20,3 +20,9 @@ type IAuthV1 interface {
 	Logout(ctx context.Context, req *v1.LogoutReq) (res *v1.ActionRes, err error)
 	ChangePassword(ctx context.Context, req *v1.ChangePasswordReq) (res *v1.ActionRes, err error)
 }
+
+type IAuthOAuthV1 interface {
+	OAuthProviders(ctx context.Context, req *v1.OAuthProvidersReq) (res *v1.OAuthProvidersRes, err error)
+	OAuthLogin(ctx context.Context, req *v1.OAuthLoginReq) (res *v1.OAuthLoginRes, err error)
+	OAuthCallback(ctx context.Context, req *v1.OAuthCallbackReq) (res *v1.OAuthCallbackRes, err error)
+}

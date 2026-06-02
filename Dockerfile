@@ -10,7 +10,7 @@ FROM web-deps AS web-build
 COPY web/ ./
 RUN npm run build
 
-FROM golang:1.24-alpine AS go-deps
+FROM golang:1.25-alpine AS go-deps
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
