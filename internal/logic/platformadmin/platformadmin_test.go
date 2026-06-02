@@ -25,6 +25,7 @@ func TestPlatformPermissionsForRoleReturnsCopy(t *testing.T) {
 		service.PlatformPermissionTenantRead,
 		service.PlatformPermissionUserRead,
 		service.PlatformPermissionAuditRead,
+		service.PlatformPermissionConfigRead,
 	}
 	if len(permissions) != len(want) {
 		t.Fatalf("len=%d want %d", len(permissions), len(want))
@@ -38,7 +39,25 @@ func TestPlatformPermissionsForRoleReturnsCopy(t *testing.T) {
 	if got := s.PermissionsForRole("support")[0]; got != service.PlatformPermissionTenantRead {
 		t.Fatalf("PermissionsForRole should return a copy, got first permission %s", got)
 	}
+	if !containsPermission(s.PermissionsForRole("super_admin"), service.PlatformPermissionConfigManage) {
+		t.Fatal("super_admin should be able to manage system config")
+	}
+	if containsPermission(s.PermissionsForRole("support"), service.PlatformPermissionConfigManage) {
+		t.Fatal("support should not be able to manage system config")
+	}
+	if !containsPermission(s.PermissionsForRole("auditor"), service.PlatformPermissionConfigRead) {
+		t.Fatal("auditor should be able to read system config")
+	}
 	if got := s.PermissionsForRole("unknown"); len(got) != 0 {
 		t.Fatalf("unknown role permissions=%v want empty", got)
 	}
+}
+
+func containsPermission(items []service.PlatformPermission, want service.PlatformPermission) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }

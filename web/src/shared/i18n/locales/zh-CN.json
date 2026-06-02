@@ -18,7 +18,10 @@
       "suspend": "暂停",
       "restore": "恢复",
       "disable": "禁用",
-      "enable": "启用"
+      "enable": "启用",
+      "delete": "删除",
+      "save": "保存",
+      "edit": "编辑"
     },
     "fields": {
       "action": "Action",
@@ -251,6 +254,49 @@
       "grantedAt": "授权时间",
       "lastLogin": "最后登录",
       "unlockAccount": "解锁账号"
+    },
+    "systemConfig": {
+      "failed": "系统配置操作失败",
+      "create": "创建配置",
+      "edit": "编辑",
+      "delete": "删除",
+      "save": "保存配置",
+      "filtersTitle": "系统配置过滤",
+      "filtersDescription": "按 key 或描述搜索，并可按 key 前缀分类过滤。",
+      "searchPlaceholder": "auth.session / SMTP / rateLimit",
+      "category": "分类",
+      "allCategories": "全部分类",
+      "listTitle": "系统配置列表",
+      "loading": "正在加载系统配置...",
+      "emptyTitle": "没有找到配置",
+      "emptyDescription": "请尝试其他搜索关键词或分类。",
+      "secretMasked": "Secret 值已由 API 脱敏。",
+      "deleteConfirm": "确认删除系统配置 {{key}}？",
+      "createTitle": "创建系统配置",
+      "editTitle": "编辑系统配置",
+      "key": "Key",
+      "keyPlaceholder": "feature.flag.enabled",
+      "type": "类型",
+      "value": "值",
+      "valuePlaceholder": "请输入配置值",
+      "secretPlaceholder": "留空表示保留当前 secret",
+      "secretHint": "留空会保留当前加密 secret。仅在需要替换时输入新值。",
+      "description": "描述",
+      "descriptionPlaceholder": "说明该配置在哪里使用",
+      "headers": {
+        "key": "Key",
+        "value": "值",
+        "type": "类型",
+        "description": "描述",
+        "updatedAt": "更新时间"
+      },
+      "valueTypes": {
+        "string": "字符串",
+        "number": "数字",
+        "bool": "布尔值",
+        "json": "JSON",
+        "secret": "Secret"
+      }
     }
   },
   "access": {
@@ -333,6 +379,9 @@
     },
     "sessions": {
       "title": "活跃会话"
+    },
+    "systemConfig": {
+      "title": "系统配置"
     }
   },
   "nav": {
@@ -353,7 +402,8 @@
       "platformTenants": "平台组织",
       "platformUsers": "平台用户",
       "platformAudit": "平台审计日志",
-      "sessions": "活跃会话"
+      "sessions": "活跃会话",
+      "systemConfig": "系统配置"
     }
   }
 }

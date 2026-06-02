@@ -16,6 +16,8 @@ export type PlatformPermission =
   | 'platform:user:manage'
   | 'platform:audit:read'
   | 'platform:admin:manage'
+  | 'platform:config:read'
+  | 'platform:config:manage'
 
 export type TenantAccess = {
   tenant_id: string

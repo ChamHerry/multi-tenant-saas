@@ -3,6 +3,7 @@ import { RequireAuth } from './RequireAuth'
 import { RequirePermission } from '@/features/access/RequirePermission'
 import {
   AdminAuditPage,
+  AdminSystemConfigPage,
   AdminTenantsPage,
   AdminUsersPage,
   DashboardPage,
@@ -219,6 +220,17 @@ export const router = createBrowserRouter([
           <LazyRoute>
             <RequirePermission platform={['platform:audit:read']}>
               <AdminAuditPage />
+            </RequirePermission>
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'admin/system-config',
+        handle: { titleKey: 'routes.systemConfig.title' },
+        element: (
+          <LazyRoute>
+            <RequirePermission platform={['platform:config:read']}>
+              <AdminSystemConfigPage />
             </RequirePermission>
           </LazyRoute>
         ),

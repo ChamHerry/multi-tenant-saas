@@ -79,4 +79,10 @@ export const platformNavItems: MenuItem[] = [
     icon: ScrollText,
     requiredPlatformPermissions: ['platform:audit:read'],
   },
+  {
+    to: '/admin/system-config',
+    labelKey: 'nav.items.systemConfig',
+    icon: Settings2,
+    requiredPlatformPermissions: ['platform:config:read'],
+  },
 ]

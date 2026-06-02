@@ -18,7 +18,10 @@
       "suspend": "Suspend",
       "restore": "Restore",
       "disable": "Disable",
-      "enable": "Enable"
+      "enable": "Enable",
+      "delete": "Delete",
+      "save": "Save",
+      "edit": "Edit"
     },
     "fields": {
       "action": "Action",
@@ -251,6 +254,49 @@
       "grantedAt": "Granted at",
       "lastLogin": "Last login",
       "unlockAccount": "Unlock account"
+    },
+    "systemConfig": {
+      "failed": "System config operation failed",
+      "create": "Create config",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save config",
+      "filtersTitle": "System config filters",
+      "filtersDescription": "Search by key or description, and narrow by key prefix category.",
+      "searchPlaceholder": "auth.session / SMTP / rateLimit",
+      "category": "Category",
+      "allCategories": "All categories",
+      "listTitle": "System config list",
+      "loading": "Loading system config...",
+      "emptyTitle": "No config found",
+      "emptyDescription": "Try another search keyword or category.",
+      "secretMasked": "Secret value is masked by the API.",
+      "deleteConfirm": "Delete system config {{key}}?",
+      "createTitle": "Create system config",
+      "editTitle": "Edit system config",
+      "key": "Key",
+      "keyPlaceholder": "feature.flag.enabled",
+      "type": "Type",
+      "value": "Value",
+      "valuePlaceholder": "Enter a config value",
+      "secretPlaceholder": "Leave blank to keep current secret",
+      "secretHint": "Leave blank to keep the current encrypted secret. Enter a new value only when replacing it.",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe where this config is used",
+      "headers": {
+        "key": "Key",
+        "value": "Value",
+        "type": "Type",
+        "description": "Description",
+        "updatedAt": "Updated at"
+      },
+      "valueTypes": {
+        "string": "String",
+        "number": "Number",
+        "bool": "Boolean",
+        "json": "JSON",
+        "secret": "Secret"
+      }
     }
   },
   "access": {
@@ -333,6 +379,9 @@
     },
     "sessions": {
       "title": "Active sessions"
+    },
+    "systemConfig": {
+      "title": "System Config"
     }
   },
   "nav": {
@@ -353,7 +402,8 @@
       "platformTenants": "Platform organizations",
       "platformUsers": "Platform users",
       "platformAudit": "Platform audit logs",
-      "sessions": "Active sessions"
+      "sessions": "Active sessions",
+      "systemConfig": "System Config"
     }
   }
 }

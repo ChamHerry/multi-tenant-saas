@@ -1,5 +1,14 @@
 import { apiRequest } from '@/shared/api/client'
-import type { AdminAuditListResponse, AdminTenantListResponse, AdminUserListResponse, PlatformAdminListResponse, PlatformSessionResponse } from './admin-types'
+import type {
+  AdminAuditListResponse,
+  AdminTenantListResponse,
+  AdminUserListResponse,
+  PlatformAdminListResponse,
+  PlatformSessionResponse,
+  SystemConfigListResponse,
+  SystemConfigResponse,
+  UpsertSystemConfigPayload,
+} from './admin-types'
 import type { Tenant } from '@/features/tenants/tenant-types'
 
 function qs(params: Record<string, string | number | undefined>) {
@@ -53,4 +62,24 @@ export function revokePlatformAdmin(userId: string) {
 
 export function listAdminAuditLogs(params: Record<string, string | number | undefined> = {}) {
   return apiRequest<AdminAuditListResponse>(`/api/v1/admin/audit-logs${qs(params)}`, { skipTenant: true })
+}
+
+export function listAdminSystemConfigs(params: Record<string, string | number | undefined> = {}) {
+  return apiRequest<SystemConfigListResponse>(`/api/v1/admin/system-config${qs(params)}`, { skipTenant: true })
+}
+
+export function getAdminSystemConfig(key: string) {
+  return apiRequest<SystemConfigResponse>(`/api/v1/admin/system-config/${encodeURIComponent(key)}`, { skipTenant: true })
+}
+
+export function upsertAdminSystemConfig(key: string, payload: UpsertSystemConfigPayload) {
+  return apiRequest<SystemConfigResponse>(`/api/v1/admin/system-config/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    skipTenant: true,
+    body: payload,
+  })
+}
+
+export function deleteAdminSystemConfig(key: string) {
+  return apiRequest<{ ok: boolean }>(`/api/v1/admin/system-config/${encodeURIComponent(key)}`, { method: 'DELETE', skipTenant: true })
 }

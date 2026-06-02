@@ -25,6 +25,9 @@ export const TenantApiKeysPage = lazy(() =>
 export const AdminTenantsPage = lazy(() => import('@/pages/AdminTenantsPage').then((m) => ({ default: m.AdminTenantsPage })))
 export const AdminUsersPage = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 export const AdminAuditPage = lazy(() => import('@/pages/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage })))
+export const AdminSystemConfigPage = lazy(() =>
+  import('@/pages/AdminSystemConfigPage').then((m) => ({ default: m.AdminSystemConfigPage })),
+)
 
 function LoadingFallback() {
   const { t } = useTranslation()

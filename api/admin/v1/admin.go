@@ -85,6 +85,33 @@ type ListAuditLogsReq struct {
 	Offset       int    `json:"offset"`
 }
 
+type ListSystemConfigsReq struct {
+	g.Meta   `path:"/admin/system-config" tags:"Admin" method:"get" summary:"List system configuration"`
+	Query    string `json:"query"`
+	Category string `json:"category"`
+	Limit    int    `json:"limit"`
+	Offset   int    `json:"offset"`
+}
+
+type GetSystemConfigReq struct {
+	g.Meta `path:"/admin/system-config/{key}" tags:"Admin" method:"get" summary:"Get system configuration"`
+	Key    string `v:"required"`
+}
+
+type UpsertSystemConfigReq struct {
+	g.Meta        `path:"/admin/system-config/{key}" tags:"Admin" method:"put" summary:"Create or update system configuration"`
+	Key           string `v:"required"`
+	Value         string `json:"value"`
+	ValueProvided bool   `json:"value_provided"`
+	ValueType     string `json:"value_type" v:"required"`
+	Description   string `json:"description"`
+}
+
+type DeleteSystemConfigReq struct {
+	g.Meta `path:"/admin/system-config/{key}" tags:"Admin" method:"delete" summary:"Delete system configuration"`
+	Key    string `v:"required"`
+}
+
 type SessionRes struct {
 	PlatformAdmin *service.PlatformAdminContext `json:"platform_admin"`
 }
@@ -111,6 +138,15 @@ type PlatformAdminListRes struct {
 type AuditListRes struct {
 	Logs  []service.AuditLog `json:"logs"`
 	Total int                `json:"total"`
+}
+
+type SystemConfigListRes struct {
+	Items []service.SystemConfigAdminItem `json:"items"`
+	Total int                             `json:"total"`
+}
+
+type SystemConfigRes struct {
+	Config *service.SystemConfigAdminItem `json:"config"`
 }
 
 type ActionRes struct {
