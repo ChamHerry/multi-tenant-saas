@@ -45,7 +45,7 @@ export function HealthPanel({ health, quickActions, loading }: HealthPanelProps)
         ) : (
           <div className="space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted">API</span>
+              <span className="text-muted">{t('dashboard.health.api')}</span>
               <span className="flex items-center gap-1.5 font-semibold">
                 <StatusDot status={health.api} />
                 {health.api === 'ok' ? t('dashboard.health.ok') : health.api}
@@ -61,7 +61,7 @@ export function HealthPanel({ health, quickActions, loading }: HealthPanelProps)
             {health.migration_version > 0 ? (
               <div className="flex items-center justify-between">
                 <span className="text-muted">{t('dashboard.health.migration')}</span>
-                <span className="font-semibold text-ink">v{health.migration_version}</span>
+                <span className="font-semibold text-ink">{t('dashboard.health.migrationVersionValue', { version: health.migration_version })}</span>
               </div>
             ) : null}
           </div>

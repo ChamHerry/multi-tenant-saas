@@ -79,7 +79,9 @@
       "title": "System Health",
       "ok": "Healthy",
       "database": "Database",
-      "migration": "Migration Version"
+      "migration": "Migration Version",
+      "api": "API",
+      "migrationVersionValue": "v{{version}}"
     },
     "quickActions": {
       "title": "Quick Actions",
@@ -147,7 +149,8 @@
         "nameLabel": "Name",
         "expiresAtLabel": "Expiration time, optional",
         "scopesLabel": "Scopes",
-        "submit": "Create organization key"
+        "submit": "Create organization key",
+        "namePlaceholder": "tenant-automation"
       },
       "scopePermissionDenied": "Insufficient permissions in the current organization",
       "table": {

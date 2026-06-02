@@ -179,7 +179,7 @@ export function TenantApiKeysPage() {
             label={t('apiKeys.tenant.dialog.nameLabel')}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="tenant-automation"
+            placeholder={t('apiKeys.tenant.dialog.namePlaceholder')}
             error={errors.name}
           />
           <Input
