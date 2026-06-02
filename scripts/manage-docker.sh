@@ -87,8 +87,8 @@ print_dev_summary() {
   echo "  Source mounted at /app inside the dev container."
   echo "  Go backend serves both API and built SPA (web/dist)."
   echo ""
-  echo "  After Go changes:    bash scripts/manage-docker.sh dev-restart"
-  echo "  After SPA changes:   bash scripts/manage-docker.sh dev-rebuild-spa"
+  echo "  After any changes:   bash scripts/manage-docker.sh dev-restart"
+  echo "  After SPA only:      bash scripts/manage-docker.sh dev-rebuild-spa"
   echo "============================================"
 }
 
@@ -103,8 +103,8 @@ Commands:
   dev              Fast dev mode: all-in-Docker with live source mount
   dev-down         Stop dev stack
   dev-logs         Follow dev container logs
-  dev-restart      Restart Go backend (picks up Go source changes)
-  dev-rebuild-spa  Rebuild SPA inside dev container (after frontend changes)
+  dev-restart      Restart Go backend + rebuild SPA (picks up all changes)
+  dev-rebuild-spa  Rebuild SPA only inside dev container (no Go restart)
   stop|down        Stop and remove containers
   restart          Stop, rebuild and start (production mode)
   status|ps        Show service status
@@ -223,6 +223,9 @@ case "$cmd" in
   dev-restart)
     compose_dev restart dev "$@"
     echo "Dev container restarted (Go will recompile on startup)."
+    echo "==> Rebuilding SPA inside dev container..."
+    compose_dev exec dev npm run build --prefix /app/web
+    echo "SPA rebuilt. Both frontend and backend have been restarted."
     ;;
 
   dev-rebuild-spa)
