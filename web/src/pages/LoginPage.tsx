@@ -175,8 +175,8 @@ export function LoginPage() {
           )}
           {emailNotVerified && (
             <div className="mt-3 rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              <p className="font-bold">Your email is not yet verified.</p>
-              <p className="mt-1">Some features may be limited. Please check your inbox for the verification email.</p>
+              <p className="font-bold">{copy.emailNotVerifiedTitle}</p>
+              <p className="mt-1">{copy.emailNotVerifiedDescription}</p>
               {!resendDone ? (
                 <button
                   type="button"
@@ -184,10 +184,10 @@ export function LoginPage() {
                   onClick={handleResend}
                   disabled={resending}
                 >
-                  {resending ? 'Sending...' : 'Resend verification email'}
+                  {resending ? copy.resendVerificationSending : copy.resendVerification}
                 </button>
               ) : (
-                <p className="mt-2 text-green-700">Verification email sent!</p>
+                <p className="mt-2 text-green-700">{copy.resendVerificationSent}</p>
               )}
             </div>
           )}

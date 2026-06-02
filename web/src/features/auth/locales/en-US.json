@@ -52,7 +52,12 @@
         "oauth_google_profile_failed": "Google profile lookup failed. Please try again.",
         "oauth_failed": "Social login failed. Please try again."
       }
-    }
+    },
+    "emailNotVerifiedTitle": "Your email is not yet verified.",
+    "emailNotVerifiedDescription": "Some features may be limited. Please check your inbox for the verification email.",
+    "resendVerification": "Resend verification email",
+    "resendVerificationSending": "Sending...",
+    "resendVerificationSent": "Verification email sent!"
   },
   "forgotPassword": {
     "title": "Reset your password",
@@ -99,7 +104,14 @@
     "error": "Verification failed. The link may be expired or already used.",
     "missingToken": "Missing verification token.",
     "resend": "Resend verification email",
-    "goToLogin": "Go to login"
+    "goToLogin": "Go to login",
+    "successTitle": "Email verified",
+    "successDescription": "Your email has been verified successfully.",
+    "redirecting": "Redirecting to login in 3 seconds...",
+    "errorTitle": "Verification failed",
+    "errorDescription": "We couldn't verify your email address.",
+    "resendSent": "Verification email sent! Please check your inbox.",
+    "resendEmailPlaceholder": "Enter your email to resend"
   },
   "totp": {
     "title": "Two-Factor Authentication",

@@ -30,3 +30,19 @@ func TestStatusFromCodeConflict(t *testing.T) {
 		t.Fatalf("statusFromCode(conflict)=%d", got)
 	}
 }
+
+func TestStatusFromCodeHTTPStatusCustomCodes(t *testing.T) {
+	cases := []struct {
+		code gcode.Code
+		want int
+	}{
+		{gcode.New(http.StatusNotFound, "TokenNotFound", nil), http.StatusNotFound},
+		{gcode.New(http.StatusGone, "TokenExpired", nil), http.StatusGone},
+		{gcode.New(http.StatusTooManyRequests, "RateLimited", nil), http.StatusTooManyRequests},
+	}
+	for _, tt := range cases {
+		if got := statusFromCode(tt.code); got != tt.want {
+			t.Fatalf("statusFromCode(%d)=%d want %d", tt.code.Code(), got, tt.want)
+		}
+	}
+}

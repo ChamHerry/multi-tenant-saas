@@ -291,8 +291,8 @@ export function AppShell() {
           <main className="mx-auto max-w-7xl p-4 sm:p-6">
             {emailNotVerified && (
               <div className="mb-4 rounded-panel border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                <p className="font-bold">Your email is not yet verified.</p>
-                <p className="mt-1">Some features may be limited. Please check your inbox for the verification email.</p>
+                <p className="font-bold">{t('appShell.emailVerification.title')}</p>
+                <p className="mt-1">{t('appShell.emailVerification.description')}</p>
                 {!verificationResent ? (
                   <button
                     type="button"
@@ -300,10 +300,10 @@ export function AppShell() {
                     onClick={handleResendVerification}
                     disabled={verificationResending}
                   >
-                    {verificationResending ? 'Sending...' : 'Resend verification email'}
+                    {verificationResending ? t('appShell.emailVerification.sending') : t('appShell.emailVerification.resend')}
                   </button>
                 ) : (
-                  <p className="mt-2 text-green-700">Verification email sent!</p>
+                  <p className="mt-2 text-green-700">{t('appShell.emailVerification.sent')}</p>
                 )}
               </div>
             )}

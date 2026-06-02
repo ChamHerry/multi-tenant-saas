@@ -246,7 +246,8 @@
       "loadingUsers": "加载用户...",
       "revokePlatformPermission": "撤销平台权限",
       "grantedAt": "授权时间",
-      "lastLogin": "最后登录"
+      "lastLogin": "最后登录",
+      "unlockAccount": "解锁账号"
     }
   },
   "access": {
@@ -277,6 +278,13 @@
     "errors": {
       "meLoad": "用户信息加载失败",
       "accessLoad": "权限信息加载失败"
+    },
+    "emailVerification": {
+      "title": "您的邮箱尚未验证。",
+      "description": "部分功能可能受限。请查收收件箱中的验证邮件。",
+      "resend": "重新发送验证邮件",
+      "sending": "正在发送...",
+      "sent": "验证邮件已发送！"
     }
   },
   "routes": {
