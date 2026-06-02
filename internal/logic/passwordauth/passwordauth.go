@@ -2,7 +2,11 @@ package passwordauth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net"
 	"regexp"
 	"strings"
@@ -692,4 +696,292 @@ func nullableTime(value any) *time.Time {
 	}
 	t := v.Time()
 	return &t
+}
+
+// ---------------------------------------------------------------------------
+// Password Reset
+// ---------------------------------------------------------------------------
+
+// generateResetToken creates a cryptographically secure random token.
+// Returns a 64-character hex-encoded string (32 bytes = 256 bits entropy).
+func generateResetToken() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", gerror.Wrap(err, "generate reset token")
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+// hashResetToken returns the SHA-256 hex digest of a token.
+func hashResetToken(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:])
+}
+
+// findPasswordUserByEmail returns the user ID for a password-identity email,
+// or empty string if not found.
+func findPasswordUserByEmail(ctx context.Context, email string) (string, error) {
+	cols := dao.UserIdentities.Columns()
+	value, err := dao.UserIdentities.Ctx(ctx).
+		Where(cols.Provider, passwordProvider).
+		Where("lower("+cols.Email+") = lower(?)", email).
+		Value(cols.UserId)
+	if err != nil {
+		return "", gerror.Wrap(err, "select user by email")
+	}
+	if value.IsNil() || value.String() == "" {
+		return "", nil
+	}
+	return value.String(), nil
+}
+
+// checkResetRateLimit checks whether the given email has exceeded the
+// password reset rate limit (3 requests per 5 minutes per email).
+func (s *sPasswordAuth) checkResetRateLimit(ctx context.Context, email string) error {
+	redisEnabled := service.Config().GetBool(ctx, "redis.enabled", false)
+	if !redisEnabled {
+		return nil
+	}
+	key := fmt.Sprintf("password-reset-rate:%s", normalizeEmail(email))
+	count, err := g.Redis().Incr(ctx, key)
+	if err != nil {
+		g.Log().Warningf(ctx, "[password-reset] rate limit check failed for %s: %v", email, err)
+		return nil // fail open — don't block legitimate requests
+	}
+	if count == 1 {
+		_, _ = g.Redis().Expire(ctx, key, int64(5*time.Minute.Seconds()))
+	}
+	maxRequests := service.Config().GetInt(ctx, "auth.password.resetRateLimit", 3)
+	if count > int64(maxRequests) {
+		return gerror.NewCode(gcode.CodeNotAuthorized, "too many reset requests; please try again later")
+	}
+	return nil
+}
+
+// resetURL builds the password reset page URL.
+func resetURL(ctx context.Context, token string) string {
+	base := strings.TrimRight(service.Config().GetString(ctx, "web.baseUrl", ""), "/")
+	if base == "" {
+		return ""
+	}
+	return base + "/reset-password?token=" + token
+}
+
+// ForgotPassword initiates the password reset flow by email.
+// It always returns nil error to prevent user enumeration, even when the
+// email does not exist. Rate limiting is the only case that returns an error.
+func (s *sPasswordAuth) ForgotPassword(ctx context.Context, email, ip string) error {
+	email = normalizeEmail(email)
+	if email == "" {
+		// Don't reveal whether email is valid
+		return nil
+	}
+
+	// Check rate limit (per email)
+	if err := s.checkResetRateLimit(ctx, email); err != nil {
+		return err
+	}
+
+	// Look up the user — silently return if not found (prevent enumeration)
+	userID, err := findPasswordUserByEmail(ctx, email)
+	if err != nil {
+		g.Log().Warningf(ctx, "[password-reset] lookup error for %s: %v", email, err)
+		return nil
+	}
+	if userID == "" {
+		// User not found — log and return success to prevent enumeration
+		_ = service.Audit().Write(ctx, service.AuditLogInput{
+			Action:       "auth.password.forgot",
+			ResourceType: "auth",
+			IP:           normalizeIP(ip),
+			Metadata:     map[string]any{"email": email, "result": "email_not_found"},
+		})
+		return nil
+	}
+
+	// Generate token
+	token, err := generateResetToken()
+	if err != nil {
+		return err
+	}
+
+	// Store hashed token
+	cols := dao.PasswordResetTokens.Columns()
+	_, err = dao.PasswordResetTokens.Ctx(ctx).Data(g.Map{
+		cols.UserId:      userID,
+		cols.TokenHash:   hashResetToken(token),
+		cols.ExpiresAt:   time.Now().Add(1 * time.Hour),
+		cols.RequestedIp: attemptIP(ip),
+	}).Insert()
+	if err != nil {
+		return gerror.Wrap(err, "insert password reset token")
+	}
+
+	// Get user display name for email
+	userName := email
+	if user, err := service.UserService().GetUser(ctx, userID); err == nil && user != nil {
+		if user.DisplayName != "" {
+			userName = user.DisplayName
+		}
+	}
+
+	// Send email asynchronously
+	targetURL := resetURL(ctx, token)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				g.Log().Warningf(ctx, "[email] panic sending password reset: %v", r)
+			}
+		}()
+		if err := service.Email().SendPasswordReset(ctx, service.SendPasswordResetInput{
+			ToEmail:  email,
+			UserName: userName,
+			ResetURL: targetURL,
+		}); err != nil {
+			g.Log().Warningf(ctx, "[email] failed to send password reset to %s: %v", email, err)
+		}
+	}()
+
+	_ = service.Audit().Write(ctx, service.AuditLogInput{
+		UserID:       userID,
+		Action:       "auth.password.forgot",
+		ResourceType: "auth",
+		IP:           normalizeIP(ip),
+		Metadata:     map[string]any{"email": email},
+	})
+
+	return nil
+}
+
+// ResetPassword verifies a reset token and sets a new password.
+// On success, all existing sessions for the user are revoked and a
+// password-changed notification is sent.
+func (s *sPasswordAuth) ResetPassword(ctx context.Context, token, newPassword, ip string) error {
+	token = strings.TrimSpace(token)
+	// Validate token format: must be 64 hex characters
+	if len(token) != 64 {
+		return gerror.NewCode(gcode.CodeInvalidParameter, "invalid token format")
+	}
+
+	// Hash the provided token
+	hashedToken := hashResetToken(token)
+
+	// Look up the token
+	cols := dao.PasswordResetTokens.Columns()
+	record, err := dao.PasswordResetTokens.Ctx(ctx).
+		Where(cols.TokenHash, hashedToken).
+		WhereNull(cols.UsedAt).
+		One()
+	if err != nil {
+		return gerror.Wrap(err, "select reset token")
+	}
+	if record.IsEmpty() {
+		performDummyCompare(token)
+		_ = service.Audit().Write(ctx, service.AuditLogInput{
+			Action:       "auth.password.reset.failed",
+			ResourceType: "auth",
+			IP:           normalizeIP(ip),
+			Metadata:     map[string]any{"reason": "invalid_token"},
+		})
+		return gerror.NewCode(gcode.CodeNotAuthorized, "invalid or expired reset token")
+	}
+
+	// Check expiration
+	if time.Now().After(record[cols.ExpiresAt].Time()) {
+		performDummyCompare(token)
+		_ = service.Audit().Write(ctx, service.AuditLogInput{
+			Action:       "auth.password.reset.failed",
+			ResourceType: "auth",
+			IP:           normalizeIP(ip),
+			Metadata:     map[string]any{"reason": "expired_token"},
+		})
+		return gerror.NewCode(gcode.CodeNotAuthorized, "invalid or expired reset token")
+	}
+
+	userID := record[cols.UserId].String()
+	if err = validateInternalID(userID); err != nil {
+		return err
+	}
+
+	// Hash the new password
+	passwordHash, err := s.hashPassword(ctx, newPassword)
+	if err != nil {
+		return err
+	}
+
+	hashCost := passwordCost(ctx)
+
+	// Execute in transaction: mark token used + update password
+	err = dao.PasswordResetTokens.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// Mark current token as used
+		_, err := dao.PasswordResetTokens.Ctx(ctx).TX(tx).
+			Where(cols.TokenHash, hashedToken).
+			WhereNull(cols.UsedAt).
+			Data(g.Map{cols.UsedAt: "now()"}).
+			Update()
+		if err != nil {
+			return gerror.Wrap(err, "mark reset token used")
+		}
+
+		// Revoke all other unused tokens for this user
+		_, err = dao.PasswordResetTokens.Ctx(ctx).TX(tx).
+			Where(cols.UserId, userID).
+			WhereNull(cols.UsedAt).
+			Where(cols.TokenHash+" != ?", hashedToken).
+			Data(g.Map{cols.UsedAt: "now()"}).
+			Update()
+		if err != nil {
+			return gerror.Wrap(err, "revoke other reset tokens")
+		}
+
+		// Update password credential
+		if err = upsertCredentialTx(ctx, tx, userID, string(passwordHash), hashCost); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Revoke all existing sessions for the user
+	if err = service.AuthSessionService().RevokeUserSessions(ctx, userID, "", "password_reset"); err != nil {
+		g.Log().Warningf(ctx, "[password-reset] failed to revoke sessions for %s: %v", userID, err)
+		// Non-fatal: password is already changed
+	}
+
+	// Send password changed notification asynchronously
+	userEmail := ""
+	displayName := ""
+	if user, err := service.UserService().GetUser(ctx, userID); err == nil && user != nil {
+		userEmail = user.Email
+		if user.DisplayName != "" {
+			displayName = user.DisplayName
+		} else {
+			displayName = userEmail
+		}
+	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				g.Log().Warningf(ctx, "[email] panic sending password changed: %v", r)
+			}
+		}()
+		if err := service.Email().SendPasswordChanged(ctx, service.SendPasswordChangedInput{
+			ToEmail:  userEmail,
+			UserName: displayName,
+		}); err != nil {
+			g.Log().Warningf(ctx, "[email] failed to send password changed to %s: %v", userEmail, err)
+		}
+	}()
+
+	_ = service.Audit().Write(ctx, service.AuditLogInput{
+		UserID:       userID,
+		Action:       "auth.password.reset",
+		ResourceType: "user",
+		ResourceID:   userID,
+		IP:           normalizeIP(ip),
+	})
+
+	return nil
 }

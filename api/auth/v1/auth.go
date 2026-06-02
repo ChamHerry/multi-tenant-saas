@@ -62,6 +62,25 @@ type ResendVerificationRes struct {
 	Message string `json:"message"`
 }
 
+type ForgotPasswordReq struct {
+	g.Meta `path:"/auth/forgot-password" tags:"Auth" method:"post" summary:"Request password reset email"`
+	Email  string `json:"email" v:"required|email"`
+}
+
+type ForgotPasswordRes struct {
+	OK bool `json:"ok"`
+}
+
+type ResetPasswordReq struct {
+	g.Meta      `path:"/auth/reset-password" tags:"Auth" method:"post" summary:"Reset password with token"`
+	Token       string `json:"token" v:"required|length:64,64"`
+	NewPassword string `json:"new_password" v:"required"`
+}
+
+type ResetPasswordRes struct {
+	OK bool `json:"ok"`
+}
+
 type ActionRes struct {
 	OK bool `json:"ok"`
 }

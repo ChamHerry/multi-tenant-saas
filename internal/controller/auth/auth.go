@@ -131,6 +131,29 @@ func (c *PublicControllerV1) VerifyEmail(ctx context.Context, req *v1.VerifyEmai
 	return &v1.VerifyEmailRes{OK: true, Message: "Email verified successfully"}, nil
 }
 
+func (c *PublicControllerV1) ForgotPassword(ctx context.Context, req *v1.ForgotPasswordReq) (res *v1.ForgotPasswordRes, err error) {
+	if !service.Config().GetBool(ctx, "auth.password.enabled", true) {
+		// Return OK even when password auth is disabled, to avoid information leakage.
+		return &v1.ForgotPasswordRes{OK: true}, nil
+	}
+	ip := service.BizCtx().GetClientIP(ctx)
+	if err = service.PasswordAuth().ForgotPassword(ctx, req.Email, ip); err != nil {
+		return nil, err
+	}
+	return &v1.ForgotPasswordRes{OK: true}, nil
+}
+
+func (c *PublicControllerV1) ResetPassword(ctx context.Context, req *v1.ResetPasswordReq) (res *v1.ResetPasswordRes, err error) {
+	if !service.Config().GetBool(ctx, "auth.password.enabled", true) {
+		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "password authentication is disabled")
+	}
+	ip := service.BizCtx().GetClientIP(ctx)
+	if err = service.PasswordAuth().ResetPassword(ctx, req.Token, req.NewPassword, ip); err != nil {
+		return nil, err
+	}
+	return &v1.ResetPasswordRes{OK: true}, nil
+}
+
 func (c *PublicControllerV1) ResendVerification(ctx context.Context, req *v1.ResendVerificationReq) (res *v1.ResendVerificationRes, err error) {
 	if err = service.EmailVerification().ResendVerification(ctx, req.Email); err != nil {
 		return nil, err

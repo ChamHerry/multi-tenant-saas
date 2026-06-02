@@ -127,6 +127,12 @@ export function LoginPage() {
         </form>
         <div className="mt-5 space-y-3 rounded-panel border border-line bg-surface-soft p-3 text-xs leading-6 text-muted">
           <div>
+            <div className="font-bold text-ink">{copy.forgotPasswordTitle}</div>
+            <Link className="font-bold text-brand hover:text-brand-hover" to="/forgot-password">
+              {copy.forgotPasswordLink}
+            </Link>
+          </div>
+          <div>
             <div className="font-bold text-ink">{copy.noAccountTitle}</div>
             <Link className="font-bold text-brand hover:text-brand-hover" to="/register" state={location.state}>
               {copy.registerLink}

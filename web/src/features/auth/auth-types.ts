@@ -88,3 +88,28 @@ export const actionResponseSchema = z.object({
   ok: z.boolean(),
 })
 export type ActionResponse = z.infer<typeof actionResponseSchema>
+
+export function createForgotPasswordPayloadSchema(t: SchemaTranslator = defaultAuthSchemaTranslator) {
+  return z.object({
+    email: z.string()
+      .min(1, t('emailRequired', validationFallback.emailRequired))
+      .email(t('emailInvalid', validationFallback.emailInvalid)),
+  })
+}
+export const forgotPasswordPayloadSchema = createForgotPasswordPayloadSchema()
+export type ForgotPasswordPayload = z.infer<ReturnType<typeof createForgotPasswordPayloadSchema>>
+
+export function createResetPasswordPayloadSchema(t: SchemaTranslator = defaultAuthSchemaTranslator) {
+  return z
+    .object({
+      token: z.string().min(64, t('tokenRequired', validationFallback.tokenRequired)),
+      new_password: z.string().min(15, t('newPasswordMin', validationFallback.newPasswordMin, { min: 15 })),
+      confirm_new_password: z.string().min(1, t('confirmNewPasswordRequired', validationFallback.confirmNewPasswordRequired)),
+    })
+    .refine((data) => data.new_password === data.confirm_new_password, {
+      message: t('newPasswordsMustMatch', validationFallback.newPasswordsMustMatch),
+      path: ['confirm_new_password'],
+    })
+}
+export const resetPasswordPayloadSchema = createResetPasswordPayloadSchema()
+export type ResetPasswordPayload = z.infer<ReturnType<typeof createResetPasswordPayloadSchema>>
