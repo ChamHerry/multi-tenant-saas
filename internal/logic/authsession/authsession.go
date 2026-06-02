@@ -153,9 +153,9 @@ func (s *sAuthSession) Authenticate(ctx context.Context, cookieValue string) (*s
 	record, err := dao.AuthSessions.Ctx(ctx).
 		Where(cols.Id, sessionID).
 		Where(cols.SecretHash, hashToken(secretToken, secret)).
-		Where(cols.RevokedAt+" IS NULL").
-		Where(cols.ExpiresAt+" > NOW()").
-		Where(cols.IdleExpiresAt+" > NOW()").
+		Where(cols.RevokedAt + " IS NULL").
+		Where(cols.ExpiresAt + " > NOW()").
+		Where(cols.IdleExpiresAt + " > NOW()").
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select auth session")
@@ -183,6 +183,32 @@ func (s *sAuthSession) Get(ctx context.Context, sessionID string) (*service.Auth
 	return mapSession(record)
 }
 
+func (s *sAuthSession) ListUserSessions(ctx context.Context, userID string) ([]*service.AuthSession, error) {
+	if err := validateInternalID(userID); err != nil {
+		return nil, err
+	}
+	cols := dao.AuthSessions.Columns()
+	records, err := dao.AuthSessions.Ctx(ctx).
+		Where(cols.UserId, userID).
+		Where(cols.RevokedAt + " IS NULL").
+		Where(cols.ExpiresAt + " > NOW()").
+		Where(cols.IdleExpiresAt + " > NOW()").
+		OrderDesc(cols.LastUsedAt).
+		All()
+	if err != nil {
+		return nil, gerror.Wrap(err, "select user auth sessions")
+	}
+	sessions := make([]*service.AuthSession, 0, len(records))
+	for _, record := range records {
+		session, err := mapSession(record)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, session)
+	}
+	return sessions, nil
+}
+
 func (s *sAuthSession) ValidateCSRF(ctx context.Context, sessionID, token string) error {
 	if err := validateInternalID(sessionID); err != nil {
 		return err
@@ -199,7 +225,7 @@ func (s *sAuthSession) ValidateCSRF(ctx context.Context, sessionID, token string
 	record, err := dao.AuthSessions.Ctx(ctx).
 		Fields(cols.CsrfHash).
 		Where(cols.Id, sessionID).
-		Where(cols.RevokedAt+" IS NULL").
+		Where(cols.RevokedAt + " IS NULL").
 		One()
 	if err != nil {
 		return gerror.Wrap(err, "select csrf hash")
@@ -222,7 +248,7 @@ func (s *sAuthSession) Revoke(ctx context.Context, sessionID, reason string) err
 	cols := dao.AuthSessions.Columns()
 	_, err := dao.AuthSessions.Ctx(ctx).
 		Where(cols.Id, sessionID).
-		Where(cols.RevokedAt+" IS NULL").
+		Where(cols.RevokedAt + " IS NULL").
 		Data(g.Map{cols.RevokedAt: "now()", cols.RevokeReason: reason, cols.UpdatedAt: "now()"}).
 		Update()
 	return gerror.Wrap(err, "revoke auth session")
@@ -240,7 +266,7 @@ func (s *sAuthSession) RevokeUserSessions(ctx context.Context, userID, exceptSes
 	cols := dao.AuthSessions.Columns()
 	m := dao.AuthSessions.Ctx(ctx).
 		Where(cols.UserId, userID).
-		Where(cols.RevokedAt+" IS NULL").
+		Where(cols.RevokedAt + " IS NULL").
 		Data(g.Map{
 			cols.RevokedAt:    "now()",
 			cols.RevokeReason: reason,
@@ -278,7 +304,7 @@ func (s *sAuthSession) touch(ctx context.Context, sessionID string) error {
 	record, err := dao.AuthSessions.Ctx(ctx).
 		Fields(cols.IdleExpiresAt, cols.ExpiresAt).
 		Where(cols.Id, sessionID).
-		Where(cols.RevokedAt+" IS NULL").
+		Where(cols.RevokedAt + " IS NULL").
 		One()
 	if err != nil {
 		return gerror.Wrap(err, "select session for touch")
@@ -296,7 +322,7 @@ func (s *sAuthSession) touch(ctx context.Context, sessionID string) error {
 
 	_, err = dao.AuthSessions.Ctx(ctx).
 		Where(cols.Id, sessionID).
-		Where(cols.RevokedAt+" IS NULL").
+		Where(cols.RevokedAt + " IS NULL").
 		Data(g.Map{
 			cols.LastUsedAt:    time.Now(),
 			cols.IdleExpiresAt: newIdle,

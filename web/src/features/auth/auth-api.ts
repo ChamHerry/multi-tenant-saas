@@ -1,5 +1,13 @@
 import { apiRequest } from '@/shared/api/client'
-import type { ActionResponse, AuthSessionResponse, ChangePasswordPayload, LoginPayload, MeResponse } from './auth-types'
+import type {
+  ActionResponse,
+  AuthSessionResponse,
+  ChangePasswordPayload,
+  ListSessionsResponse,
+  LoginPayload,
+  MeResponse,
+  RevokeOtherSessionsResponse,
+} from './auth-types'
 import type { VerifyTOTPPayload } from './totp-types'
 import type { TenantMembershipWithTenant } from '@/features/tenants/tenant-types'
 
@@ -49,6 +57,18 @@ export function logout() {
 
 export function getAuthSession() {
   return apiRequest<AuthSessionResponse>('/api/v1/auth/session', { skipTenant: true })
+}
+
+export function listSessions() {
+  return apiRequest<ListSessionsResponse>('/api/v1/me/sessions', { skipTenant: true })
+}
+
+export function revokeSession(sessionId: string) {
+  return apiRequest<ActionResponse>(`/api/v1/me/sessions/${sessionId}`, { method: 'DELETE', skipTenant: true })
+}
+
+export function revokeOtherSessions() {
+  return apiRequest<RevokeOtherSessionsResponse>('/api/v1/me/sessions', { method: 'DELETE', skipTenant: true })
 }
 
 export function changePassword(payload: Omit<ChangePasswordPayload, 'confirm_new_password'>) {

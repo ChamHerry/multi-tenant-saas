@@ -10,6 +10,7 @@ import {
   MyInvitationsPage,
   PersonalApiKeysPage,
   SecurityEventsPage,
+  SessionManagementPage,
   TenantAccessPage,
   TenantApiKeysPage,
   TenantAuditPage,
@@ -146,6 +147,15 @@ export const router = createBrowserRouter([
           </LazyRoute>
         ),
         handle: { titleKey: 'routes.securityEvents.title' },
+      },
+      {
+        path: 'me/sessions',
+        element: (
+          <LazyRoute>
+            <SessionManagementPage />
+          </LazyRoute>
+        ),
+        handle: { titleKey: 'routes.sessions.title' },
       },
       {
         path: 'me/security/totp/setup',

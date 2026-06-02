@@ -164,5 +164,31 @@
       "backupCodesRemaining": "{count} backup code(s) remaining",
       "loadFailed": "Failed to load 2FA status"
     }
+  },
+  "sessions": {
+    "title": "Active sessions",
+    "description": "Review browsers and devices currently signed in to your account. Revoke sessions you no longer recognize.",
+    "loading": "Loading active sessions...",
+    "emptyTitle": "No active sessions",
+    "emptyDescription": "Sign in again to create a browser session.",
+    "currentBadge": "Current session",
+    "currentHint": "Use sign out to end this session.",
+    "revoke": "Revoke",
+    "revokeOthers": "Revoke others",
+    "confirmRevoke": "Revoke this session? The device will need to sign in again.",
+    "confirmRevokeOthers": "Revoke all other sessions? Other devices will need to sign in again.",
+    "revokeSuccess": "Session revoked.",
+    "revokeOthersSuccess": "Revoked {count} other session(s).",
+    "privacyNote": "IP addresses are masked before display. Session tokens and CSRF hashes are never returned to the browser.",
+    "headers": {
+      "device": "Device",
+      "ip": "IP",
+      "lastActive": "Last active",
+      "created": "Signed in",
+      "expires": "Expires"
+    },
+    "errors": {
+      "loadFailed": "Failed to load active sessions"
+    }
   }
 }

@@ -164,5 +164,31 @@
       "backupCodesRemaining": "剩余 {count} 个备份码",
       "loadFailed": "2FA 状态加载失败"
     }
+  },
+  "sessions": {
+    "title": "活跃会话",
+    "description": "查看当前登录到您账号的浏览器和设备。发现不认识的会话时可以撤销。",
+    "loading": "正在加载活跃会话...",
+    "emptyTitle": "暂无活跃会话",
+    "emptyDescription": "重新登录后会创建浏览器会话。",
+    "currentBadge": "当前会话",
+    "currentHint": "请使用退出登录结束当前会话。",
+    "revoke": "撤销",
+    "revokeOthers": "撤销其他会话",
+    "confirmRevoke": "确定撤销该会话？对应设备需要重新登录。",
+    "confirmRevokeOthers": "确定撤销所有其他会话？其他设备需要重新登录。",
+    "revokeSuccess": "会话已撤销。",
+    "revokeOthersSuccess": "已撤销 {count} 个其他会话。",
+    "privacyNote": "IP 地址展示前会被掩码处理。Session token 和 CSRF hash 永远不会返回给浏览器。",
+    "headers": {
+      "device": "设备",
+      "ip": "IP",
+      "lastActive": "最后活跃",
+      "created": "登录时间",
+      "expires": "过期时间"
+    },
+    "errors": {
+      "loadFailed": "活跃会话加载失败"
+    }
   }
 }

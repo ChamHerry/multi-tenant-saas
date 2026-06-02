@@ -28,6 +28,7 @@ type IAuthSession interface {
 	Create(ctx context.Context, userID, userAgent, ip string) (*AuthSession, *AuthSessionCookies, error)
 	Authenticate(ctx context.Context, cookieValue string) (*AuthIdentity, error)
 	Get(ctx context.Context, sessionID string) (*AuthSession, error)
+	ListUserSessions(ctx context.Context, userID string) ([]*AuthSession, error)
 	ValidateCSRF(ctx context.Context, sessionID, token string) error
 	Revoke(ctx context.Context, sessionID, reason string) error
 	RevokeUserSessions(ctx context.Context, userID, exceptSessionID, reason string) error

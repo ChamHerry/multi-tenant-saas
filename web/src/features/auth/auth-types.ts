@@ -46,6 +46,37 @@ export const authSessionResponseSchema = z.object({
 })
 export type AuthSessionResponse = z.infer<typeof authSessionResponseSchema>
 
+export const sessionDeviceSchema = z.object({
+  browser: z.string(),
+  browser_version: z.string().optional(),
+  os: z.string(),
+  is_mobile: z.boolean(),
+})
+export type SessionDevice = z.infer<typeof sessionDeviceSchema>
+
+export const sessionListItemSchema = z.object({
+  session_id: z.string(),
+  is_current: z.boolean(),
+  device: sessionDeviceSchema,
+  ip: z.string(),
+  location: z.string().nullable().optional(),
+  last_active_at: z.string(),
+  created_at: z.string(),
+  expires_at: z.string(),
+})
+export type SessionListItem = z.infer<typeof sessionListItemSchema>
+
+export const listSessionsResponseSchema = z.object({
+  sessions: z.array(sessionListItemSchema),
+})
+export type ListSessionsResponse = z.infer<typeof listSessionsResponseSchema>
+
+export const revokeOtherSessionsResponseSchema = z.object({
+  ok: z.boolean(),
+  revoked_count: z.number(),
+})
+export type RevokeOtherSessionsResponse = z.infer<typeof revokeOtherSessionsResponseSchema>
+
 const validationFallback = defaultAuthMessages.validation
 
 export function createLoginPayloadSchema(t: SchemaTranslator = defaultAuthSchemaTranslator) {

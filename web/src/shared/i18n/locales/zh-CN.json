@@ -319,6 +319,9 @@
     },
     "totpSetup": {
       "title": "设置双因素认证"
+    },
+    "sessions": {
+      "title": "活跃会话"
     }
   },
   "nav": {
@@ -338,7 +341,8 @@
       "tenantAudit": "组织审计日志",
       "platformTenants": "平台组织",
       "platformUsers": "平台用户",
-      "platformAudit": "平台审计日志"
+      "platformAudit": "平台审计日志",
+      "sessions": "活跃会话"
     }
   }
 }
