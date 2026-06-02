@@ -41,7 +41,7 @@ INSERT INTO public.system_config (key, value, value_type, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO public.system_config (key, value, value_type, description) VALUES
-('rateLimit.enabled',                   'false', 'bool',    'Rate limit toggle'),
+('rateLimit.enabled',                   'true',  'bool',    'Rate limit toggle'),
 ('rateLimit.rps',                       '20.0',  'number',  'Requests per second'),
 ('rateLimit.burst',                     '40',    'number',  'Max burst size')
 ON CONFLICT (key) DO NOTHING;
