@@ -79,7 +79,9 @@
       "title": "系统健康",
       "ok": "正常",
       "database": "数据库",
-      "migration": "迁移版本"
+      "migration": "迁移版本",
+      "api": "API",
+      "migrationVersionValue": "v{{version}}"
     },
     "quickActions": {
       "title": "快捷操作",
@@ -147,7 +149,8 @@
         "nameLabel": "名称",
         "expiresAtLabel": "过期时间，可选",
         "scopesLabel": "Scopes",
-        "submit": "创建组织 Key"
+        "submit": "创建组织 Key",
+        "namePlaceholder": "tenant-automation"
       },
       "scopePermissionDenied": "当前组织权限不足",
       "table": {

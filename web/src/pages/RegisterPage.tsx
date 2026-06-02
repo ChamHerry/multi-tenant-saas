@@ -116,7 +116,7 @@ export function RegisterPage() {
           <Toast tone="red" message={registerMutation.isError ? errorMessage(registerMutation.error) : undefined} />
           {verificationSent && (
             <div className="mt-3 rounded-panel border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-              Registration successful! Please check your email and verify your address.
+              {copy.verificationSent}
             </div>
           )}
         </form>
