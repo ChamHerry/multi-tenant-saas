@@ -43,10 +43,49 @@ func (s *sAuthSession) Create(ctx context.Context, userID, userAgent, ip string)
 	if err := validateInternalID(userID); err != nil {
 		return nil, nil, err
 	}
-	secret, err := sessionSecret(ctx)
+
+	// Batch-read session configuration (single round-trip via Redis MGET).
+	cfg, err := service.Config().GetStrings(ctx, []string{
+		"auth.session.secret",
+		"auth.session.absoluteTTL",
+		"auth.session.idleTTL",
+		"auth.session.cookie.name",
+		"auth.session.cookie.csrfName",
+		"auth.session.cookie.path",
+		"auth.session.cookie.domain",
+	})
 	if err != nil {
 		return nil, nil, err
 	}
+
+	sessionSecret := strings.TrimSpace(cfg["auth.session.secret"])
+	if sessionSecret == "" {
+		return nil, nil, gerror.NewCode(gcode.CodeMissingConfiguration, "auth.session.secret is required")
+	}
+
+	absoluteTTL, _ := time.ParseDuration(cfg["auth.session.absoluteTTL"])
+	if absoluteTTL <= 0 {
+		absoluteTTL = defaultAbsoluteTTL
+	}
+	idleTTL, _ := time.ParseDuration(cfg["auth.session.idleTTL"])
+	if idleTTL <= 0 {
+		idleTTL = defaultIdleTTL
+	}
+
+	sessionCookieName := strings.TrimSpace(cfg["auth.session.cookie.name"])
+	if sessionCookieName == "" {
+		sessionCookieName = defaultSessionCookieName
+	}
+	csrfCookieName := strings.TrimSpace(cfg["auth.session.cookie.csrfName"])
+	if csrfCookieName == "" {
+		csrfCookieName = defaultCSRFCookieName
+	}
+	cookiePath := strings.TrimSpace(cfg["auth.session.cookie.path"])
+	if cookiePath == "" {
+		cookiePath = "/"
+	}
+	cookieDomain := strings.TrimSpace(cfg["auth.session.cookie.domain"])
+
 	sessionID := uuid.GenerateV4()
 	if err = validateInternalID(sessionID); err != nil {
 		return nil, nil, err
@@ -59,8 +98,6 @@ func (s *sAuthSession) Create(ctx context.Context, userID, userAgent, ip string)
 	if err != nil {
 		return nil, nil, err
 	}
-	absoluteTTL := durationConfig(ctx, "auth.session.absoluteTTL", defaultAbsoluteTTL)
-	idleTTL := durationConfig(ctx, "auth.session.idleTTL", defaultIdleTTL)
 	now := time.Now().UTC()
 	expiresAt := now.Add(absoluteTTL)
 	idleExpiresAt := now.Add(idleTTL)
@@ -75,8 +112,8 @@ func (s *sAuthSession) Create(ctx context.Context, userID, userAgent, ip string)
 	_, err = dao.AuthSessions.Ctx(ctx).Data(g.Map{
 		cols.Id:            sessionID,
 		cols.UserId:        userID,
-		cols.SecretHash:    hashToken(secretToken, secret),
-		cols.CsrfHash:      hashToken(csrfToken, secret),
+		cols.SecretHash:    hashToken(secretToken, sessionSecret),
+		cols.CsrfHash:      hashToken(csrfToken, sessionSecret),
 		cols.UserAgent:     trimForDB(userAgent),
 		cols.Ip:            ipVal,
 		cols.ExpiresAt:     expiresAt,
@@ -93,7 +130,13 @@ func (s *sAuthSession) Create(ctx context.Context, userID, userAgent, ip string)
 	if err != nil {
 		return nil, nil, err
 	}
-	cookies := s.buildCookies(ctx, sessionID+"."+secretToken, csrfToken, expiresAt)
+
+	// Build cookies using batch-read values for name, path, and domain.
+	// Secure and SameSite still come from cookieAttrs (which reads auth.session.cookie.secure / server.env individually).
+	attrs := cookieAttrs(ctx)
+	attrs.Path = cookiePath
+	attrs.Domain = cookieDomain
+	cookies := buildCookiesWithConfig(sessionCookieName, csrfCookieName, attrs, sessionID+"."+secretToken, csrfToken, expiresAt)
 	return session, cookies, nil
 }
 
@@ -211,11 +254,11 @@ func (s *sAuthSession) RevokeUserSessions(ctx context.Context, userID, exceptSes
 }
 
 func (s *sAuthSession) SessionCookieName(ctx context.Context) string {
-	return strings.TrimSpace(g.Cfg().MustGet(ctx, "auth.session.cookie.name", defaultSessionCookieName).String())
+	return strings.TrimSpace(service.Config().GetString(ctx, "auth.session.cookie.name", defaultSessionCookieName))
 }
 
 func (s *sAuthSession) CSRFCookieName(ctx context.Context) string {
-	return strings.TrimSpace(g.Cfg().MustGet(ctx, "auth.session.cookie.csrfName", defaultCSRFCookieName).String())
+	return strings.TrimSpace(service.Config().GetString(ctx, "auth.session.cookie.csrfName", defaultCSRFCookieName))
 }
 
 func (s *sAuthSession) ClearCookies(ctx context.Context) *service.AuthSessionCookies {
@@ -263,14 +306,17 @@ func (s *sAuthSession) touch(ctx context.Context, sessionID string) error {
 }
 
 func (s *sAuthSession) buildCookies(ctx context.Context, sessionValue, csrfValue string, expiresAt time.Time) *service.AuthSessionCookies {
-	attrs := cookieAttrs(ctx)
+	return buildCookiesWithConfig(s.SessionCookieName(ctx), s.CSRFCookieName(ctx), cookieAttrs(ctx), sessionValue, csrfValue, expiresAt)
+}
+
+func buildCookiesWithConfig(sessionCookieName, csrfCookieName string, attrs cookieConfig, sessionValue, csrfValue string, expiresAt time.Time) *service.AuthSessionCookies {
 	maxAge := int(time.Until(expiresAt).Seconds())
 	if maxAge < 0 {
 		maxAge = 0
 	}
 	return &service.AuthSessionCookies{
-		Session: &http.Cookie{Name: s.SessionCookieName(ctx), Value: sessionValue, Path: attrs.Path, Domain: attrs.Domain, MaxAge: maxAge, Expires: expiresAt, HttpOnly: true, Secure: attrs.Secure, SameSite: attrs.SameSite},
-		CSRF:    &http.Cookie{Name: s.CSRFCookieName(ctx), Value: csrfValue, Path: attrs.Path, Domain: attrs.Domain, MaxAge: maxAge, Expires: expiresAt, HttpOnly: false, Secure: attrs.Secure, SameSite: attrs.SameSite},
+		Session: &http.Cookie{Name: sessionCookieName, Value: sessionValue, Path: attrs.Path, Domain: attrs.Domain, MaxAge: maxAge, Expires: expiresAt, HttpOnly: true, Secure: attrs.Secure, SameSite: attrs.SameSite},
+		CSRF:    &http.Cookie{Name: csrfCookieName, Value: csrfValue, Path: attrs.Path, Domain: attrs.Domain, MaxAge: maxAge, Expires: expiresAt, HttpOnly: false, Secure: attrs.Secure, SameSite: attrs.SameSite},
 	}
 }
 
@@ -282,16 +328,16 @@ type cookieConfig struct {
 }
 
 func cookieAttrs(ctx context.Context) cookieConfig {
-	path := strings.TrimSpace(g.Cfg().MustGet(ctx, "auth.session.cookie.path", "/").String())
+	path := strings.TrimSpace(service.Config().GetString(ctx, "auth.session.cookie.path", "/"))
 	if path == "" {
 		path = "/"
 	}
-	domain := strings.TrimSpace(g.Cfg().MustGet(ctx, "auth.session.cookie.domain", "").String())
+	domain := strings.TrimSpace(service.Config().GetString(ctx, "auth.session.cookie.domain", ""))
 	secureDefault := !isLocalEnv(ctx)
 	return cookieConfig{
 		Path:     path,
 		Domain:   domain,
-		Secure:   g.Cfg().MustGet(ctx, "auth.session.cookie.secure", secureDefault).Bool(),
+		Secure:   service.Config().GetBool(ctx, "auth.session.cookie.secure", secureDefault),
 		SameSite: http.SameSiteLaxMode,
 	}
 }
@@ -323,7 +369,7 @@ func hashToken(token, secret string) string {
 }
 
 func sessionSecret(ctx context.Context) (string, error) {
-	secret := strings.TrimSpace(g.Cfg().MustGet(ctx, "auth.session.secret", "").String())
+	secret := strings.TrimSpace(service.Config().GetString(ctx, "auth.session.secret", ""))
 	if secret == "" {
 		return "", gerror.NewCode(gcode.CodeMissingConfiguration, "auth.session.secret is required")
 	}
@@ -331,12 +377,8 @@ func sessionSecret(ctx context.Context) (string, error) {
 }
 
 func durationConfig(ctx context.Context, key string, fallback time.Duration) time.Duration {
-	value := strings.TrimSpace(g.Cfg().MustGet(ctx, key, fallback.String()).String())
-	if value == "" {
-		return fallback
-	}
-	d, err := time.ParseDuration(value)
-	if err != nil || d <= 0 {
+	d := service.Config().GetDuration(ctx, key, fallback)
+	if d <= 0 {
 		return fallback
 	}
 	return d
@@ -400,6 +442,6 @@ func nullableTime(value any) *time.Time {
 }
 
 func isLocalEnv(ctx context.Context) bool {
-	env := strings.ToLower(strings.TrimSpace(g.Cfg().MustGet(ctx, "server.env", "local").String()))
+	env := strings.ToLower(strings.TrimSpace(service.Config().GetString(ctx, "server.env", "local")))
 	return env == "local" || env == "test"
 }

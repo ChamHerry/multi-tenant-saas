@@ -22,7 +22,7 @@ func New() service.IAutoMigrate {
 }
 
 func (s *sAutoMigrate) Up(ctx context.Context) error {
-	enabled := g.Cfg().MustGet(ctx, "automigrate.enabled", true).Bool()
+	enabled := service.Config().GetBool(ctx, "automigrate.enabled", true)
 	if !enabled {
 		g.Log().Info(ctx, "automigrate disabled")
 		return nil

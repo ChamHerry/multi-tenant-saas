@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	"multi-tenant-saas/internal/service"
@@ -60,9 +59,9 @@ func bearerToken(header string) string {
 }
 
 func devHeaderEnabled(ctx context.Context) bool {
-	if !g.Cfg().MustGet(ctx, "auth.devHeader.enabled", false).Bool() {
+	if !service.Config().GetBool(ctx, "auth.devHeader.enabled", false) {
 		return false
 	}
-	env := strings.ToLower(strings.TrimSpace(g.Cfg().MustGet(ctx, "server.env", "local").String()))
+	env := strings.ToLower(strings.TrimSpace(service.Config().GetString(ctx, "server.env", "local")))
 	return env == "local" || env == "test"
 }

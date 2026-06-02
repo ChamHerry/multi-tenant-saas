@@ -1,3 +1,6 @@
+# Docker bootstrap config — only what is needed before DB/Redis are available.
+# All other settings are stored in the system_config database table.
+
 server:
   env: "local"
   address: ":8000"
@@ -8,34 +11,20 @@ logger:
   level: "all"
   stdout: true
 
-auth:
-  devHeader:
-    enabled: true
-  apiKey:
-    secret: "repomind-docker-dev-secret-change-me"
-  password:
-    enabled: true
-    registrationEnabled: true
-    minLength: 15
-    bcryptCost: 12
-  session:
-    secret: "repomind-docker-session-secret-change-me"
-    absoluteTTL: "168h"
-    idleTTL: "12h"
-    cookie:
-      name: "saas_template_session"
-      csrfName: "saas_template_csrf"
-      path: "/"
+encryptionKey: "docker-dev-32-byte-encryption-key!!"
 
-automigrate:
-  enabled: true
-
-web:
-  baseUrl: "http://127.0.0.1:8000"
-
-tenant:
-  lifecycle:
-    purgeDelayHours: 720
+redis:
+  default:
+    address:          "redis:6379"
+    db:               0
+    pass:             ""
+    maxIdle:          10
+    maxActive:        100
+    idleTimeout:      "60s"
+    maxConnLifetime:  "60s"
+    dialTimeout:      "5s"
+    readTimeout:      "3s"
+    writeTimeout:     "3s"
 
 database:
   default:

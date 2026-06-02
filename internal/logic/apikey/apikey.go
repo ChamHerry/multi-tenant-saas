@@ -418,7 +418,7 @@ func ensureActiveMembership(ctx context.Context, tenantID, userID string) error 
 }
 
 func enforcePersonalKeyLimit(ctx context.Context, userID string) error {
-	limit := g.Cfg().MustGet(ctx, "auth.apiKey.maxPersonalKeysPerUser", 10).Int()
+	limit := service.Config().GetInt(ctx, "auth.apiKey.maxPersonalKeysPerUser", 10)
 	if limit <= 0 {
 		return nil
 	}
@@ -490,7 +490,7 @@ func listKeyGrantsForTenant(ctx context.Context, apiKeyID, tenantID string) ([]s
 }
 
 func apiKeySecret(ctx context.Context) (string, error) {
-	secret := strings.TrimSpace(g.Cfg().MustGet(ctx, "auth.apiKey.secret", "").String())
+	secret := strings.TrimSpace(service.Config().GetString(ctx, "auth.apiKey.secret", ""))
 	if secret == "" {
 		return "", gerror.NewCode(gcode.CodeMissingConfiguration, "auth.apiKey.secret is required")
 	}

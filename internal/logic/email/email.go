@@ -18,15 +18,15 @@ func init() {
 type sEmail struct{}
 
 func (s *sEmail) SendInvitation(ctx context.Context, in service.SendInvitationInput) error {
-	host := g.Cfg().MustGet(ctx, "email.smtp.host", "").String()
+	host := service.Config().GetString(ctx, "email.smtp.host", "")
 	if host == "" {
 		g.Log().Infof(ctx, "[email] invitation to %s for tenant %s skipped (no SMTP configured)", in.ToEmail, in.TenantName)
 		return nil
 	}
-	port := g.Cfg().MustGet(ctx, "email.smtp.port", 587).Int()
-	username := g.Cfg().MustGet(ctx, "email.smtp.username", "").String()
-	password := g.Cfg().MustGet(ctx, "email.smtp.password", "").String()
-	from := g.Cfg().MustGet(ctx, "email.from", "noreply@example.com").String()
+	port := service.Config().GetInt(ctx, "email.smtp.port", 587)
+	username := service.Config().GetString(ctx, "email.smtp.username", "")
+	password := service.Config().GetString(ctx, "email.smtp.password", "")
+	from := service.Config().GetString(ctx, "email.from", "noreply@example.com")
 
 	body := buildInvitationBody(from, in)
 	addr := fmt.Sprintf("%s:%d", host, port)

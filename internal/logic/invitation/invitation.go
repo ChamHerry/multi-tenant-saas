@@ -568,7 +568,7 @@ func hashToken(token string) string {
 }
 
 func acceptURL(ctx context.Context, token string) string {
-	base := strings.TrimRight(g.Cfg().MustGet(ctx, "web.baseUrl", "").String(), "/")
+	base := strings.TrimRight(service.Config().GetString(ctx, "web.baseUrl", ""), "/")
 	if base == "" {
 		return ""
 	}

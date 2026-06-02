@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	"multi-tenant-saas/internal/service"
@@ -43,9 +42,9 @@ type rateLimitCfg struct {
 
 func rateLimitConfig(ctx context.Context) rateLimitCfg {
 	return rateLimitCfg{
-		Enabled: g.Cfg().MustGet(ctx, "rateLimit.enabled", false).Bool(),
-		RPS:     g.Cfg().MustGet(ctx, "rateLimit.rps", 20.0).Float64(),
-		Burst:   g.Cfg().MustGet(ctx, "rateLimit.burst", 40).Int(),
+		Enabled: service.Config().GetBool(ctx, "rateLimit.enabled", false),
+		RPS:     service.Config().GetFloat(ctx, "rateLimit.rps", 20.0),
+		Burst:   service.Config().GetInt(ctx, "rateLimit.burst", 40),
 	}
 }
 

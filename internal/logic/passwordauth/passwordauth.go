@@ -479,7 +479,7 @@ func (s *sPasswordAuth) ensureLoginAllowed(ctx context.Context, email string) er
 }
 
 func (s *sPasswordAuth) recordLoginFailure(ctx context.Context, email, ip string) error {
-	threshold := g.Cfg().MustGet(ctx, "auth.password.lockThreshold", defaultLockThreshold).Int()
+	threshold := service.Config().GetInt(ctx, "auth.password.lockThreshold", defaultLockThreshold)
 	if threshold <= 0 {
 		threshold = defaultLockThreshold
 	}
@@ -596,7 +596,7 @@ func validatePassword(ctx context.Context, password string) error {
 	if password == "" {
 		return gerror.NewCode(gcode.CodeMissingParameter, "password is required")
 	}
-	minLen := g.Cfg().MustGet(ctx, "auth.password.minLength", defaultPasswordMinLen).Int()
+	minLen := service.Config().GetInt(ctx, "auth.password.minLength", defaultPasswordMinLen)
 	if minLen <= 0 {
 		minLen = defaultPasswordMinLen
 	}
@@ -610,7 +610,7 @@ func validatePassword(ctx context.Context, password string) error {
 }
 
 func passwordCost(ctx context.Context) int {
-	cost := g.Cfg().MustGet(ctx, "auth.password.bcryptCost", defaultBcryptCost).Int()
+	cost := service.Config().GetInt(ctx, "auth.password.bcryptCost", defaultBcryptCost)
 	if cost < 10 || cost > 16 {
 		return defaultBcryptCost
 	}
@@ -618,15 +618,7 @@ func passwordCost(ctx context.Context) int {
 }
 
 func durationConfig(ctx context.Context, key string, fallback time.Duration) time.Duration {
-	value := strings.TrimSpace(g.Cfg().MustGet(ctx, key, fallback.String()).String())
-	if value == "" {
-		return fallback
-	}
-	d, err := time.ParseDuration(value)
-	if err != nil || d <= 0 {
-		return fallback
-	}
-	return d
+	return service.Config().GetDuration(ctx, key, fallback)
 }
 
 func normalizeEmail(email string) string {
