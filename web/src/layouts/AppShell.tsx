@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useMatches, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Building2, LogOut } from 'lucide-react'
+import { Building2, CircleUser, LogOut } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccess } from '@/features/access/access-hooks'
 import { useLogoutMutation, useMe } from '@/features/auth/auth-hooks'
@@ -126,7 +126,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-page">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[18rem] border-r border-line bg-white/85 px-4 py-5 shadow-soft backdrop-blur lg:block">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[18rem] flex-col border-r border-line bg-white/85 px-4 py-5 shadow-soft backdrop-blur lg:flex">
         {currentMembership ? (
           <div ref={tenantMenuRef} className="relative">
             <button
@@ -224,6 +224,37 @@ export function AppShell() {
             </div>
           ))}
         </nav>
+
+        <div className="mt-auto pt-4">
+          <div ref={userMenuRef} className="relative">
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 rounded-panel px-3 py-2.5 text-sm font-bold transition text-muted hover:bg-brand-soft hover:text-brand"
+              onClick={() => {
+                setIsUserMenuOpen((current) => !current);
+                setIsTenantMenuOpen(false);
+              }}
+            >
+              <CircleUser className="size-4" />
+              <span className="truncate">{currentUserLabel}</span>
+            </button>
+            {isUserMenuOpen ? (
+              <div className="absolute bottom-full inset-x-0 z-20 mb-2 rounded-card border border-line bg-white p-2 shadow-brand">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-panel px-3 py-2 text-left text-sm font-bold text-muted transition hover:bg-brand-soft hover:text-brand disabled:cursor-not-allowed disabled:opacity-55"
+                  onClick={() => void logout()}
+                  disabled={logoutMutation.isPending}
+                >
+                  <LogOut className="size-4" />
+                  <span>
+                    {logoutMutation.isPending ? t('appShell.user.logoutPending') : t('appShell.user.logout')}
+                  </span>
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </aside>
 
       <div className="lg:pl-[18rem]">
@@ -237,33 +268,6 @@ export function AppShell() {
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <LanguageSwitcher />
-                <div ref={userMenuRef} className="relative">
-                  <button
-                    type="button"
-                    className="max-w-[16rem] rounded-panel bg-transparent px-3 py-2 text-sm font-bold text-ink shadow-soft transition hover:bg-brand-soft hover:text-brand"
-                    onClick={() => {
-                      setIsUserMenuOpen((current) => !current);
-                      setIsTenantMenuOpen(false);
-                    }}
-                  >
-                    <span className="block truncate">{currentUserLabel}</span>
-                  </button>
-                  {isUserMenuOpen ? (
-                    <div className="absolute right-0 top-full z-20 mt-2 min-w-[12rem] rounded-card border border-line bg-white p-2 shadow-brand">
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-3 rounded-panel px-3 py-2 text-left text-sm font-bold text-muted transition hover:bg-brand-soft hover:text-brand disabled:cursor-not-allowed disabled:opacity-55"
-                        onClick={() => void logout()}
-                        disabled={logoutMutation.isPending}
-                      >
-                        <LogOut className="size-4" />
-                        <span>
-                          {logoutMutation.isPending ? t('appShell.user.logoutPending') : t('appShell.user.logout')}
-                        </span>
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
               </div>
             </div>
           </header>
