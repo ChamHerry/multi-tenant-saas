@@ -24,7 +24,6 @@ type SystemConfigColumns struct {
 	Key         string // key
 	Value       string // value
 	ValueType   string // value_type
-	TenantId    string // tenant_id
 	Description string // description
 	IsEncrypted string // is_encrypted
 	CreatedAt   string // created_at
@@ -36,7 +35,6 @@ var systemConfigColumns = SystemConfigColumns{
 	Key:         "key",
 	Value:       "value",
 	ValueType:   "value_type",
-	TenantId:    "tenant_id",
 	Description: "description",
 	IsEncrypted: "is_encrypted",
 	CreatedAt:   "created_at",
