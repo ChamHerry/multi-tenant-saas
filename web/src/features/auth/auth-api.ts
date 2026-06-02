@@ -49,3 +49,21 @@ export function resendVerification(email: string) {
     { method: 'POST', body: { email }, skipAuth: true, skipTenant: true },
   )
 }
+
+export function forgotPassword(payload: { email: string }) {
+  return apiRequest<ActionResponse>('/api/v1/auth/forgot-password', {
+    method: 'POST',
+    body: payload,
+    skipAuth: true,
+    skipTenant: true,
+  })
+}
+
+export function resetPassword(payload: { token: string; new_password: string }) {
+  return apiRequest<ActionResponse>('/api/v1/auth/reset-password', {
+    method: 'POST',
+    body: payload,
+    skipAuth: true,
+    skipTenant: true,
+  })
+}

@@ -11,6 +11,8 @@ type IAuthPublicV1 interface {
 	Register(ctx context.Context, req *v1.RegisterReq) (res *v1.AuthUserRes, err error)
 	VerifyEmail(ctx context.Context, req *v1.VerifyEmailReq) (res *v1.VerifyEmailRes, err error)
 	ResendVerification(ctx context.Context, req *v1.ResendVerificationReq) (res *v1.ResendVerificationRes, err error)
+	ForgotPassword(ctx context.Context, req *v1.ForgotPasswordReq) (res *v1.ForgotPasswordRes, err error)
+	ResetPassword(ctx context.Context, req *v1.ResetPasswordReq) (res *v1.ResetPasswordRes, err error)
 }
 
 type IAuthV1 interface {

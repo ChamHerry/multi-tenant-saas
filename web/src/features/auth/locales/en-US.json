@@ -10,7 +10,8 @@
     "currentPasswordRequired": "Enter your current password",
     "newPasswordMin": "New password must be at least {min} characters",
     "confirmNewPasswordRequired": "Confirm your new password",
-    "newPasswordsMustMatch": "New passwords do not match"
+    "newPasswordsMustMatch": "New passwords do not match",
+    "tokenRequired": "Reset token is required"
   },
   "login": {
     "title": "Sign in to the SaaS console",
@@ -23,7 +24,30 @@
     "noAccountTitle": "Need an account?",
     "registerLink": "Create a new account",
     "localAccountTitle": "Create the first local account",
-    "localAccountCommand": "go run . user-password-create --email admin@example.com --password '0123456789abcde' --name Admin --email-verified true"
+    "localAccountCommand": "go run . user-password-create --email admin@example.com --password '0123456789abcde' --name Admin --email-verified true",
+    "forgotPasswordTitle": "Forgot your password?",
+    "forgotPasswordLink": "Reset password"
+  },
+  "forgotPassword": {
+    "title": "Reset your password",
+    "description": "Enter the email address associated with your account and we'll send you a link to reset your password.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "admin@example.com",
+    "submit": "Send reset link",
+    "successMessage": "If an account exists for that email, you will receive a password reset link shortly.",
+    "backToLogin": "Back to sign in"
+  },
+  "resetPassword": {
+    "title": "Set a new password",
+    "description": "Enter your new password below.",
+    "newPasswordLabel": "New password",
+    "newPasswordPlaceholder": "At least 15 characters",
+    "confirmNewPasswordLabel": "Confirm new password",
+    "confirmNewPasswordPlaceholder": "Re-enter your new password",
+    "submit": "Reset password",
+    "successMessage": "Your password has been reset. Please sign in with your new password.",
+    "invalidToken": "This reset link is invalid or has expired. Please request a new one.",
+    "backToLogin": "Back to sign in"
   },
   "register": {
     "title": "Register for the SaaS console",

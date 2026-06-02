@@ -10,7 +10,8 @@
     "currentPasswordRequired": "请输入当前密码",
     "newPasswordMin": "新密码至少 {min} 个字符",
     "confirmNewPasswordRequired": "请确认新密码",
-    "newPasswordsMustMatch": "两次输入的新密码不一致"
+    "newPasswordsMustMatch": "两次输入的新密码不一致",
+    "tokenRequired": "请输入重置令牌"
   },
   "login": {
     "title": "登录 SaaS 控制台",
@@ -23,7 +24,30 @@
     "noAccountTitle": "没有账号？",
     "registerLink": "注册新账号",
     "localAccountTitle": "首次本地创建账号",
-    "localAccountCommand": "go run . user-password-create --email admin@example.com --password '0123456789abcde' --name Admin --email-verified true"
+    "localAccountCommand": "go run . user-password-create --email admin@example.com --password '0123456789abcde' --name Admin --email-verified true",
+    "forgotPasswordTitle": "忘记密码？",
+    "forgotPasswordLink": "重置密码"
+  },
+  "forgotPassword": {
+    "title": "重置密码",
+    "description": "输入您账号关联的邮箱地址，我们将发送密码重置链接。",
+    "emailLabel": "邮箱",
+    "emailPlaceholder": "admin@example.com",
+    "submit": "发送重置链接",
+    "successMessage": "如果该邮箱已注册，您将收到一封密码重置邮件。",
+    "backToLogin": "返回登录"
+  },
+  "resetPassword": {
+    "title": "设置新密码",
+    "description": "请在下方输入新密码。",
+    "newPasswordLabel": "新密码",
+    "newPasswordPlaceholder": "至少 15 个字符",
+    "confirmNewPasswordLabel": "确认新密码",
+    "confirmNewPasswordPlaceholder": "请再次输入新密码",
+    "submit": "重置密码",
+    "successMessage": "密码已重置，请使用新密码登录。",
+    "invalidToken": "重置链接无效或已过期，请重新申请。",
+    "backToLogin": "返回登录"
   },
   "register": {
     "title": "注册 SaaS 控制台",

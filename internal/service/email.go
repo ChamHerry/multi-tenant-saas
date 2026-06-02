@@ -18,6 +18,10 @@ type IEmail interface {
 	SendInvitation(ctx context.Context, in SendInvitationInput) error
 	// SendEmailVerification sends a verification email with a verification link.
 	SendEmailVerification(ctx context.Context, in SendEmailVerificationInput) error
+	// SendPasswordReset sends a password reset email with a reset link.
+	SendPasswordReset(ctx context.Context, in SendPasswordResetInput) error
+	// SendPasswordChanged sends a notification email after a password change.
+	SendPasswordChanged(ctx context.Context, in SendPasswordChangedInput) error
 }
 
 // SendInvitationInput carries the data needed to construct an invitation email.
@@ -28,6 +32,19 @@ type SendInvitationInput struct {
 	AcceptURL     string
 	Role          string
 	InvitationID  string
+}
+
+// SendPasswordResetInput carries the data needed to construct a password reset email.
+type SendPasswordResetInput struct {
+	ToEmail  string
+	UserName string
+	ResetURL string
+}
+
+// SendPasswordChangedInput carries the data needed to construct a password-changed notification.
+type SendPasswordChangedInput struct {
+	ToEmail  string
+	UserName string
 }
 
 var localEmail IEmail
