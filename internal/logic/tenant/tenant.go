@@ -227,7 +227,7 @@ func (s *sTenant) DeleteTenant(ctx context.Context, tenantID, actorUserID string
 	if err = service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: actorUserID, Action: "tenant.delete", ResourceType: "tenant", ResourceID: tenantID}); err != nil {
 		return err
 	}
-	purgeDelayHours := g.Cfg().MustGet(ctx, "tenant.lifecycle.purgeDelayHours", 720).Int()
+	purgeDelayHours := service.Config().GetInt(ctx, "tenant.lifecycle.purgeDelayHours", 720)
 	if purgeDelayHours > 0 {
 		_, _ = service.TenantLifecycle().RequestPurge(ctx, tenantID, actorUserID, time.Now().Add(time.Duration(purgeDelayHours)*time.Hour))
 	}

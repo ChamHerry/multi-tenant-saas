@@ -1,3 +1,8 @@
+# Minimal bootstrap config — only what is needed before DB/Redis are available.
+# All other settings are stored in the system_config database table.
+#
+# Copy this file to config.yaml and customize for your environment.
+
 server:
   env:         "local"
   address:     ":8000"
@@ -8,42 +13,27 @@ logger:
   level : "all"
   stdout: true
 
-# Authentication. devHeader is local/test only. API keys are stored as HMAC-SHA256(raw_key, secret).
-auth:
-  devHeader:
-    enabled: true
-  apiKey:
-    secret: "saas-template-local-dev-secret-change-me"
-  password:
-    enabled: true
-    registrationEnabled: false
-    minLength: 15
-    bcryptCost: 12
-  session:
-    secret: "saas-template-local-session-secret-change-me"
-    absoluteTTL: "168h"
-    idleTTL: "12h"
-    cookie:
-      name: "saas_template_session"
-      csrfName: "saas_template_csrf"
-      path: "/"
+# AES-256-GCM encryption key for sensitive config values (secrets).
+# Must be exactly 32 bytes. Change in production!
+encryptionKey: "change-me-to-a-32-byte-key-now!!"
 
-# AutoMigrate has only one switch. Database connection is read from database.default.
-automigrate:
-  enabled: true
+# Redis connection for config caching.
+redis:
+  default:
+    address:          "127.0.0.1:6379"
+    db:               0
+    pass:             ""
+    maxIdle:          10
+    maxActive:        100
+    idleTimeout:      "60s"
+    maxConnLifetime:  "60s"
+    dialTimeout:      "5s"
+    readTimeout:      "3s"
+    writeTimeout:     "3s"
 
-web:
-  # Used to generate invitation accept links when email delivery is not configured.
-  baseUrl: "http://127.0.0.1:5173"
-
-tenant:
-  lifecycle:
-    # Soft-deleted tenants are eligible for physical purge after this delay.
-    purgeDelayHours: 720
-
+# Database connection. GoFrame uses this for all DB operations.
 database:
   default:
-    # Format: pgsql:<user>:<password>@tcp(<host>:<port>)/<database>
     link: "pgsql:saas_template:secret@tcp(127.0.0.1:55432)/saas_template"
     debug: false
     charset: "utf8"

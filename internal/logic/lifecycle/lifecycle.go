@@ -197,7 +197,7 @@ func exportTenant(ctx context.Context, tenantID string) (string, error) {
 	if err := validateInternalID(tenantID); err != nil {
 		return "", err
 	}
-	exportDir := g.Cfg().MustGet(ctx, "tenant.lifecycle.exportDir", "/tmp/tenant-exports").String()
+	exportDir := service.Config().GetString(ctx, "tenant.lifecycle.exportDir", "/tmp/tenant-exports")
 	if err := os.MkdirAll(exportDir, 0o755); err != nil {
 		return "", gerror.Wrap(err, "create export directory")
 	}

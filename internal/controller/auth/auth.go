@@ -5,7 +5,6 @@ import (
 
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	authapi "multi-tenant-saas/api/auth"
@@ -25,7 +24,7 @@ func NewV1() authapi.IAuthV1 {
 }
 
 func (c *PublicControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *v1.AuthUserRes, err error) {
-	if !g.Cfg().MustGet(ctx, "auth.password.enabled", true).Bool() {
+	if !service.Config().GetBool(ctx, "auth.password.enabled", true) {
 		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "password login is disabled")
 	}
 	// IP and UserAgent are now auto-filled from BizContext in Audit.Write.
@@ -43,7 +42,7 @@ func (c *PublicControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *
 }
 
 func (c *PublicControllerV1) Register(ctx context.Context, req *v1.RegisterReq) (res *v1.AuthUserRes, err error) {
-	if !g.Cfg().MustGet(ctx, "auth.password.registrationEnabled", false).Bool() {
+	if !service.Config().GetBool(ctx, "auth.password.registrationEnabled", false) {
 		return nil, gerror.NewCode(gcode.CodeNotAuthorized, "password registration is disabled")
 	}
 	user, err := service.PasswordAuth().RegisterPasswordUser(ctx, service.RegisterPasswordUserInput{

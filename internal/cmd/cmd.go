@@ -15,6 +15,8 @@ import (
 	_ "multi-tenant-saas/internal/logic"
 	"multi-tenant-saas/internal/middleware"
 	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/crypto"
+	credis "multi-tenant-saas/utility/redis"
 )
 
 var (
@@ -25,10 +27,28 @@ var (
 		Usage: "main",
 		Brief: "start http server",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
-			if err = validateRuntimeAuthConfig(ctx); err != nil {
+			// 1. Validate bootstrap config (DB + server + encryptionKey)
+			if err = validateBootstrapConfig(ctx); err != nil {
 				return err
 			}
+
+			// 2. Initialize encryption (reads encryptionKey from YAML)
+			if err = crypto.InitEncryption(ctx); err != nil {
+				return err
+			}
+
+			// 3. Run database migrations
 			if err = service.AutoMigrate().Up(ctx); err != nil {
+				return err
+			}
+
+			// 4. Initialize Redis (non-fatal: app runs without Redis if unavailable)
+			if err = credis.GetCacheManager().InitAdapter(ctx, "default"); err != nil {
+				g.Log().Warningf(ctx, "[cmd] Redis init failed, config will query DB directly: %v", err)
+			}
+
+			// 5. Validate runtime auth config (reads from system_config table)
+			if err = validateRuntimeAuthConfig(ctx); err != nil {
 				return err
 			}
 
@@ -444,14 +464,31 @@ func optionBool(parser *gcmd.Parser, name string) bool {
 	return value.Bool()
 }
 
+// validateBootstrapConfig checks only the minimal YAML configs needed before DB/Redis are available.
+func validateBootstrapConfig(ctx context.Context) error {
+	link := strings.TrimSpace(g.Cfg().MustGet(ctx, "database.default.link", "").String())
+	if link == "" {
+		return gerror.New("database.default.link is required in config.yaml")
+	}
+	addr := strings.TrimSpace(g.Cfg().MustGet(ctx, "server.address", "").String())
+	if addr == "" {
+		return gerror.New("server.address is required in config.yaml")
+	}
+	encKey := strings.TrimSpace(g.Cfg().MustGet(ctx, "encryptionKey", "").String())
+	if encKey == "" {
+		return gerror.New("encryptionKey is required in config.yaml")
+	}
+	return nil
+}
+
 func validateRuntimeAuthConfig(ctx context.Context) error {
-	env := strings.ToLower(strings.TrimSpace(g.Cfg().MustGet(ctx, "server.env", "local").String()))
-	devHeader := g.Cfg().MustGet(ctx, "auth.devHeader.enabled", false).Bool()
+	env := service.Config().GetString(ctx, "server.env", "local")
+	devHeader := service.Config().GetBool(ctx, "auth.devHeader.enabled", false)
 	if devHeader && env != "local" && env != "test" {
 		return gerror.New("auth.devHeader.enabled is only allowed when server.env is local or test")
 	}
-	passwordEnabled := g.Cfg().MustGet(ctx, "auth.password.enabled", true).Bool()
-	sessionSecret := strings.TrimSpace(g.Cfg().MustGet(ctx, "auth.session.secret", "").String())
+	passwordEnabled := service.Config().GetBool(ctx, "auth.password.enabled", true)
+	sessionSecret := service.Config().GetString(ctx, "auth.session.secret", "")
 	if passwordEnabled && sessionSecret == "" {
 		return gerror.New("auth.session.secret is required when password login is enabled")
 	}
@@ -459,7 +496,7 @@ func validateRuntimeAuthConfig(ctx context.Context) error {
 		if strings.Contains(sessionSecret, "change-me") {
 			return gerror.New("auth.session.secret must be changed outside local/test")
 		}
-		apiKeySecret := strings.TrimSpace(g.Cfg().MustGet(ctx, "auth.apiKey.secret", "").String())
+		apiKeySecret := service.Config().GetString(ctx, "auth.apiKey.secret", "")
 		if apiKeySecret == "" || strings.Contains(apiKeySecret, "change-me") {
 			return gerror.New("auth.apiKey.secret must be configured outside local/test")
 		}
@@ -471,7 +508,7 @@ func validateRuntimeAuthConfig(ctx context.Context) error {
 // such as expiring pending invitations.
 func startBackgroundJobs(ctx context.Context) {
 	go func() {
-		interval := g.Cfg().MustGet(ctx, "invitation.autoExpireInterval", "5m").Duration()
+		interval := service.Config().GetDuration(ctx, "invitation.autoExpireInterval", 5*time.Minute)
 		if interval <= 0 {
 			interval = 5 * time.Minute
 		}
