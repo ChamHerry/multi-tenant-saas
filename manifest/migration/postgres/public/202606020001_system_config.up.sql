@@ -17,7 +17,7 @@ COMMENT ON COLUMN public.system_config.is_encrypted IS 'Whether value is AES-256
 INSERT INTO public.system_config (key, value, value_type, description) VALUES
 ('auth.devHeader.enabled',              'false',  'bool',   'Dev X-User-ID header auth toggle'),
 ('auth.password.enabled',               'true',   'bool',   'Password login toggle'),
-('auth.password.registrationEnabled',   'false',  'bool',   'Password registration toggle'),
+('auth.password.registrationEnabled',   'true',   'bool',   'Password registration toggle'),
 ('auth.password.minLength',             '15',     'number', 'Minimum password length'),
 ('auth.password.bcryptCost',            '12',     'number', 'Bcrypt cost factor (10-16)'),
 ('auth.password.lockThreshold',         '10',     'number', 'Failed login lock threshold'),

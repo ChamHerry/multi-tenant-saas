@@ -67,3 +67,7 @@ export function resetPassword(payload: { token: string; new_password: string }) 
     skipTenant: true,
   })
 }
+
+export function unlockUser(userId: string) {
+  return apiRequest<ActionResponse>(`/api/v1/admin/users/${userId}/unlock`, { method: 'POST' })
+}

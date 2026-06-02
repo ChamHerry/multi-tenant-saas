@@ -14,6 +14,7 @@ type IAdminV1 interface {
 	RestoreTenant(ctx context.Context, req *v1.RestoreTenantReq) (res *v1.ActionRes, err error)
 	ListUsers(ctx context.Context, req *v1.ListUsersReq) (res *v1.ListUsersRes, err error)
 	UpdateUser(ctx context.Context, req *v1.UpdateUserReq) (res *v1.ActionRes, err error)
+	UnlockUser(ctx context.Context, req *v1.UnlockUserReq) (res *v1.ActionRes, err error)
 	ListPlatformAdmins(ctx context.Context, req *v1.ListPlatformAdminsReq) (res *v1.PlatformAdminListRes, err error)
 	GrantPlatformAdmin(ctx context.Context, req *v1.GrantPlatformAdminReq) (res *v1.ActionRes, err error)
 	RevokePlatformAdmin(ctx context.Context, req *v1.RevokePlatformAdminReq) (res *v1.ActionRes, err error)

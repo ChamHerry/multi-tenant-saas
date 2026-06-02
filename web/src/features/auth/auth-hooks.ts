@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { changePassword, forgotPassword, getAuthSession, getMe, getMyTenants, login, logout, register, resetPassword } from './auth-api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { changePassword, forgotPassword, getAuthSession, getMe, getMyTenants, login, logout, register, resetPassword, unlockUser } from './auth-api'
 
 export const authKeys = {
   me: ['auth', 'me'] as const,
@@ -53,4 +53,14 @@ export function useForgotPasswordMutation() {
 
 export function useResetPasswordMutation() {
   return useMutation({ mutationFn: resetPassword })
+}
+
+export function useUnlockUserMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: unlockUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+    },
+  })
 }

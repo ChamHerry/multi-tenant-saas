@@ -4,6 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/gogf/gf/v2/errors/gcode"
+	"github.com/gogf/gf/v2/errors/gerror"
+
 	apiadmin "multi-tenant-saas/api/admin"
 	"multi-tenant-saas/api/admin/v1"
 	"multi-tenant-saas/internal/service"
@@ -86,6 +89,42 @@ func (c *ControllerV1) UpdateUser(ctx context.Context, req *v1.UpdateUserReq) (r
 	if err = service.PlatformAdminService().UpdateUserStatus(ctx, pac.UserID, req.User, req.Status); err != nil {
 		return nil, err
 	}
+	return &v1.ActionRes{OK: true}, nil
+}
+
+func (c *ControllerV1) UnlockUser(ctx context.Context, req *v1.UnlockUserReq) (res *v1.ActionRes, err error) {
+	pac, err := service.MustPlatformAdminContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = service.PlatformAdminService().Require(ctx, service.PlatformPermissionUserManage); err != nil {
+		return nil, err
+	}
+	// Look up user to get email (needed as login_key for auth_login_attempts)
+	user, err := service.UserService().GetUser(ctx, req.Id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, gerror.NewCode(gcode.CodeNotFound, "user not found")
+	}
+	if err = service.PasswordAuth().UnlockUser(ctx, service.UnlockUserInput{
+		UserID: user.ID,
+		Email:  user.Email,
+	}); err != nil {
+		return nil, err
+	}
+	// Audit log for unlock
+	_ = service.Audit().Write(ctx, service.AuditLogInput{
+		UserID:       pac.UserID,
+		Action:       "auth.account.unlocked",
+		ResourceType: "auth",
+		ResourceID:   user.ID,
+		Metadata: map[string]any{
+			"unlocked_by": pac.UserID,
+			"email":       user.Email,
+		},
+	})
 	return &v1.ActionRes{OK: true}, nil
 }
 

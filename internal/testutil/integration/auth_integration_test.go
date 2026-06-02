@@ -3,8 +3,11 @@
 package integration_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
+
+	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/testutil"
 )
@@ -241,5 +244,122 @@ func TestChangePassword(t *testing.T) {
 		"email": "%s",
 		"password": "%s"
 	}`, email, newPassword))
+	testutil.AssertSuccess(t, resp)
+}
+
+// TestLogin_Lockout verifies account lockout after N failed attempts.
+func TestLogin_Lockout(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	email := "lockout@example.com"
+	testutil.RegisterAdditionalUser(t, suite.Client.BaseURL(), email, "Lockout User")
+
+	// Fail 5 times (LOCKOUT_MAX_ATTEMPTS = 5)
+	for i := 0; i < 5; i++ {
+		resp := suite.Client.POST("/api/v1/auth/login", fmt.Sprintf(`{
+			"email": "%s",
+			"password": "WrongPassword12345!"
+		}`, email))
+		if resp.StatusCode != 401 && resp.StatusCode != 403 {
+			t.Fatalf("attempt %d: expected 401/403, got %d body=%s", i+1, resp.StatusCode, resp.Body)
+		}
+	}
+
+	// Now even the correct password should fail (lock is active)
+	resp := suite.Client.POST("/api/v1/auth/login", fmt.Sprintf(`{
+		"email": "%s",
+		"password": "%s"
+	}`, email, testutil.TestPassword()))
+	if resp.StatusCode != 401 && resp.StatusCode != 403 {
+		t.Fatalf("expected lockout to reject correct password, got %d body=%s", resp.StatusCode, resp.Body)
+	}
+}
+
+// TestLogin_WindowReset verifies failures outside the window are ignored.
+func TestLogin_WindowReset(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	email := "window@example.com"
+	testutil.RegisterAdditionalUser(t, suite.Client.BaseURL(), email, "Window User")
+
+	// Fail once
+	resp := suite.Client.POST("/api/v1/auth/login", fmt.Sprintf(`{
+		"email": "%s",
+		"password": "WrongPassword12345!"
+	}`, email))
+	if resp.StatusCode != 401 && resp.StatusCode != 403 {
+		t.Fatal("expected first failure to return 401/403")
+	}
+
+	// Manually set last_failed_at to 30 minutes ago so window has expired
+	_, err := g.DB().Exec(context.Background(),
+		"UPDATE auth_login_attempts SET last_failed_at = NOW() - INTERVAL '30 minutes' WHERE login_key = $1",
+		email,
+	)
+	if err != nil {
+		t.Fatalf("failed to backdate last_failed_at: %v", err)
+	}
+
+	// Now 4 more failures should NOT cause lockout (counter resets to 1 after window)
+	for i := 0; i < 4; i++ {
+		resp := suite.Client.POST("/api/v1/auth/login", fmt.Sprintf(`{
+			"email": "%s",
+			"password": "WrongPassword12345!"
+		}`, email))
+		if resp.StatusCode != 401 && resp.StatusCode != 403 {
+			t.Fatalf("expected 401/403 for failure, got %d", resp.StatusCode)
+		}
+	}
+
+	// Correct password should still work (only 4 failures in window + 1 old)
+	resp = suite.Client.POST("/api/v1/auth/login", fmt.Sprintf(`{
+		"email": "%s",
+		"password": "%s"
+	}`, email, testutil.TestPassword()))
+	testutil.AssertSuccess(t, resp)
+}
+
+// TestAdmin_UnlockUser verifies the admin unlock endpoint.
+func TestAdmin_UnlockUser(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	// Register the admin user first (first user gets super_admin automatically)
+	testutil.RegisterUser(t, suite.Client, "admin@example.com", "Admin User")
+
+	// Register a target user with a separate client
+	targetEmail := "unlockme@example.com"
+	targetUser := testutil.RegisterAdditionalUser(t, suite.Client.BaseURL(), targetEmail, "Unlock Me")
+	targetID := targetUser["id"].(string)
+
+	// Lock the target account by failing 5 times
+	targetClient := testutil.NewTestClient(t, suite.Client.BaseURL())
+	for i := 0; i < 5; i++ {
+		targetClient.POST("/api/v1/auth/login", fmt.Sprintf(`{
+			"email": "%s",
+			"password": "WrongPassword12345!"
+		}`, targetEmail))
+	}
+
+	// Verify target is locked (correct password fails)
+	resp := targetClient.POST("/api/v1/auth/login", fmt.Sprintf(`{
+		"email": "%s",
+		"password": "%s"
+	}`, targetEmail, testutil.TestPassword()))
+	if resp.StatusCode != 401 && resp.StatusCode != 403 {
+		t.Fatalf("expected lockout to reject correct password, got %d", resp.StatusCode)
+	}
+
+	// Unlock via admin endpoint (main client is the super_admin)
+	resp = suite.Client.POST(fmt.Sprintf("/api/v1/admin/users/%s/unlock", targetID), "")
+	testutil.AssertSuccess(t, resp)
+
+	// Now target user should be able to log in
+	resp = targetClient.POST("/api/v1/auth/login", fmt.Sprintf(`{
+		"email": "%s",
+		"password": "%s"
+	}`, targetEmail, testutil.TestPassword()))
 	testutil.AssertSuccess(t, resp)
 }

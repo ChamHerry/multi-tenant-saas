@@ -84,6 +84,22 @@ export function createChangePasswordPayloadSchema(t: SchemaTranslator = defaultA
 export const changePasswordPayloadSchema = createChangePasswordPayloadSchema()
 export type ChangePasswordPayload = z.infer<ReturnType<typeof createChangePasswordPayloadSchema>>
 
+// ---------------------------------------------------------------------------
+// Account Lockout
+// ---------------------------------------------------------------------------
+
+export interface LockoutState {
+  failedCount: number
+  lockedUntil: Date | null
+}
+
+export const LOCKOUT_MAX_ATTEMPTS = 5
+export const LOCKOUT_DURATION_MINUTES = 15
+
+// ---------------------------------------------------------------------------
+// Action Response
+// ---------------------------------------------------------------------------
+
 export const actionResponseSchema = z.object({
   ok: z.boolean(),
 })

@@ -47,6 +47,11 @@ type UpdateUserReq struct {
 	Status string `json:"status" v:"required"`
 }
 
+type UnlockUserReq struct {
+	g.Meta `path:"/admin/users/{id}/unlock" tags:"Admin" method:"post" summary:"Unlock a locked user account"`
+	Id     string `v:"required"` // User ID (UUID v4)
+}
+
 type ListPlatformAdminsReq struct {
 	g.Meta `path:"/admin/platform-admins" tags:"Admin" method:"get" summary:"List platform admins"`
 	Query  string `json:"query"`

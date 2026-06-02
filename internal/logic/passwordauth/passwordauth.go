@@ -29,8 +29,6 @@ const (
 	invalidLoginMessage   = "invalid email or password"
 	defaultPasswordMinLen = 15
 	defaultBcryptCost     = 12
-	defaultLockThreshold  = 10
-	defaultLockDuration   = 15 * time.Minute
 
 	firstPlatformAdminLockKey = "multi-tenant-saas:first-platform-admin-bootstrap"
 	platformSuperAdminRole    = "super_admin"
@@ -469,25 +467,43 @@ func (s *sPasswordAuth) hashPassword(ctx context.Context, password string) ([]by
 
 func (s *sPasswordAuth) ensureLoginAllowed(ctx context.Context, email string) error {
 	cols := dao.AuthLoginAttempts.Columns()
-	value, err := dao.AuthLoginAttempts.Ctx(ctx).
+	record, err := dao.AuthLoginAttempts.Ctx(ctx).
 		Where(cols.LoginKey, email).
-		Where(cols.LockedUntil+" > NOW()").
-		Value(cols.LockedUntil)
+		Fields(cols.LockedUntil, cols.FailedCount, cols.LastFailedAt).
+		One()
 	if err != nil {
 		return err
 	}
-	if value != nil && value.String() != "" {
-		return gerror.NewCode(gcode.CodeNotAuthorized, "too many failed login attempts; try again later")
+	if record.IsEmpty() {
+		return nil // No record at all -- definitely allowed
+	}
+
+	// Check if currently locked
+	lockedUntil := record[cols.LockedUntil]
+	if !lockedUntil.IsNil() {
+		lt := lockedUntil.Time()
+		if time.Now().Before(lt) {
+			return loginError() // Generic message to prevent user enumeration
+		}
 	}
 	return nil
 }
 
 func (s *sPasswordAuth) recordLoginFailure(ctx context.Context, email, ip string) error {
-	threshold := service.Config().GetInt(ctx, "auth.password.lockThreshold", defaultLockThreshold)
-	if threshold <= 0 {
-		threshold = defaultLockThreshold
+	maxAttempts := service.Config().GetInt(ctx, "auth.lockout.max_attempts", 5)
+	if maxAttempts <= 0 {
+		maxAttempts = 5
 	}
-	lockDuration := durationConfig(ctx, "auth.password.lockDuration", defaultLockDuration)
+	windowMinutes := service.Config().GetInt(ctx, "auth.lockout.window_minutes", 15)
+	if windowMinutes <= 0 {
+		windowMinutes = 15
+	}
+	lockoutMinutes := service.Config().GetInt(ctx, "auth.lockout.duration_minutes", 15)
+	if lockoutMinutes <= 0 {
+		lockoutMinutes = 15
+	}
+	lockDuration := time.Duration(lockoutMinutes) * time.Minute
+	windowCutoff := time.Now().Add(-time.Duration(windowMinutes) * time.Minute)
 
 	cols := dao.AuthLoginAttempts.Columns()
 	now := time.Now()
@@ -509,26 +525,61 @@ func (s *sPasswordAuth) recordLoginFailure(ctx context.Context, email, ip string
 			cols.CreatedAt:    now,
 			cols.UpdatedAt:    now,
 		}
-		if 1 >= threshold {
+		if 1 >= maxAttempts {
 			data[cols.LockedUntil] = now.Add(lockDuration)
 		}
 		_, err = dao.AuthLoginAttempts.Ctx(ctx).Data(data).Insert()
-		return gerror.Wrap(err, "record login failure")
+		if err != nil {
+			return gerror.Wrap(err, "record login failure")
+		}
+		if 1 >= maxAttempts {
+			_ = s.writeLockAudit(ctx, email, ip, 1, now.Add(lockDuration))
+		}
+		return nil
 	}
 
-	// Increment existing failure count
+	// Determine new count considering sliding window
 	newCount := record[cols.FailedCount].Int() + 1
+	lastFailedVar := record[cols.LastFailedAt]
+	if !lastFailedVar.IsNil() {
+		lastFailed := lastFailedVar.Time()
+		if lastFailed.Before(windowCutoff) {
+			// Last failure is outside the window -- reset counter
+			newCount = 1
+		}
+	}
+
 	data := g.Map{
 		cols.FailedCount:  newCount,
 		cols.LastFailedAt: now,
 		cols.Ip:           ipVal,
 		cols.UpdatedAt:    now,
 	}
-	if newCount >= threshold {
+	if newCount >= maxAttempts {
 		data[cols.LockedUntil] = now.Add(lockDuration)
 	}
 	_, err = dao.AuthLoginAttempts.Ctx(ctx).Where(cols.LoginKey, email).Data(data).Update()
-	return gerror.Wrap(err, "record login failure")
+	if err != nil {
+		return gerror.Wrap(err, "record login failure")
+	}
+	if newCount >= maxAttempts {
+		_ = s.writeLockAudit(ctx, email, ip, newCount, now.Add(lockDuration))
+	}
+	return nil
+}
+
+// writeLockAudit writes an audit log entry when an account is locked.
+func (s *sPasswordAuth) writeLockAudit(ctx context.Context, email, ip string, failedCount int, lockedUntil time.Time) error {
+	return service.Audit().Write(ctx, service.AuditLogInput{
+		Action:       "auth.account.locked",
+		ResourceType: "auth",
+		IP:           normalizeIP(ip),
+		Metadata: map[string]any{
+			"email":        email,
+			"failed_count": failedCount,
+			"locked_until": lockedUntil.Format(time.RFC3339),
+		},
+	})
 }
 
 func (s *sPasswordAuth) recordLoginSuccess(ctx context.Context, email string) error {
@@ -538,6 +589,27 @@ func (s *sPasswordAuth) recordLoginSuccess(ctx context.Context, email string) er
 		Data(g.Map{cols.FailedCount: 0, cols.LockedUntil: nil, cols.LastSuccessAt: "now()", cols.UpdatedAt: "now()"}).
 		Update()
 	return gerror.Wrap(err, "record login success")
+}
+
+// UnlockUser clears the lockout state for a user identified by email.
+// It is idempotent -- returns nil even if the user was not locked.
+func (s *sPasswordAuth) UnlockUser(ctx context.Context, in service.UnlockUserInput) error {
+	if in.Email == "" {
+		return gerror.NewCode(gcode.CodeMissingParameter, "email is required")
+	}
+	cols := dao.AuthLoginAttempts.Columns()
+	_, err := dao.AuthLoginAttempts.Ctx(ctx).
+		Where(cols.LoginKey, normalizeEmail(in.Email)).
+		Data(g.Map{
+			cols.FailedCount: 0,
+			cols.LockedUntil: nil,
+			cols.UpdatedAt:   "now()",
+		}).
+		Update()
+	if err != nil {
+		return gerror.Wrap(err, "unlock user")
+	}
+	return nil
 }
 
 func touchPasswordIdentityLogin(ctx context.Context, userID, email string) error {
@@ -619,10 +691,6 @@ func passwordCost(ctx context.Context) int {
 		return defaultBcryptCost
 	}
 	return cost
-}
-
-func durationConfig(ctx context.Context, key string, fallback time.Duration) time.Duration {
-	return service.Config().GetDuration(ctx, key, fallback)
 }
 
 func normalizeEmail(email string) string {
