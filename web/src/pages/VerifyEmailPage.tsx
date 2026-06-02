@@ -14,11 +14,11 @@ export function VerifyEmailPage() {
   const [resending, setResending] = useState(false)
   const [resendEmail, setResendEmail] = useState('')
   const [resendSent, setResendSent] = useState(false)
+  const effectiveStatus = token ? status : 'error'
+  const effectiveErrorMsg = token ? errorMsg : 'Missing verification token.'
 
   useEffect(() => {
     if (!token) {
-      setStatus('error')
-      setErrorMsg('Missing verification token.')
       return
     }
     verifyEmail(token)
@@ -35,7 +35,7 @@ export function VerifyEmailPage() {
     try {
       await resendVerification(resendEmail.trim())
       setResendSent(true)
-    } catch (e) {
+    } catch {
       // The API returns success regardless for security
       setResendSent(true)
     } finally {
@@ -46,7 +46,7 @@ export function VerifyEmailPage() {
   return (
     <AuthShell>
       <Card className="mx-auto max-w-md bg-white/95 text-center hover:border-line hover:shadow-soft">
-        {status === 'loading' && (
+        {effectiveStatus === 'loading' && (
           <>
             <CardHeader title="Email Verification" description="Verifying your email address..." />
             <div className="flex justify-center py-6">
@@ -55,7 +55,7 @@ export function VerifyEmailPage() {
           </>
         )}
 
-        {status === 'success' && (
+        {effectiveStatus === 'success' && (
           <>
             <CardHeader title="Email Verified" description="Your email has been verified successfully." />
             <div className="flex justify-center py-4 text-green-500">
@@ -70,13 +70,13 @@ export function VerifyEmailPage() {
           </>
         )}
 
-        {status === 'error' && (
+        {effectiveStatus === 'error' && (
           <>
             <CardHeader title="Verification Failed" description="We couldn't verify your email address." />
             <div className="flex justify-center py-4 text-red-500">
               <XCircle className="size-16" />
             </div>
-            <p className="mt-2 text-sm text-muted">{errorMsg || 'The link may be expired or already used.'}</p>
+            <p className="mt-2 text-sm text-muted">{effectiveErrorMsg || 'The link may be expired or already used.'}</p>
 
             <div className="mt-6 space-y-3">
               {resendSent ? (

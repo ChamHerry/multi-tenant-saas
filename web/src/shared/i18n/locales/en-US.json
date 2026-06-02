@@ -316,6 +316,9 @@
     },
     "notFound": {
       "title": "Page not found"
+    },
+    "totpSetup": {
+      "title": "Set up two-factor authentication"
     }
   },
   "nav": {

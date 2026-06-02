@@ -10,9 +10,11 @@ type PasswordLoginInput struct {
 }
 
 type PasswordLoginResult struct {
-	User    *User               `json:"user"`
-	Session *AuthSession        `json:"session"`
-	Cookies *AuthSessionCookies `json:"-"`
+	User        *User               `json:"user"`
+	Session     *AuthSession        `json:"session,omitempty"`
+	Cookies     *AuthSessionCookies `json:"-"`
+	Requires2FA bool                `json:"requires_2fa,omitempty"`
+	TOTPToken   string              `json:"totp_token,omitempty"`
 }
 
 type CreatePasswordUserInput struct {

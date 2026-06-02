@@ -17,6 +17,7 @@ import (
 	"multi-tenant-saas/internal/controller/me"
 	"multi-tenant-saas/internal/controller/member"
 	"multi-tenant-saas/internal/controller/tenant"
+	totpcontroller "multi-tenant-saas/internal/controller/totp"
 	"multi-tenant-saas/internal/middleware"
 	"multi-tenant-saas/internal/service"
 )
@@ -52,7 +53,7 @@ func getAllRoutes() []RouteConfig {
 		{
 			Prefix:      "",
 			Middlewares: []ghttp.HandlerFunc{middleware.RateLimit},
-			Controllers: []interface{}{authcontroller.NewPublicV1()},
+			Controllers: []interface{}{authcontroller.NewPublicV1(), totpcontroller.NewAuthPublicV1()},
 		},
 		{
 			Prefix: "",
@@ -78,6 +79,7 @@ func getAllRoutes() []RouteConfig {
 				invitation.NewV1(),
 				audit.NewV1(),
 				apikey.NewV1(),
+				totpcontroller.NewMeTotpV1(),
 			},
 		},
 		{

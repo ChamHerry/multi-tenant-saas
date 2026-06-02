@@ -34,7 +34,10 @@ type ChangePasswordReq struct {
 }
 
 type AuthUserRes struct {
-	User *service.User `json:"user"`
+	User                 *service.User `json:"user"`
+	Requires2FA          bool          `json:"requires_2fa,omitempty"`
+	TOTPToken            string        `json:"totp_token,omitempty"`
+	BackupCodesRemaining *int          `json:"backup_codes_remaining,omitempty"`
 }
 
 type SessionRes struct {

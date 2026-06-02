@@ -76,5 +76,69 @@
     "missingToken": "缺少验证令牌。",
     "resend": "重新发送验证邮件",
     "goToLogin": "前往登录"
+  },
+  "totp": {
+    "title": "双因素认证",
+    "description": "使用认证器应用的一次性验证码，为账号增加一层安全保护。",
+    "verify": {
+      "title": "双因素认证",
+      "description": "请输入认证器应用中的验证码",
+      "codeLabel": "认证验证码",
+      "codePlaceholder": "000000",
+      "submit": "验证",
+      "continue": "继续",
+      "useBackupCode": "改用备份码",
+      "useAuthenticatorCode": "改用认证器验证码",
+      "backupCodeLabel": "备份码",
+      "backupCodePlaceholder": "输入 8 位备份码",
+      "errors": {
+        "invalidCode": "验证码无效，请重试。",
+        "tokenExpired": "验证会话已过期，请重新登录。",
+        "tooManyAttempts": "尝试次数过多，请稍后再试。"
+      }
+    },
+    "setup": {
+      "title": "设置双因素认证",
+      "description": "先确认当前密码，扫描二维码，然后输入 6 位验证码以启用 2FA。",
+      "passwordLabel": "当前密码",
+      "start": "开始设置",
+      "step1Title": "扫描二维码",
+      "step1Description": "请使用 Google Authenticator、Authy、1Password 或其他 TOTP 应用扫描二维码。",
+      "manualEntry": "手动输入密钥",
+      "qrAlt": "TOTP 二维码",
+      "qrLoading": "正在生成二维码...",
+      "next": "下一步",
+      "step2Title": "验证设置",
+      "step2Description": "输入认证器应用中的 6 位验证码，确认配置可用。",
+      "codeLabel": "认证验证码",
+      "codePlaceholder": "000000",
+      "verify": "启用 2FA",
+      "errors": {
+        "invalidCode": "验证码无效，请重试。"
+      }
+    },
+    "backupCodes": {
+      "title": "保存备份码",
+      "description": "请将这些备份码保存在安全位置。每个备份码只能使用一次，用于认证器不可用时登录。",
+      "savedConfirmation": "我已将备份码保存在安全位置",
+      "complete": "完成设置",
+      "regenerate": "重新生成备份码",
+      "regeneratePasswordLabel": "当前密码",
+      "remainingWarning": "你还剩 {count} 个备份码。建议尽快重新生成。"
+    },
+    "status": {
+      "enabled": "双因素认证已启用",
+      "enabledBadge": "已启用",
+      "disabled": "尚未设置双因素认证",
+      "disabledBadge": "未启用",
+      "disabledDescription": "设置认证器应用后，密码登录还需要一次性验证码。",
+      "enable": "设置 2FA",
+      "disable": "禁用 2FA",
+      "disablePasswordLabel": "密码（或使用验证码）",
+      "disableCodeLabel": "TOTP 验证码（可选）",
+      "enabledAt": "启用时间：{time}",
+      "backupCodesRemaining": "剩余 {count} 个备份码",
+      "loadFailed": "2FA 状态加载失败"
+    }
   }
 }

@@ -32,6 +32,9 @@ export type AuthSession = z.infer<typeof authSessionSchema>
 
 export const meResponseSchema = z.object({
   user: userSchema,
+  requires_2fa: z.boolean().optional(),
+  totp_token: z.string().optional(),
+  backup_codes_remaining: z.number().optional(),
 })
 export type MeResponse = z.infer<typeof meResponseSchema>
 

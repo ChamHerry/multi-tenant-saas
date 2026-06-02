@@ -316,6 +316,9 @@
     },
     "notFound": {
       "title": "页面不存在"
+    },
+    "totpSetup": {
+      "title": "设置双因素认证"
     }
   },
   "nav": {

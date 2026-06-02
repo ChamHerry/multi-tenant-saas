@@ -35,7 +35,7 @@ func TestEmbeddedPublicMigrationVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("public LatestMigrationVersion() error = %v", err)
 	}
-	if publicVersion != 202605300002 {
-		t.Fatalf("public version = %d, want %d", publicVersion, uint64(202605300002))
+	if publicVersion != 202606030004 {
+		t.Fatalf("public version = %d, want %d", publicVersion, uint64(202606030004))
 	}
 }

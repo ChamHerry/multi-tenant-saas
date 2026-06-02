@@ -179,8 +179,8 @@ add_member_payload="{\"user_id\":\"${viewer_id}\",\"role\":\"viewer\",\"status\"
 b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/members" "${add_member_payload}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_ADD 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/members" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_LIST 200 "${s}" "${b}"
 
-personal_key_payload="{\"name\":\"frontend-smoke\",\"scopes\":[\"tenant:read\",\"member:read\"],\"grants\":[{\"tenant_id\":\"${tenant_id}\",\"scopes\":[\"tenant:read\",\"member:read\"]}]}"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/api-keys "${personal_key_payload}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status PERSONAL_APIKEY_CREATE 200 "${s}" "${b}"
+personal_key_payload="{\"name\":\"frontend-smoke\",\"scopes\":[\"tenant:read\",\"member:read\"]}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/api-keys" "${personal_key_payload}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status PERSONAL_APIKEY_CREATE 200 "${s}" "${b}"
 raw_key="$(json_value "${b}" 'j["data"]["raw_key"]')"
 if [[ "${raw_key}" != saas_* ]]; then
   log "[FAIL] PERSONAL_APIKEY_RAW_PREFIX: unexpected raw key ${raw_key}"

@@ -29,6 +29,8 @@ export function LoginPage() {
   const copy = messages.login
   const lastLoginEmail = useAuthStore((state) => state.lastLoginEmail)
   const setLastLoginEmail = useAuthStore((state) => state.setLastLoginEmail)
+  const setPendingTOTPToken = useAuthStore((state) => state.setPendingTOTPToken)
+  const clearPendingTOTPToken = useAuthStore((state) => state.clearPendingTOTPToken)
   const [email, setEmail] = useState(lastLoginEmail ?? '')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -86,6 +88,12 @@ export function LoginPage() {
     try {
       const loginResult = await loginMutation.mutateAsync({ email: result.data.email, password: result.data.password })
       setFailedCount(0) // Reset on success
+      if (loginResult.requires_2fa && loginResult.totp_token) {
+        setPendingTOTPToken(loginResult.totp_token)
+        navigate('/verify-totp', { state: { from, email: loginResult.user.email }, replace: true })
+        return
+      }
+      clearPendingTOTPToken()
       if (!loginResult.user.email_verified) {
         setEmailNotVerified(true)
       }

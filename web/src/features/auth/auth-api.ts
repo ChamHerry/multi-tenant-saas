@@ -1,5 +1,6 @@
 import { apiRequest } from '@/shared/api/client'
 import type { ActionResponse, AuthSessionResponse, ChangePasswordPayload, LoginPayload, MeResponse } from './auth-types'
+import type { VerifyTOTPPayload } from './totp-types'
 import type { TenantMembershipWithTenant } from '@/features/tenants/tenant-types'
 
 export type RegisterBody = {
@@ -10,6 +11,15 @@ export type RegisterBody = {
 
 export function login(payload: LoginPayload) {
   return apiRequest<MeResponse>('/api/v1/auth/login', { method: 'POST', body: payload, skipAuth: true, skipTenant: true })
+}
+
+export function verifyTOTP(payload: VerifyTOTPPayload) {
+  return apiRequest<MeResponse>('/api/v1/auth/verify-totp', {
+    method: 'POST',
+    body: payload,
+    skipAuth: true,
+    skipTenant: true,
+  })
 }
 
 export function register(payload: RegisterBody) {

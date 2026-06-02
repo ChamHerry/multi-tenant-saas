@@ -113,7 +113,11 @@ log "tenants: ${tenants_res}"
 tenant_id=$(echo "${tenants_res}" | python3 -c "
 import sys,json
 ts=json.load(sys.stdin).get('data',{}).get('tenants',[])
-print(ts[0]['tenant']['id'] if ts else '')
+if not ts:
+    print('')
+else:
+    first=ts[0]
+    print(first.get('tenant_id') or first.get('tenant',{}).get('id',''))
 " 2>/dev/null)
 log "using tenant: ${tenant_id}"
 
@@ -146,7 +150,7 @@ log "invitations: $(echo "${inv_list}" | python3 -c 'import sys,json; d=json.loa
 
 log "=== Phase 11: Create API key ==="
 apikey_res=$(api_curl POST "/api/v1/tenants/${tenant_id}/api-keys" \
-  "{\"name\":\"e2e-test-key\",\"scopes\":[\"tenant:read\",\"member:read\"]}")
+  "{\"name\":\"e2e-test-key\",\"scopes\":[\"user:read\",\"tenant:read\",\"member:read\"]}")
 log "api key: ${apikey_res}"
 echo "${apikey_res}" | grep -q '"code":0' || fail "API key creation failed"
 raw_key=$(echo "${apikey_res}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('raw_key',''))" 2>/dev/null)
