@@ -1,4 +1,4 @@
-.PHONY: dev web build test test-unit test-integration test-e2e
+.PHONY: dev web build test test-unit test-integration test-e2e test-e2e-go
 
 dev:
 	go run .
@@ -17,12 +17,15 @@ test-unit:
 # Integration tests (requires docker-compose postgres on port 55432).
 test-integration:
 	@docker compose up -d postgres && sleep 2
-	go test -tags=integration -count=1 -timeout 120s -v ./internal/testutil/integration/...
+	go test -tags=integration -count=1 -timeout 5m -v ./internal/testutil/integration/...
 
 # All tests.
 test: test-unit test-integration
 
-# E2E tests via bash script.
-test-e2e:
+# Go E2E tests (requires docker-compose postgres on port 55432).
+test-e2e-go:
 	@docker compose up -d postgres && sleep 2
-	bash hack/e2e_full_flow.sh
+	go test -tags=e2e -p=1 -count=1 -timeout 15m -v ./test/e2e/...
+
+# Default E2E entrypoint now uses the Go test harness.
+test-e2e: test-e2e-go
