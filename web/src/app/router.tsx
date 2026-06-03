@@ -1,5 +1,6 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { RequireAuth } from './RequireAuth'
+import { RequireSetup } from './RequireSetup'
 import { RequirePermission } from '@/features/access/RequirePermission'
 import {
   AdminAuditPage,
@@ -28,35 +29,73 @@ import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { TOTPVerifyPage } from '@/pages/TOTPVerifyPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { SetupWizardPage } from '@/pages/SetupWizardPage'
 
 export const router = createBrowserRouter([
   {
+    path: '/setup',
+    element: (
+      <RequireSetup setupRoute>
+        <SetupWizardPage />
+      </RequireSetup>
+    ),
+    handle: { titleKey: 'routes.setup.title' },
+  },
+  {
     path: '/login',
-    element: <LoginPage />,
+    element: (
+      <RequireSetup>
+        <LoginPage />
+      </RequireSetup>
+    ),
   },
   {
     path: '/register',
-    element: <RegisterPage />,
+    element: (
+      <RequireSetup>
+        <RegisterPage />
+      </RequireSetup>
+    ),
   },
   {
     path: '/verify-email',
-    element: <VerifyEmailPage />,
+    element: (
+      <RequireSetup>
+        <VerifyEmailPage />
+      </RequireSetup>
+    ),
   },
   {
     path: '/forgot-password',
-    element: <ForgotPasswordPage />,
+    element: (
+      <RequireSetup>
+        <ForgotPasswordPage />
+      </RequireSetup>
+    ),
   },
   {
     path: '/reset-password',
-    element: <ResetPasswordPage />,
+    element: (
+      <RequireSetup>
+        <ResetPasswordPage />
+      </RequireSetup>
+    ),
   },
   {
     path: '/verify-totp',
-    element: <TOTPVerifyPage />,
+    element: (
+      <RequireSetup>
+        <TOTPVerifyPage />
+      </RequireSetup>
+    ),
   },
   {
     path: '/',
-    element: <RequireAuth />,
+    element: (
+      <RequireSetup>
+        <RequireAuth />
+      </RequireSetup>
+    ),
     children: [
       {
         index: true,

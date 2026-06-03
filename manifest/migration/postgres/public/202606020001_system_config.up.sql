@@ -25,7 +25,6 @@ INSERT INTO public.system_config (key, value, value_type, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO public.system_config (key, value, value_type, description) VALUES
-('auth.session.secret',                 'docker-dev-session-secret-change-me', 'string', 'Session HMAC secret (change in prod)'),
 ('auth.session.absoluteTTL',            '168h',  'string',  'Session absolute TTL'),
 ('auth.session.idleTTL',                '12h',   'string',  'Session idle TTL'),
 ('auth.session.cookie.name',            'saas_template_session', 'string', 'Session cookie name'),
@@ -36,7 +35,6 @@ INSERT INTO public.system_config (key, value, value_type, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO public.system_config (key, value, value_type, description) VALUES
-('auth.apiKey.secret',                  'docker-dev-apikey-secret-change-me', 'string', 'API Key HMAC secret (change in prod)'),
 ('auth.apiKey.maxPersonalKeysPerUser',  '10',    'number',  'Max personal API keys per user')
 ON CONFLICT (key) DO NOTHING;
 

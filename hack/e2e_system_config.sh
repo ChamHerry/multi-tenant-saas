@@ -79,6 +79,7 @@ ensure_stack_ready() {
   esac
   log "[E2E] wait for /readyz"
   manage_docker ready >/dev/null
+  ensure_setup_completed
   enable_dev_header_auth
 }
 
@@ -165,6 +166,23 @@ assert_sql_equals() {
   log "[PASS] ${id}: ${actual}"
 }
 
+ensure_setup_completed() {
+  local b s requires setup_email setup_password payload
+  b="$(bodyfile)"; s="$(http_request GET /api/v1/setup/state "" "$b")"; assert_status SETUP_STATE_CHECK 200 "$s" "$b"
+  requires="$(json_value "$b" 'j["data"]["requires_setup"]')"
+  if [[ "$requires" != "true" ]]; then
+    log "[E2E] setup already initialized"
+    return
+  fi
+
+  log "[E2E] complete setup bootstrap for system-config scenario"
+  setup_email="system-config-bootstrap-${stamp}@example.test"
+  setup_password="SetupPassword12345!"
+  payload="$(printf '{"admin":{"email":"%s","password":"%s","display_name":"System Config Bootstrap"},"runtime":{"server_env":"local","web_base_url":"%s","generate_session_secret":true,"generate_api_key_secret":true}}' "$setup_email" "$setup_password" "$BASE_URL")"
+  b="$(bodyfile)"; s="$(http_request POST /api/v1/setup/complete "$payload" "$b")"; assert_status SETUP_BOOTSTRAP_COMPLETE 200 "$s" "$b"
+  assert_json_equals SETUP_BOOTSTRAP_INITIALIZED "$b" 'j["data"]["initialized"]' true
+}
+
 stamp="$(date +%Y%m%d%H%M%S)-$$"
 admin_tag="system-config-admin-${stamp}"
 support_tag="system-config-support-${stamp}"
@@ -188,14 +206,14 @@ b="$(bodyfile)"; s="$(http_request GET /readyz "" "$b")"; assert_status READYZ 2
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status ADMIN_ACCESS 200 "$s" "$b"
 assert_json_equals ADMIN_HAS_CONFIG_MANAGE "$b" '"platform:config:manage" in j["data"]["platform_admin"]["permissions"]' true
 
-log "[E2E] list, create and update bool config"
+log "[E2E] list, verify runtime secret, create and update bool config"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config?limit=5 "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_LIST_INITIAL 200 "$s" "$b"
 raw_session_secret="$(psql_query "SELECT value FROM public.system_config WHERE key='auth.session.secret'")"
-[[ -n "$raw_session_secret" ]] || { log "[FAIL] missing seeded auth.session.secret"; exit 1; }
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config/auth.session.secret "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_SEED_SECRET_GET 200 "$s" "$b"
-assert_body_not_contains CONFIG_SEED_SECRET_MASKED "$b" "$raw_session_secret"
-assert_json_equals CONFIG_SEED_SECRET_TYPE "$b" 'j["data"]["config"]["value_type"]' secret
-assert_json_equals CONFIG_SEED_SECRET_VALUE_EMPTY "$b" 'j["data"]["config"]["value"]' ""
+[[ -n "$raw_session_secret" ]] || { log "[FAIL] missing runtime auth.session.secret"; exit 1; }
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config/auth.session.secret "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_RUNTIME_SECRET_GET 200 "$s" "$b"
+assert_body_not_contains CONFIG_RUNTIME_SECRET_MASKED "$b" "$raw_session_secret"
+assert_json_equals CONFIG_RUNTIME_SECRET_TYPE "$b" 'j["data"]["config"]["value_type"]' secret
+assert_json_equals CONFIG_RUNTIME_SECRET_VALUE_EMPTY "$b" 'j["data"]["config"]["value"]' ""
 b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"true","value_provided":true,"value_type":"bool","description":"Docker e2e bool"}' "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_BOOL_CREATE 200 "$s" "$b"
 assert_json_equals CONFIG_BOOL_VALUE "$b" 'j["data"]["config"]["value"]' true
 assert_json_equals CONFIG_BOOL_TYPE "$b" 'j["data"]["config"]["value_type"]' bool

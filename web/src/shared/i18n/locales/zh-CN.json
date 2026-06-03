@@ -382,6 +382,9 @@
     },
     "systemConfig": {
       "title": "系统配置"
+    },
+    "setup": {
+      "title": "初始化配置"
     }
   },
   "nav": {
@@ -405,5 +408,70 @@
       "sessions": "活跃会话",
       "systemConfig": "系统配置"
     }
+  },
+  "setup": {
+    "title": "初始化配置",
+    "description": "在使用系统前配置平台管理员和运行时安全参数。",
+    "loading": "正在检查初始化状态...",
+    "failed": "初始化状态检查失败",
+    "steps": {
+      "system": "系统检查",
+      "admin": "管理员",
+      "security": "安全配置",
+      "review": "确认"
+    },
+    "system": {
+      "title": "系统就绪检查",
+      "description": "数据库、迁移和加密能力就绪后才能继续初始化。"
+    },
+    "checks": {
+      "database": "数据库",
+      "migrations": "数据库迁移",
+      "encryption": "加密能力",
+      "redis": "Redis 缓存",
+      "ok": "已就绪",
+      "notOk": "未就绪"
+    },
+    "missingTitle": "待配置项目",
+    "noMissing": "未发现缺失的初始化项目。",
+    "missing": {
+      "admin": "平台管理员",
+      "sessionSecret": "会话签名密钥",
+      "apiKeySecret": "API Key 签名密钥",
+      "serverEnv": "服务运行环境"
+    },
+    "admin": {
+      "email": "管理员邮箱",
+      "displayName": "显示名称",
+      "password": "管理员密码",
+      "passwordHint": "至少 15 个字符。"
+    },
+    "security": {
+      "serverEnv": "服务运行环境",
+      "envOptions": {
+        "prod": "生产环境",
+        "local": "本地开发",
+        "test": "测试环境"
+      },
+      "webBaseUrl": "前端访问地址",
+      "webBaseUrlPlaceholder": "https://app.example.com",
+      "generatedSecretsTitle": "密钥由服务端生成",
+      "generatedSecretsDescription": "初始化流程会生成并加密会话密钥和 API Key 签名密钥，浏览器不会看到明文。"
+    },
+    "review": {
+      "admin": "管理员",
+      "runtime": "运行时配置",
+      "secrets": "生成的密钥",
+      "secretsDescription": "会话和 API Key 密钥将被生成、加密并保存到 system_config。"
+    },
+    "errors": {
+      "completeCurrentStep": "请先完成当前步骤。",
+      "invalidBaseUrl": "请输入 HTTP 或 HTTPS 绝对地址。",
+      "passwordLength": "管理员密码至少 15 个字符。"
+    },
+    "back": "上一步",
+    "next": "下一步",
+    "submit": "初始化系统",
+    "submitting": "正在初始化..."
   }
 }

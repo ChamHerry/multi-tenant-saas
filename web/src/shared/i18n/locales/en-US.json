@@ -382,6 +382,9 @@
     },
     "systemConfig": {
       "title": "System Config"
+    },
+    "setup": {
+      "title": "Initial setup"
     }
   },
   "nav": {
@@ -405,5 +408,70 @@
       "sessions": "Active sessions",
       "systemConfig": "System Config"
     }
+  },
+  "setup": {
+    "title": "Initial setup",
+    "description": "Configure the platform owner and runtime security settings before using the system.",
+    "loading": "Checking setup status...",
+    "failed": "Setup status check failed",
+    "steps": {
+      "system": "System check",
+      "admin": "Administrator",
+      "security": "Security",
+      "review": "Review"
+    },
+    "system": {
+      "title": "System readiness",
+      "description": "The database, migrations and encryption must be ready before setup can continue."
+    },
+    "checks": {
+      "database": "Database",
+      "migrations": "Migrations",
+      "encryption": "Encryption",
+      "redis": "Redis cache",
+      "ok": "Ready",
+      "notOk": "Not ready"
+    },
+    "missingTitle": "Required setup items",
+    "noMissing": "No missing setup items were detected.",
+    "missing": {
+      "admin": "Platform administrator",
+      "sessionSecret": "Session signing secret",
+      "apiKeySecret": "API key signing secret",
+      "serverEnv": "Server environment"
+    },
+    "admin": {
+      "email": "Admin email",
+      "displayName": "Display name",
+      "password": "Admin password",
+      "passwordHint": "Use at least 15 characters."
+    },
+    "security": {
+      "serverEnv": "Server environment",
+      "envOptions": {
+        "prod": "Production",
+        "local": "Local development",
+        "test": "Test"
+      },
+      "webBaseUrl": "Web base URL",
+      "webBaseUrlPlaceholder": "https://app.example.com",
+      "generatedSecretsTitle": "Secrets are generated on the server",
+      "generatedSecretsDescription": "The setup flow will generate and encrypt the session and API key signing secrets. They are never shown in the browser."
+    },
+    "review": {
+      "admin": "Administrator",
+      "runtime": "Runtime configuration",
+      "secrets": "Generated secrets",
+      "secretsDescription": "Session and API key secrets will be generated, encrypted, and stored in system_config."
+    },
+    "errors": {
+      "completeCurrentStep": "Complete the current step before continuing.",
+      "invalidBaseUrl": "Enter an absolute HTTP or HTTPS URL.",
+      "passwordLength": "The admin password must be at least 15 characters."
+    },
+    "back": "Back",
+    "next": "Next",
+    "submit": "Initialize system",
+    "submitting": "Initializing..."
   }
 }

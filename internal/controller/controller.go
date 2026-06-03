@@ -16,6 +16,7 @@ import (
 	"multi-tenant-saas/internal/controller/invitation"
 	"multi-tenant-saas/internal/controller/me"
 	"multi-tenant-saas/internal/controller/member"
+	setupcontroller "multi-tenant-saas/internal/controller/setup"
 	"multi-tenant-saas/internal/controller/tenant"
 	totpcontroller "multi-tenant-saas/internal/controller/totp"
 	"multi-tenant-saas/internal/middleware"
@@ -37,6 +38,7 @@ func RegisterRootRoutes(group *ghttp.RouterGroup) {
 
 // RegisterRoutes registers all /api/v1 routes.
 func RegisterRoutes(group *ghttp.RouterGroup) {
+	group.Middleware(middleware.InitGuard)
 	for _, route := range getAllRoutes() {
 		route := route
 		group.Group(route.Prefix, func(subGroup *ghttp.RouterGroup) {
@@ -50,6 +52,11 @@ func RegisterRoutes(group *ghttp.RouterGroup) {
 
 func getAllRoutes() []RouteConfig {
 	return []RouteConfig{
+		{
+			Prefix:      "",
+			Middlewares: []ghttp.HandlerFunc{middleware.RateLimit},
+			Controllers: []interface{}{setupcontroller.NewV1()},
+		},
 		{
 			Prefix:      "",
 			Middlewares: []ghttp.HandlerFunc{middleware.RateLimit},
@@ -126,6 +133,16 @@ func registerHealthRoutes(group *ghttp.RouterGroup) {
 			r.Response.WriteJsonExit(g.Map{"ok": false, "version": version, "db": err.Error()})
 			return
 		}
-		r.Response.WriteJsonExit(g.Map{"ok": true, "version": version, "dirty": dirty, "db": "ok"})
+		setupState, err := service.SystemSetup().State(ctx)
+		if err != nil {
+			r.Response.Status = http.StatusServiceUnavailable
+			r.Response.WriteJsonExit(g.Map{"ok": false, "version": version, "db": "ok", "setup": err.Error()})
+			return
+		}
+		if setupState.RequiresSetup {
+			r.Response.WriteJsonExit(g.Map{"ok": true, "version": version, "dirty": dirty, "db": "ok", "setup_required": true, "code": service.SetupCodeRequired})
+			return
+		}
+		r.Response.WriteJsonExit(g.Map{"ok": true, "version": version, "dirty": dirty, "db": "ok", "setup_required": false})
 	})
 }
