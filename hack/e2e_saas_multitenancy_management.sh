@@ -27,13 +27,18 @@ psql_query() {
     psql -Atc "$sql"
     return
   fi
-  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx repomind-pg; then
-    docker exec -e PGPASSWORD="${PGPASSWORD}" repomind-pg psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
-    return
+  if command -v docker >/dev/null 2>&1; then
+    for container in multi-tenant-saas-postgres; do
+      if docker ps --format '{{.Names}}' | grep -qx "${container}"; then
+        docker exec -e PGPASSWORD="${PGPASSWORD}" "${container}" psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
+        return
+      fi
+    done
   fi
-  echo "missing dependency: psql or docker container repomind-pg" >&2
+  echo "missing dependency: psql or docker container multi-tenant-saas-postgres" >&2
   exit 1
 }
+source "${ROOT_DIR}/hack/lib/e2e_auth_session.sh"
 
 server_pid=""
 cleanup() {
@@ -71,8 +76,7 @@ start_server() {
 create_user() {
   local tag="$1"
   local email="${tag}@example.test"
-  (cd "${ROOT_DIR}" && go run . user-upsert --provider password --auth-id "${email}" --email "${email}" --name "${tag}" --email-verified >/dev/null)
-  psql_query "SELECT id FROM public.users WHERE email='${email}' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1"
+  e2e_create_password_user "$tag"
 }
 
 http_request() {
@@ -125,6 +129,9 @@ invitee_tag="saas-invitee-${stamp}"
 outsider_tag="saas-outsider-${stamp}"
 tenant_slug="saas-${stamp}"
 
+log "[E2E] configure local runtime for HTTP e2e"
+e2e_configure_local_runtime
+
 log "[E2E] setup users"
 owner_id="$(create_user "${owner_tag}")"
 invitee_id="$(create_user "${invitee_tag}")"
@@ -135,54 +142,66 @@ log "[E2E] start server"
 start_server
 
 b="$(bodyfile)"; s="$(http_request GET /readyz "" "${b}")"; assert_status READYZ 200 "${s}" "${b}"
+owner_cookie="${LOG_DIR}/owner.cookies"
+invitee_cookie="${LOG_DIR}/invitee.cookies"
+outsider_cookie="${LOG_DIR}/outsider.cookies"
+e2e_login_user_tag "$owner_tag" "$owner_cookie"
+e2e_login_user_tag "$invitee_tag" "$invitee_cookie"
+e2e_login_user_tag "$outsider_tag" "$outsider_cookie"
+owner_csrf="$(e2e_csrf_from_cookie_jar "$owner_cookie")"
+invitee_csrf="$(e2e_csrf_from_cookie_jar "$invitee_cookie")"
+outsider_csrf="$(e2e_csrf_from_cookie_jar "$outsider_cookie")"
+owner_auth=(-b "$owner_cookie" -c "$owner_cookie" -H "X-CSRF-Token: ${owner_csrf}")
+invitee_auth=(-b "$invitee_cookie" -c "$invitee_cookie" -H "X-CSRF-Token: ${invitee_csrf}")
+outsider_auth=(-b "$outsider_cookie" -c "$outsider_cookie" -H "X-CSRF-Token: ${outsider_csrf}")
 
-b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"SaaS ${stamp}\",\"slug\":\"${tenant_slug}\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status TENANT_CREATE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"SaaS ${stamp}\",\"slug\":\"${tenant_slug}\"}" "${b}" "${owner_auth[@]}")"; assert_status TENANT_CREATE 200 "${s}" "${b}"
 tenant_id="$(json_value "${b}" 'j["data"]["tenant"]["id"]')"
 
 invite_payload="{\"invitee_email\":\"${invitee_tag}@example.test\",\"role\":\"member\",\"message\":\"welcome\"}"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations" "${invite_payload}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_CREATE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations" "${invite_payload}" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_CREATE 200 "${s}" "${b}"
 invitation_token="$(json_value "${b}" 'j["data"]["token"]')"
 assert_json_equals INVITE_STATUS "${b}" 'j["data"]["invitation"]["status"]' pending
 
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/invitations" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_LIST_TENANT 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/invitations" "" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_LIST_TENANT 200 "${s}" "${b}"
 assert_json_equals INVITE_LIST_COUNT "${b}" 'len(j["data"]["invitations"])' 1
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/invitations "" "${b}" -H "X-User-ID: ${invitee_id}")"; assert_status INVITE_LIST_MINE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/invitations "" "${b}" "${invitee_auth[@]}")"; assert_status INVITE_LIST_MINE 200 "${s}" "${b}"
 assert_json_equals INVITE_MINE_COUNT "${b}" 'len(j["data"]["invitations"])' 1
 
-b="$(bodyfile)"; s="$(http_request POST /api/v1/invitations/accept "{\"token\":\"${invitation_token}\"}" "${b}" -H "X-User-ID: ${invitee_id}")"; assert_status INVITE_ACCEPT 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/invitations/accept "{\"token\":\"${invitation_token}\"}" "${b}" "${invitee_auth[@]}")"; assert_status INVITE_ACCEPT 200 "${s}" "${b}"
 assert_json_equals INVITE_ACCEPT_ROLE "${b}" 'j["data"]["member"]["role"]' member
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "X-User-ID: ${invitee_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITEE_TENANT_CONTEXT 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" "${invitee_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITEE_TENANT_CONTEXT 200 "${s}" "${b}"
 assert_json_equals INVITEE_ROLE "${b}" 'j["data"]["tenant_context"]["role"]' member
 
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/audit-logs" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status AUDIT_GET 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/audit-logs" "" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status AUDIT_GET 200 "${s}" "${b}"
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "${b}" -H "X-User-ID: ${outsider_id}")"; assert_status ADMIN_FORBIDDEN 403 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANTS 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/session "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_SESSION 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_PLANS_REMOVED 404 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/plan" "{\"plan\":\"pro\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_PLAN_REMOVED 404 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/quota" "{\"max_members\":7}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_QUOTA_REMOVED 404 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/quota" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_QUOTA_REMOVED 404 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/users/${outsider_id}/status" "{\"status\":\"disabled\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_USER_DISABLE 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/users/${outsider_id}/status" "{\"status\":\"active\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_USER_ENABLE 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/platform-admins "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_LIST_PLATFORM_ADMINS 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/admin/platform-admins "{\"user_id\":\"${outsider_id}\",\"role\":\"auditor\"}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_GRANT_PLATFORM_ADMIN 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/admin/platform-admins/${outsider_id}" "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_REVOKE_PLATFORM_ADMIN 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/admin/tenants/${tenant_id}/suspend" "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_SUSPEND 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "X-User-ID: ${invitee_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status SUSPENDED_TENANT_BLOCKED 403 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/admin/tenants/${tenant_id}/restore" "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status ADMIN_TENANT_RESTORE 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "X-User-ID: ${invitee_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status RESTORED_TENANT_CONTEXT 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "${b}" "${outsider_auth[@]}")"; assert_status ADMIN_FORBIDDEN 403 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_TENANTS 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/session "" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_SESSION 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_PLANS_REMOVED 404 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/plan" "{\"plan\":\"pro\"}" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_TENANT_PLAN_REMOVED 404 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/tenants/${tenant_id}/quota" "{\"max_members\":7}" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_TENANT_QUOTA_REMOVED 404 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/quota" "" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_QUOTA_REMOVED 404 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/users/${outsider_id}/status" "{\"status\":\"disabled\"}" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_USER_DISABLE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request PATCH "/api/v1/admin/users/${outsider_id}/status" "{\"status\":\"active\"}" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_USER_ENABLE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/platform-admins "" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_LIST_PLATFORM_ADMINS 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/admin/platform-admins "{\"user_id\":\"${outsider_id}\",\"role\":\"auditor\"}" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_GRANT_PLATFORM_ADMIN 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/admin/platform-admins/${outsider_id}" "" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_REVOKE_PLATFORM_ADMIN 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/admin/tenants/${tenant_id}/suspend" "" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_TENANT_SUSPEND 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" "${invitee_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status SUSPENDED_TENANT_BLOCKED 403 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/admin/tenants/${tenant_id}/restore" "" "${b}" "${owner_auth[@]}")"; assert_status ADMIN_TENANT_RESTORE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" "${invitee_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status RESTORED_TENANT_CONTEXT 200 "${s}" "${b}"
 
 second_payload="{\"invitee_email\":\"${outsider_tag}@example.test\",\"role\":\"viewer\"}"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations" "${second_payload}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_CREATE_SECOND 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations" "${second_payload}" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_CREATE_SECOND 200 "${s}" "${b}"
 second_invitation_id="$(json_value "${b}" 'j["data"]["invitation"]["id"]')"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations/${second_invitation_id}/revoke" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_REVOKE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations/${second_invitation_id}/revoke" "" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_REVOKE 200 "${s}" "${b}"
 
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/audit-logs/export" "{\"action\":\"tenant.invitation.create\"}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status AUDIT_EXPORT 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/audit-logs/export" "{\"action\":\"tenant.invitation.create\"}" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status AUDIT_EXPORT 200 "${s}" "${b}"
 assert_json_equals AUDIT_EXPORT_STATUS "${b}" 'j["data"]["job"]["status"]' succeeded
 
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations" "{\"invitee_email\":\"extra-${outsider_tag}@example.test\",\"role\":\"viewer\"}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_CREATE_WITHOUT_MEMBER_LIMIT 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/invitations" "{\"invitee_email\":\"extra-${outsider_tag}@example.test\",\"role\":\"viewer\"}" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status INVITE_CREATE_WITHOUT_MEMBER_LIMIT 200 "${s}" "${b}"
 
 log "[E2E] all SaaS multitenancy management scenarios passed tenant=${tenant_id} owner=${owner_id} invitee=${invitee_id}"

@@ -15,7 +15,6 @@ COMMENT ON COLUMN public.system_config.value_type IS 'Value type: string | numbe
 COMMENT ON COLUMN public.system_config.is_encrypted IS 'Whether value is AES-256-GCM encrypted';
 
 INSERT INTO public.system_config (key, value, value_type, description) VALUES
-('auth.devHeader.enabled',              'false',  'bool',   'Dev X-User-ID header auth toggle'),
 ('auth.password.enabled',               'true',   'bool',   'Password login toggle'),
 ('auth.password.registrationEnabled',   'true',   'bool',   'Password registration toggle'),
 ('auth.password.minLength',             '15',     'number', 'Minimum password length'),

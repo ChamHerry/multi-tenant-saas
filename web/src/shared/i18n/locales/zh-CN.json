@@ -437,8 +437,7 @@
     "missing": {
       "admin": "平台管理员",
       "sessionSecret": "会话签名密钥",
-      "apiKeySecret": "API Key 签名密钥",
-      "serverEnv": "服务运行环境"
+      "apiKeySecret": "API Key 签名密钥"
     },
     "admin": {
       "email": "管理员邮箱",
@@ -447,12 +446,6 @@
       "passwordHint": "至少 15 个字符。"
     },
     "security": {
-      "serverEnv": "服务运行环境",
-      "envOptions": {
-        "prod": "生产环境",
-        "local": "本地开发",
-        "test": "测试环境"
-      },
       "webBaseUrl": "前端访问地址",
       "webBaseUrlPlaceholder": "https://app.example.com",
       "generatedSecretsTitle": "密钥由服务端生成",

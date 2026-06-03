@@ -18,7 +18,8 @@ SCENARIO_LOG="${LOG_DIR}/full-flow.log"
 : >"${SCENARIO_LOG}"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing: $1" >&2; exit 1; }; }
-need go need curl
+need go
+need curl
 
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "${SCENARIO_LOG}"; }
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -28,11 +29,17 @@ psql_query() {
   if command -v psql >/dev/null 2>&1; then
     psql -Atc "$sql"; return
   fi
-  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx repomind-pg; then
-    docker exec -e PGPASSWORD="${PGPASSWORD}" repomind-pg psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"; return
+  if command -v docker >/dev/null 2>&1; then
+    for container in multi-tenant-saas-postgres; do
+      if docker ps --format '{{.Names}}' | grep -qx "${container}"; then
+        docker exec -e PGPASSWORD="${PGPASSWORD}" "${container}" psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"; return
+      fi
+    done
   fi
-  fail "missing psql or docker container repomind-pg"
+  fail "missing psql or docker container multi-tenant-saas-postgres"
 }
+
+source "${ROOT_DIR}/hack/lib/e2e_auth_session.sh"
 
 # --- Start server ---
 server_pid=""
@@ -46,6 +53,9 @@ cleanup() {
 trap cleanup EXIT
 
 lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null | head -1 | grep -q . && fail "port 8000 already in use"
+
+log "configuring local runtime for HTTP e2e..."
+e2e_configure_local_runtime
 
 log "starting server..."
 cd "${ROOT_DIR}"

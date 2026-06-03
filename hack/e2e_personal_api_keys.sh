@@ -45,12 +45,7 @@ psql_query() {
   local sql="$1"
   compose exec -T -e PGPASSWORD=secret "$DB_SERVICE" psql -U saas_template -d saas_template -Atc "$sql"
 }
-
-enable_dev_header_auth() {
-  psql_query "UPDATE public.system_config SET value='true', updated_at=now() WHERE key='auth.devHeader.enabled';" >/dev/null
-  psql_query "UPDATE public.system_config SET value='local', updated_at=now() WHERE key='server.env';" >/dev/null
-  compose exec -T redis redis-cli DEL config:auth.devHeader.enabled config:server.env >/dev/null 2>&1 || true
-}
+source "${ROOT_DIR}/hack/lib/e2e_auth_session.sh"
 
 print_failure_context() {
   {
@@ -91,14 +86,13 @@ ensure_stack_ready() {
   esac
   log "[E2E] wait for /readyz"
   manage_docker ready >/dev/null
-  enable_dev_header_auth
+  e2e_ensure_setup_completed
 }
 
 create_user() {
   local tag="$1"
   local email="${tag}@example.test"
-  appctl user-upsert --provider password --auth-id "$email" --email "$email" --name "$tag" --email-verified >/dev/null
-  psql_query "SELECT id FROM public.users WHERE email='${email}' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1"
+  e2e_create_password_user "$tag"
 }
 
 http_request() {
@@ -161,22 +155,30 @@ ensure_stack_ready
 log "[E2E] setup users via app container CLI"
 owner_id="$(create_user "$owner_tag")"
 outsider_id="$(create_user "$outsider_tag")"
+owner_cookie="${LOG_DIR}/owner.cookies"
+outsider_cookie="${LOG_DIR}/outsider.cookies"
+e2e_login_user_tag "$owner_tag" "$owner_cookie"
+e2e_login_user_tag "$outsider_tag" "$outsider_cookie"
+owner_csrf="$(e2e_csrf_from_cookie_jar "$owner_cookie")"
+outsider_csrf="$(e2e_csrf_from_cookie_jar "$outsider_cookie")"
+owner_auth=(-b "$owner_cookie" -c "$owner_cookie" -H "X-CSRF-Token: ${owner_csrf}")
+outsider_auth=(-b "$outsider_cookie" -c "$outsider_cookie" -H "X-CSRF-Token: ${outsider_csrf}")
 
 log "[E2E] ready check"
 b="$(bodyfile)"; s="$(http_request GET /readyz "" "$b")"; assert_status READYZ 200 "$s" "$b"
 
 log "[E2E] create owner and outsider tenants"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"Personal ${stamp}\",\"slug\":\"${tenant_slug}\"}" "$b" -H "X-User-ID: ${owner_id}")"; assert_status TENANT_CREATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"Personal ${stamp}\",\"slug\":\"${tenant_slug}\"}" "$b" "${owner_auth[@]}")"; assert_status TENANT_CREATE 200 "$s" "$b"
 tenant_id="$(json_value "$b" 'j["data"]["tenant"]["id"]')"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"Other ${stamp}\",\"slug\":\"${other_slug}\"}" "$b" -H "X-User-ID: ${outsider_id}")"; assert_status OTHER_TENANT_CREATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"Other ${stamp}\",\"slug\":\"${other_slug}\"}" "$b" "${outsider_auth[@]}")"; assert_status OTHER_TENANT_CREATE 200 "$s" "$b"
 other_tenant_id="$(json_value "$b" 'j["data"]["tenant"]["id"]')"
 
 log "[E2E] legacy personal API key route is removed"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "$b" -H "X-User-ID: ${owner_id}")"; assert_status LEGACY_PERSONAL_ROUTE_REMOVED 404 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "$b" "${owner_auth[@]}")"; assert_status LEGACY_PERSONAL_ROUTE_REMOVED 404 "$s" "$b"
 
 log "[E2E] create tenant-scoped API key for owner tenant"
 create_key_payload="{\"name\":\"personal-reader\",\"scopes\":[\"user:read\",\"tenant:read\"]}"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/api-keys" "$create_key_payload" "$b" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_SCOPED_KEY_CREATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/api-keys" "$create_key_payload" "$b" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_SCOPED_KEY_CREATE 200 "$s" "$b"
 raw_key="$(json_value "$b" 'j["data"]["raw_key"]')"
 api_key_id="$(json_value "$b" 'j["data"]["api_key"]["id"]')"
 if [[ "$raw_key" != saas_* ]]; then
@@ -186,9 +188,9 @@ fi
 log "[PASS] KEY_PREFIX"
 
 log "[E2E] owner tenant can list the key; outsider tenant cannot"
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/api-keys" "" "$b" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status OWNER_TENANT_LIST_KEYS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/api-keys" "" "$b" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status OWNER_TENANT_LIST_KEYS 200 "$s" "$b"
 assert_json_equals OWNER_TENANT_LIST_COUNT "$b" 'len(j["data"]["api_keys"]) == 1' true
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${other_tenant_id}/api-keys" "" "$b" -H "X-User-ID: ${outsider_id}" -H "X-Tenant-ID: ${other_tenant_id}")"; assert_status OUTSIDER_TENANT_LIST_KEYS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${other_tenant_id}/api-keys" "" "$b" "${outsider_auth[@]}" -H "X-Tenant-ID: ${other_tenant_id}")"; assert_status OUTSIDER_TENANT_LIST_KEYS 200 "$s" "$b"
 assert_json_equals OUTSIDER_TENANT_LIST_EMPTY "$b" 'len(j["data"]["api_keys"]) == 0' true
 
 log "[E2E] API key can read /me and owner tenant context, but not outsider tenant"
@@ -210,7 +212,7 @@ b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "$b" -H "Authori
 assert_json_equals APIKEY_PLATFORM_ADMIN_FORBIDDEN_CODE "$b" 'j["code"]' PLATFORM_ADMIN_SESSION_REQUIRED
 
 log "[E2E] revoke tenant-scoped key and confirm it can no longer authenticate"
-b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/tenants/${tenant_id}/api-keys/${api_key_id}" "" "$b" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_SCOPED_KEY_REVOKE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/tenants/${tenant_id}/api-keys/${api_key_id}" "" "$b" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_SCOPED_KEY_REVOKE 200 "$s" "$b"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "$b" -H "Authorization: Bearer ${raw_key}")"; assert_status KEY_REVOKED_REJECTED 401 "$s" "$b"
 
 log "[E2E] tenant-scoped personal API key scenarios passed tenant=${tenant_id} owner=${owner_id}"

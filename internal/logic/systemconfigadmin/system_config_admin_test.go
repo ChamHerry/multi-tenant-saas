@@ -71,3 +71,21 @@ func TestSensitiveKeyDetection(t *testing.T) {
 		t.Fatal("non-secret config should not be treated as sensitive")
 	}
 }
+
+func TestRemovedKeyDetection(t *testing.T) {
+	if _, ok := removedKeys["auth.devHeader.enabled"]; !ok {
+		t.Fatal("auth.devHeader.enabled must stay blocked from system_config admin upsert")
+	}
+}
+
+func TestSafeRuntimeSecretValidation(t *testing.T) {
+	if isSafeRuntimeSecret("docker-dev-session-secret-change-me") {
+		t.Fatal("change-me runtime secret must not be considered safe")
+	}
+	if isSafeRuntimeSecret("short") {
+		t.Fatal("short runtime secret must not be considered safe")
+	}
+	if !isSafeRuntimeSecret("0123456789abcdef0123456789abcdef") {
+		t.Fatal("32-byte non-placeholder runtime secret should be safe")
+	}
+}

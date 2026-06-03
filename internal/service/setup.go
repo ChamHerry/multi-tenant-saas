@@ -40,7 +40,6 @@ type SetupAdminInput struct {
 }
 
 type SetupRuntimeInput struct {
-	ServerEnv             string
 	WebBaseURL            string
 	GenerateSessionSecret bool
 	GenerateAPIKeySecret  bool

@@ -19,11 +19,11 @@ psql_query() {
     psql -Atc "$sql"
     return
   fi
-  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx repomind-pg; then
-    docker exec -e PGPASSWORD="${PGPASSWORD}" repomind-pg psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
+  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx multi-tenant-saas-postgres; then
+    docker exec -e PGPASSWORD="${PGPASSWORD}" multi-tenant-saas-postgres psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
     return
   fi
-  echo "missing dependency: psql or docker container repomind-pg" >&2
+  echo "missing dependency: psql or docker container multi-tenant-saas-postgres" >&2
   exit 1
 }
 

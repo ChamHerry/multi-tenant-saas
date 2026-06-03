@@ -31,13 +31,18 @@ psql_query() {
     psql -Atc "$sql"
     return
   fi
-  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx repomind-pg; then
-    docker exec -e PGPASSWORD="${PGPASSWORD}" repomind-pg psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
-    return
+  if command -v docker >/dev/null 2>&1; then
+    for container in multi-tenant-saas-postgres; do
+      if docker ps --format '{{.Names}}' | grep -qx "${container}"; then
+        docker exec -e PGPASSWORD="${PGPASSWORD}" "${container}" psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
+        return
+      fi
+    done
   fi
-  echo "missing dependency: psql or docker container repomind-pg" >&2
+  echo "missing dependency: psql or docker container multi-tenant-saas-postgres" >&2
   exit 1
 }
+source "${ROOT_DIR}/hack/lib/e2e_auth_session.sh"
 
 server_pid=""
 cleanup() {
@@ -54,13 +59,14 @@ log() {
 }
 
 write_config() {
-  python3 - "${ROOT_DIR}/manifest/config/config.yaml" "${CONFIG_FILE}" "${BASE_PORT}" <<'PY'
+  python3 - "${ROOT_DIR}/manifest/config/config.yaml" "${CONFIG_FILE}" "${BASE_PORT}" "${E2E_ENCRYPTION_KEY:-docker-dev-32-byte-encryption-key!!}" <<'PY'
 from pathlib import Path
-import sys
-src, dst, port = sys.argv[1:4]
+import re, sys
+src, dst, port, key = sys.argv[1:5]
 text = Path(src).read_text()
 text = text.replace('address:     ":8000"', f'address:     ":{port}"')
 text = text.replace('registrationEnabled: false', 'registrationEnabled: true')
+text = re.sub(r'^encryptionKey: .*$', f'encryptionKey: "{key}"', text, flags=re.M)
 Path(dst).write_text(text)
 PY
 }
@@ -156,6 +162,9 @@ email="default-tenant-${stamp}@example.test"
 password="0123456789abcde-${stamp}"
 name="Default Organization ${stamp}"
 
+log "[E2E] configure local runtime for HTTP e2e"
+e2e_configure_local_runtime
+
 log "[E2E] start server on ${BASE_URL}"
 start_server
 
@@ -163,13 +172,16 @@ b="$(bodyfile)"; s="$(http_request GET /healthz "" "${b}")"; assert_status HEALT
 b="$(bodyfile)"; s="$(http_request GET /readyz "" "${b}")"; assert_status READYZ 200 "${s}" "${b}"; assert_json_equals READYZ_OK "${b}" 'j["ok"]' true
 
 register_payload="{\"email\":\"${email}\",\"password\":\"${password}\",\"display_name\":\"${name}\"}"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/auth/register "${register_payload}" "${b}")"; assert_status REGISTER 200 "${s}" "${b}"
+user_cookie="${LOG_DIR}/default-tenant-user.cookies"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/auth/register "${register_payload}" "${b}" -c "${user_cookie}")"; assert_status REGISTER 200 "${s}" "${b}"
 user_id="$(json_value "${b}" 'j["data"]["user"]["id"]')"
 assert_json_equals REGISTER_EMAIL "${b}" 'j["data"]["user"]["email"]' "${email}"
+user_csrf="$(e2e_csrf_from_cookie_jar "${user_cookie}")"
+user_auth=(-b "${user_cookie}" -c "${user_cookie}" -H "X-CSRF-Token: ${user_csrf}")
 
 b="$(bodyfile)"; s="$(http_request POST /api/v1/auth/register "${register_payload}" "${b}")"; assert_status REGISTER_DUPLICATE 409 "${s}" "${b}"
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" -H "X-User-ID: ${user_id}")"; assert_status ACCESS_DEFAULT_TENANT 200 "${s}" "${b}"; assert_json_equals ACCESS_TENANT_COUNT "${b}" 'len(j["data"]["tenants"])' 1
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "${b}" "${user_auth[@]}")"; assert_status ACCESS_DEFAULT_TENANT 200 "${s}" "${b}"; assert_json_equals ACCESS_TENANT_COUNT "${b}" 'len(j["data"]["tenants"])' 1
 tenant_id="$(json_value "${b}" 'j["data"]["tenants"][0]["tenant_id"]')"
 tenant_slug="$(json_value "${b}" 'j["data"]["tenants"][0]["tenant_slug"]')"
 assert_json_equals ACCESS_DEFAULT_ROLE "${b}" 'j["data"]["tenants"][0]["role"]' owner
@@ -178,10 +190,10 @@ assert_sql_equals DEFAULT_TENANT_ROW "SELECT count(*) FROM public.tenants t JOIN
 assert_sql_equals LEGACY_ORGANIZATIONS_DROPPED "SELECT COALESCE(to_regclass('public.organizations')::text, '')" ""
 assert_sql_equals TENANT_SCHEMA_COLUMNS_REMOVED "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='tenants' AND column_name IN ('schema_name','graph_name','tenant_schema_version','tenant_schema_dirty','tenant_schema_checked_at')" 0
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/tenants "" "${b}" -H "X-User-ID: ${user_id}")"; assert_status ME_TENANTS 200 "${s}" "${b}"; assert_json_equals ME_TENANT_COUNT "${b}" 'len(j["data"]["tenants"])' 1
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/tenants "" "${b}" "${user_auth[@]}")"; assert_status ME_TENANTS 200 "${s}" "${b}"; assert_json_equals ME_TENANT_COUNT "${b}" 'len(j["data"]["tenants"])' 1
 assert_json_equals ME_TENANT_SLUG "${b}" 'j["data"]["tenants"][0]["tenant_slug"]' "${tenant_slug}"
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "X-User-ID: ${user_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_CONTEXT_PUBLIC_MODEL 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" "${user_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_CONTEXT_PUBLIC_MODEL 200 "${s}" "${b}"
 assert_json_equals TENANT_CONTEXT_ID "${b}" 'j["data"]["tenant_context"]["tenant_id"]' "${tenant_id}"
 assert_json_equals TENANT_CONTEXT_NO_SCHEMA_FIELD "${b}" '"schema_name" in j["data"]["tenant_context"]' false
 assert_json_equals TENANT_CONTEXT_NO_GRAPH_FIELD "${b}" '"graph_name" in j["data"]["tenant_context"]' false

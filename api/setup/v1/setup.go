@@ -17,7 +17,6 @@ type SetupAdminPayload struct {
 }
 
 type SetupRuntimePayload struct {
-	ServerEnv             string `json:"server_env"`
 	WebBaseURL            string `json:"web_base_url" v:"required"`
 	GenerateSessionSecret bool   `json:"generate_session_secret"`
 	GenerateAPIKeySecret  bool   `json:"generate_api_key_secret"`

@@ -54,7 +54,7 @@ type IBizCtx interface {
 
 	// Identity convenience methods.
 	GetUserID(ctx context.Context) string
-	GetAuthType(ctx context.Context) string // "session" | "api_key" | "dev_header"
+	GetAuthType(ctx context.Context) string // "session" | "api_key"
 
 	// Tenant convenience methods.
 	GetTenantID(ctx context.Context) string
