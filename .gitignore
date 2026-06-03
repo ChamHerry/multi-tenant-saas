@@ -29,3 +29,5 @@ web/.eslintcache
 web/node_modules/.tmp/
 .local/
 .jssdd/
+.playwright-mcp
+.superpowers
