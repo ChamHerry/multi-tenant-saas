@@ -1,0 +1,649 @@
+package systemsetup
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"net/mail"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/errors/gcode"
+	"github.com/gogf/gf/v2/errors/gerror"
+	"github.com/gogf/gf/v2/frame/g"
+	"golang.org/x/crypto/bcrypt"
+
+	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/service"
+	"multi-tenant-saas/utility/crypto"
+	credis "multi-tenant-saas/utility/redis"
+	"multi-tenant-saas/utility/uuid"
+)
+
+const (
+	setupVersion                = "initial-setup-wizard/v1"
+	passwordProvider            = "password"
+	platformSuperAdminRole      = "super_admin"
+	actionSetupCompleted        = "system_setup.completed"
+	actionLegacyDetected        = "system_setup.legacy_detected"
+	defaultPasswordMinLen       = 15
+	defaultBcryptCost           = 12
+	configCacheKeyFmt           = "config:%s"
+	minGeneratedSecretByteCount = 32
+)
+
+var codeConflict = gcode.New(409001, "Conflict", nil)
+
+type sSystemSetup struct{}
+
+func init() {
+	service.RegisterSystemSetup(&sSystemSetup{})
+}
+
+func (s *sSystemSetup) State(ctx context.Context) (*service.SetupStatus, error) {
+	checks := s.checks(ctx)
+	row, err := setupRow(ctx)
+	if err != nil {
+		return nil, err
+	}
+	initialized := !row.IsEmpty()
+	legacyInitialized := false
+	if !initialized {
+		legacyInitialized, err = s.legacyReady(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	missing, err := s.missing(ctx)
+	if err != nil {
+		return nil, err
+	}
+	status := &service.SetupStatus{
+		Initialized:       initialized,
+		RequiresSetup:     !initialized && !legacyInitialized,
+		LegacyInitialized: legacyInitialized,
+		Missing:           missing,
+		Checks:            checks,
+	}
+	if initialized {
+		status.Version = row["version"].String()
+		status.InitializedByUserID = row["initialized_by_user_id"].String()
+		if t := row["initialized_at"].Time(); !t.IsZero() {
+			status.InitializedAt = &t
+		}
+	}
+	return status, nil
+}
+
+func (s *sSystemSetup) EnsureLegacyState(ctx context.Context) error {
+	row, err := setupRow(ctx)
+	if err != nil {
+		return err
+	}
+	if !row.IsEmpty() {
+		return nil
+	}
+	ready, err := s.legacyReady(ctx)
+	if err != nil {
+		return err
+	}
+	if !ready {
+		return nil
+	}
+	adminID, err := firstActiveSuperAdminID(ctx)
+	if err != nil {
+		return err
+	}
+	metadata, err := marshalJSON(map[string]any{"legacy_detected": true, "source": "startup"})
+	if err != nil {
+		return err
+	}
+	_, err = g.DB().Exec(ctx, `
+		INSERT INTO system_setup(id, status, version, initialized_by_user_id, initialized_at, metadata)
+		VALUES (1, 'initialized', ?, ?, now(), ?::jsonb)
+		ON CONFLICT (id) DO NOTHING`, setupVersion, nilIfEmpty(adminID), metadata)
+	if err != nil {
+		return gerror.Wrap(err, "insert legacy system setup row")
+	}
+	_ = service.Audit().Write(ctx, service.AuditLogInput{UserID: adminID, Action: actionLegacyDetected, ResourceType: "system_setup", ResourceID: "1", Metadata: map[string]any{"legacy_detected": true}})
+	return nil
+}
+
+func (s *sSystemSetup) ValidateRuntimeOrSetupPending(ctx context.Context) error {
+	if err := s.EnsureLegacyState(ctx); err != nil {
+		return err
+	}
+	state, err := s.State(ctx)
+	if err != nil {
+		return err
+	}
+	if state.RequiresSetup {
+		g.Log().Warning(ctx, "[setup] system is not initialized; only setup routes are available")
+		return nil
+	}
+	return s.ValidateRuntime(ctx)
+}
+
+func (s *sSystemSetup) ValidateRuntime(ctx context.Context) error {
+	return validateRuntimeValues(runtimeValues{
+		Env:             service.Config().GetString(ctx, "server.env", "local"),
+		DevHeader:       service.Config().GetBool(ctx, "auth.devHeader.enabled", false),
+		PasswordEnabled: service.Config().GetBool(ctx, "auth.password.enabled", true),
+		SessionSecret:   service.Config().GetString(ctx, "auth.session.secret", ""),
+		APIKeySecret:    service.Config().GetString(ctx, "auth.apiKey.secret", ""),
+	})
+}
+
+func (s *sSystemSetup) Complete(ctx context.Context, in service.CompleteSetupInput) (*service.CompleteSetupResult, error) {
+	adminEmail, err := normalizeEmail(in.Admin.Email)
+	if err != nil {
+		return nil, err
+	}
+	displayName := strings.TrimSpace(in.Admin.DisplayName)
+	serverEnv, err := normalizeServerEnv(in.Runtime.ServerEnv)
+	if err != nil {
+		return nil, err
+	}
+	webBaseURL, err := normalizeWebBaseURL(in.Runtime.WebBaseURL)
+	if err != nil {
+		return nil, err
+	}
+	if err = validateSetupPassword(ctx, in.Admin.Password); err != nil {
+		return nil, err
+	}
+
+	sessionSecret, err := generateSecret()
+	if err != nil {
+		return nil, err
+	}
+	apiKeySecret, err := generateSecret()
+	if err != nil {
+		return nil, err
+	}
+	if err = validateRuntimeValues(runtimeValues{
+		Env:             serverEnv,
+		DevHeader:       service.Config().GetBool(ctx, "auth.devHeader.enabled", false),
+		PasswordEnabled: true,
+		SessionSecret:   sessionSecret,
+		APIKeySecret:    apiKeySecret,
+	}); err != nil {
+		return nil, err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(in.Admin.Password), passwordCost(ctx))
+	if err != nil {
+		return nil, gerror.Wrap(err, "hash setup admin password")
+	}
+
+	var userID string
+	updatedConfigKeys := []string{"server.env", "web.baseUrl", "auth.session.secret", "auth.apiKey.secret"}
+	err = dao.Users.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		row, err := tx.Ctx(ctx).GetOne("SELECT id FROM system_setup WHERE id=1 FOR UPDATE")
+		if err != nil {
+			return gerror.Wrap(err, "select system setup")
+		}
+		if !row.IsEmpty() {
+			return gerror.NewCode(codeConflict, service.SetupCodeAlreadyInitialized)
+		}
+
+		userID, err = upsertSetupAdminTx(ctx, tx, setupAdminUpsert{
+			Email:        adminEmail,
+			DisplayName:  displayName,
+			PasswordHash: string(hash),
+			HashCost:     passwordCost(ctx),
+		})
+		if err != nil {
+			return err
+		}
+		if err = upsertPlatformSuperAdminTx(ctx, tx, userID); err != nil {
+			return err
+		}
+		if err = upsertConfigTx(ctx, tx, "server.env", serverEnv, "string", "Server environment (local/test/prod)"); err != nil {
+			return err
+		}
+		if err = upsertConfigTx(ctx, tx, "web.baseUrl", webBaseURL, "string", "Frontend base URL for invitation and email links"); err != nil {
+			return err
+		}
+		if err = upsertConfigTx(ctx, tx, "auth.session.secret", sessionSecret, "secret", "Session HMAC secret generated by initial setup"); err != nil {
+			return err
+		}
+		if err = upsertConfigTx(ctx, tx, "auth.apiKey.secret", apiKeySecret, "secret", "API Key HMAC secret generated by initial setup"); err != nil {
+			return err
+		}
+		metadata, err := marshalJSON(map[string]any{
+			"source":         "initial_setup_wizard",
+			"server_env":     serverEnv,
+			"web_base_url":   webBaseURL,
+			"generated_keys": []string{"auth.session.secret", "auth.apiKey.secret"},
+		})
+		if err != nil {
+			return err
+		}
+		if _, err = tx.Ctx(ctx).Exec(`
+			INSERT INTO system_setup(id, status, version, initialized_by_user_id, initialized_at, metadata)
+			VALUES (1, 'initialized', ?, ?, now(), ?::jsonb)`, setupVersion, userID, metadata); err != nil {
+			return gerror.Wrap(err, "insert system setup row")
+		}
+		return insertSetupAuditTx(ctx, tx, userID, in, serverEnv, webBaseURL)
+	})
+	if err != nil {
+		return nil, err
+	}
+	invalidateConfigKeys(ctx, updatedConfigKeys...)
+	if err = s.ValidateRuntime(ctx); err != nil {
+		return nil, err
+	}
+	user, err := service.UserService().GetUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return &service.CompleteSetupResult{Initialized: true, User: user}, nil
+}
+
+type runtimeValues struct {
+	Env             string
+	DevHeader       bool
+	PasswordEnabled bool
+	SessionSecret   string
+	APIKeySecret    string
+}
+
+func validateRuntimeValues(values runtimeValues) error {
+	env := strings.TrimSpace(values.Env)
+	if env == "" {
+		env = "local"
+	}
+	if values.DevHeader && env != "local" && env != "test" {
+		return gerror.New("auth.devHeader.enabled is only allowed when server.env is local or test")
+	}
+	if values.PasswordEnabled && strings.TrimSpace(values.SessionSecret) == "" {
+		return gerror.New("auth.session.secret is required when password login is enabled")
+	}
+	if env != "local" && env != "test" {
+		if containsChangeMe(values.SessionSecret) {
+			return gerror.New("auth.session.secret must be changed outside local/test")
+		}
+		if strings.TrimSpace(values.APIKeySecret) == "" || containsChangeMe(values.APIKeySecret) {
+			return gerror.New("auth.apiKey.secret must be configured outside local/test")
+		}
+	}
+	return nil
+}
+
+func (s *sSystemSetup) checks(ctx context.Context) service.SetupChecks {
+	checks := service.SetupChecks{
+		Redis: service.SetupCheck{OK: true, Message: "optional"},
+	}
+	if _, err := g.DB().GetOne(ctx, "SELECT 1"); err != nil {
+		checks.Database = service.SetupCheck{OK: false, Message: err.Error()}
+	} else {
+		checks.Database = service.SetupCheck{OK: true}
+	}
+	version, dirty, err := service.AutoMigrate().Status(ctx)
+	if err != nil {
+		checks.Migrations = service.SetupCheck{OK: false, Message: err.Error()}
+	} else if dirty {
+		checks.Migrations = service.SetupCheck{OK: false, Message: "dirty migration state"}
+	} else {
+		checks.Migrations = service.SetupCheck{OK: true, Message: fmt.Sprint(version)}
+	}
+	if _, err := crypto.Encrypt("setup-check"); err != nil {
+		checks.Encryption = service.SetupCheck{OK: false, Message: err.Error()}
+	} else {
+		checks.Encryption = service.SetupCheck{OK: true}
+	}
+	if adapter := credis.GetCacheManager().GetAdapter("default"); adapter != nil {
+		if err := adapter.Ping(ctx); err != nil {
+			checks.Redis = service.SetupCheck{OK: false, Message: err.Error()}
+		} else {
+			checks.Redis = service.SetupCheck{OK: true}
+		}
+	}
+	return checks
+}
+
+func setupRow(ctx context.Context) (gdb.Record, error) {
+	row, err := g.DB().GetOne(ctx, `SELECT id, status, version, initialized_by_user_id, initialized_at, metadata FROM system_setup WHERE id=1`)
+	if err != nil {
+		return nil, gerror.Wrap(err, "select system setup")
+	}
+	return row, nil
+}
+
+func (s *sSystemSetup) legacyReady(ctx context.Context) (bool, error) {
+	hasAdmin, err := hasActiveSuperAdmin(ctx)
+	if err != nil {
+		return false, err
+	}
+	if !hasAdmin {
+		return false, nil
+	}
+	return isSafeSecret(service.Config().GetString(ctx, "auth.session.secret", "")) &&
+		isSafeSecret(service.Config().GetString(ctx, "auth.apiKey.secret", "")), nil
+}
+
+func (s *sSystemSetup) missing(ctx context.Context) ([]string, error) {
+	missing := []string{}
+	hasAdmin, err := hasActiveSuperAdmin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAdmin {
+		missing = append(missing, "admin")
+	}
+	if strings.TrimSpace(service.Config().GetString(ctx, "server.env", "")) == "" {
+		missing = append(missing, "server.env")
+	}
+	if !isSafeSecret(service.Config().GetString(ctx, "auth.session.secret", "")) {
+		missing = append(missing, "auth.session.secret")
+	}
+	if !isSafeSecret(service.Config().GetString(ctx, "auth.apiKey.secret", "")) {
+		missing = append(missing, "auth.apiKey.secret")
+	}
+	return missing, nil
+}
+
+func hasActiveSuperAdmin(ctx context.Context) (bool, error) {
+	count, err := dao.PlatformAdmins.Ctx(ctx).
+		Where(dao.PlatformAdmins.Columns().Role, platformSuperAdminRole).
+		Where(dao.PlatformAdmins.Columns().Status, "active").
+		Count()
+	return count > 0, gerror.Wrap(err, "count active platform super admins")
+}
+
+func firstActiveSuperAdminID(ctx context.Context) (string, error) {
+	row, err := dao.PlatformAdmins.Ctx(ctx).
+		Where(dao.PlatformAdmins.Columns().Role, platformSuperAdminRole).
+		Where(dao.PlatformAdmins.Columns().Status, "active").
+		OrderAsc(dao.PlatformAdmins.Columns().CreatedAt).
+		One()
+	if err != nil {
+		return "", gerror.Wrap(err, "select active platform super admin")
+	}
+	if row.IsEmpty() {
+		return "", nil
+	}
+	return row[dao.PlatformAdmins.Columns().UserId].String(), nil
+}
+
+type setupAdminUpsert struct {
+	Email        string
+	DisplayName  string
+	PasswordHash string
+	HashCost     int
+}
+
+func upsertSetupAdminTx(ctx context.Context, tx gdb.TX, in setupAdminUpsert) (string, error) {
+	identCols := dao.UserIdentities.Columns()
+	identity, err := dao.UserIdentities.Ctx(ctx).TX(tx).
+		Where(identCols.Provider, passwordProvider).
+		Where("lower("+identCols.Email+") = lower(?)", in.Email).
+		One()
+	if err != nil {
+		return "", gerror.Wrap(err, "select setup admin identity")
+	}
+	if !identity.IsEmpty() {
+		userID := identity[identCols.UserId].String()
+		if err := updateExistingSetupAdminTx(ctx, tx, userID, in); err != nil {
+			return "", err
+		}
+		return userID, nil
+	}
+
+	userID := uuid.GenerateV4()
+	identityID := uuid.GenerateV4()
+	metadata, err := marshalJSON(map[string]any{"source": "initial_setup_wizard"})
+	if err != nil {
+		return "", err
+	}
+	rawProfile := metadata
+	userCols := dao.Users.Columns()
+	if _, err = dao.Users.Ctx(ctx).TX(tx).Data(g.Map{
+		userCols.Id:          userID,
+		userCols.Email:       in.Email,
+		userCols.DisplayName: nilIfEmpty(in.DisplayName),
+		userCols.AvatarUrl:   nil,
+		userCols.Status:      "active",
+		userCols.Metadata:    metadata,
+		userCols.LastLoginAt: nil,
+		userCols.CreatedAt:   "now()",
+		userCols.UpdatedAt:   "now()",
+	}).Insert(); err != nil {
+		return "", gerror.Wrap(err, "insert setup admin user")
+	}
+	if _, err = dao.UserIdentities.Ctx(ctx).TX(tx).Data(g.Map{
+		identCols.Id:            identityID,
+		identCols.UserId:        userID,
+		identCols.Provider:      passwordProvider,
+		identCols.AuthId:        in.Email,
+		identCols.Email:         in.Email,
+		identCols.EmailVerified: true,
+		identCols.RawProfile:    rawProfile,
+		identCols.LastLoginAt:   nil,
+		identCols.CreatedAt:     "now()",
+		identCols.UpdatedAt:     "now()",
+	}).Insert(); err != nil {
+		return "", gerror.Wrap(err, "insert setup admin identity")
+	}
+	if err = upsertCredentialTx(ctx, tx, userID, in.PasswordHash, in.HashCost); err != nil {
+		return "", err
+	}
+	return userID, nil
+}
+
+func updateExistingSetupAdminTx(ctx context.Context, tx gdb.TX, userID string, in setupAdminUpsert) error {
+	userCols := dao.Users.Columns()
+	data := g.Map{userCols.Status: "active", userCols.UpdatedAt: "now()"}
+	if in.DisplayName != "" {
+		data[userCols.DisplayName] = in.DisplayName
+	}
+	if _, err := dao.Users.Ctx(ctx).TX(tx).Where(userCols.Id, userID).Data(data).Update(); err != nil {
+		return gerror.Wrap(err, "update setup admin user")
+	}
+	identCols := dao.UserIdentities.Columns()
+	if _, err := dao.UserIdentities.Ctx(ctx).TX(tx).
+		Where(identCols.Provider, passwordProvider).
+		Where("lower("+identCols.Email+") = lower(?)", in.Email).
+		Data(g.Map{identCols.EmailVerified: true, identCols.UpdatedAt: "now()"}).
+		Update(); err != nil {
+		return gerror.Wrap(err, "verify setup admin identity")
+	}
+	return upsertCredentialTx(ctx, tx, userID, in.PasswordHash, in.HashCost)
+}
+
+func upsertCredentialTx(ctx context.Context, tx gdb.TX, userID, passwordHash string, cost int) error {
+	cols := dao.UserPasswordCredentials.Columns()
+	now := time.Now()
+	existing, err := dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Where(cols.UserId, userID).One()
+	if err != nil {
+		return gerror.Wrap(err, "select setup admin password credential")
+	}
+	data := g.Map{
+		cols.PasswordHash:      passwordHash,
+		cols.HashCost:          cost,
+		cols.PasswordChangedAt: now,
+		cols.UpdatedAt:         now,
+	}
+	if existing.IsEmpty() {
+		data[cols.UserId] = userID
+		data[cols.CreatedAt] = now
+		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Data(data).Insert()
+	} else {
+		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Where(cols.UserId, userID).Data(data).Update()
+	}
+	return gerror.Wrap(err, "upsert setup admin password credential")
+}
+
+func upsertPlatformSuperAdminTx(ctx context.Context, tx gdb.TX, userID string) error {
+	cols := dao.PlatformAdmins.Columns()
+	now := time.Now()
+	existing, err := dao.PlatformAdmins.Ctx(ctx).TX(tx).Where(cols.UserId, userID).One()
+	if err != nil {
+		return gerror.Wrap(err, "select setup platform admin")
+	}
+	data := g.Map{cols.Role: platformSuperAdminRole, cols.Status: "active", cols.UpdatedAt: now}
+	if existing.IsEmpty() {
+		data[cols.UserId] = userID
+		data[cols.CreatedByUserId] = userID
+		data[cols.CreatedAt] = now
+		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).Data(data).Insert()
+	} else {
+		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).Where(cols.UserId, userID).Data(data).Update()
+	}
+	return gerror.Wrap(err, "upsert setup platform super admin")
+}
+
+func upsertConfigTx(ctx context.Context, tx gdb.TX, key, value, valueType, description string) error {
+	storedValue := value
+	isEncrypted := false
+	if valueType == "secret" {
+		encrypted, err := crypto.Encrypt(value)
+		if err != nil {
+			return gerror.Wrap(err, "encrypt setup config secret")
+		}
+		storedValue = encrypted
+		isEncrypted = true
+	}
+	_, err := tx.Ctx(ctx).Exec(`
+		INSERT INTO system_config(key, value, value_type, description, is_encrypted, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, now(), now())
+		ON CONFLICT (key) DO UPDATE SET
+			value = EXCLUDED.value,
+			value_type = EXCLUDED.value_type,
+			description = EXCLUDED.description,
+			is_encrypted = EXCLUDED.is_encrypted,
+			updated_at = now()`, key, storedValue, valueType, description, isEncrypted)
+	return gerror.Wrapf(err, "upsert setup config %s", key)
+}
+
+func insertSetupAuditTx(ctx context.Context, tx gdb.TX, userID string, in service.CompleteSetupInput, serverEnv, webBaseURL string) error {
+	metadata, err := marshalJSON(map[string]any{
+		"email":          strings.ToLower(strings.TrimSpace(in.Admin.Email)),
+		"server_env":     serverEnv,
+		"web_base_url":   webBaseURL,
+		"generated_keys": []string{"auth.session.secret", "auth.apiKey.secret"},
+	})
+	if err != nil {
+		return err
+	}
+	cols := dao.AuditLogs.Columns()
+	_, err = dao.AuditLogs.Ctx(ctx).TX(tx).Data(g.Map{
+		cols.TenantId:     nil,
+		cols.UserId:       userID,
+		cols.Action:       actionSetupCompleted,
+		cols.ResourceType: "system_setup",
+		cols.ResourceId:   "1",
+		cols.Ip:           nilIfEmpty(in.IP),
+		cols.UserAgent:    nilIfEmpty(in.UserAgent),
+		cols.Metadata:     metadata,
+		cols.CreatedAt:    "now()",
+	}).Insert()
+	return gerror.Wrap(err, "insert setup completion audit log")
+}
+
+func normalizeEmail(email string) (string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return "", gerror.NewCode(gcode.CodeMissingParameter, "admin email is required")
+	}
+	addr, err := mail.ParseAddress(email)
+	if err != nil || strings.ToLower(addr.Address) != email {
+		return "", gerror.NewCode(gcode.CodeInvalidParameter, "admin email is invalid")
+	}
+	return email, nil
+}
+
+func normalizeServerEnv(env string) (string, error) {
+	env = strings.ToLower(strings.TrimSpace(env))
+	if env == "" {
+		env = "prod"
+	}
+	switch env {
+	case "local", "test", "prod":
+		return env, nil
+	default:
+		return "", gerror.NewCodef(gcode.CodeInvalidParameter, "invalid server environment %q", env)
+	}
+}
+
+func normalizeWebBaseURL(value string) (string, error) {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	if value == "" {
+		return "", gerror.NewCode(gcode.CodeMissingParameter, "web base URL is required")
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", gerror.NewCode(gcode.CodeInvalidParameter, "web base URL must be an absolute URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", gerror.NewCode(gcode.CodeInvalidParameter, "web base URL must use http or https")
+	}
+	return value, nil
+}
+
+func validateSetupPassword(ctx context.Context, password string) error {
+	minLen := service.Config().GetInt(ctx, "auth.password.minLength", defaultPasswordMinLen)
+	if minLen < defaultPasswordMinLen {
+		minLen = defaultPasswordMinLen
+	}
+	if len(password) < minLen {
+		return gerror.NewCodef(gcode.CodeInvalidParameter, "admin password must be at least %d characters", minLen)
+	}
+	return nil
+}
+
+func passwordCost(ctx context.Context) int {
+	cost := service.Config().GetInt(ctx, "auth.password.bcryptCost", defaultBcryptCost)
+	if cost < bcrypt.MinCost || cost > 16 {
+		return defaultBcryptCost
+	}
+	return cost
+}
+
+func generateSecret() (string, error) {
+	buf := make([]byte, minGeneratedSecretByteCount)
+	if _, err := rand.Read(buf); err != nil {
+		return "", gerror.Wrap(err, "generate setup secret")
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+func isSafeSecret(value string) bool {
+	value = strings.TrimSpace(value)
+	return len(value) >= 32 && !containsChangeMe(value)
+}
+
+func containsChangeMe(value string) bool {
+	return strings.Contains(strings.ToLower(value), "change-me")
+}
+
+func marshalJSON(in map[string]any) (string, error) {
+	payload, err := json.Marshal(in)
+	if err != nil {
+		return "", gerror.Wrap(err, "marshal setup metadata")
+	}
+	return string(payload), nil
+}
+
+func nilIfEmpty(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func invalidateConfigKeys(ctx context.Context, keys ...string) {
+	adapter := credis.GetCacheManager().GetAdapter("default")
+	if adapter == nil {
+		return
+	}
+	for _, key := range keys {
+		if _, err := adapter.Del(ctx, fmt.Sprintf(configCacheKeyFmt, key)); err != nil {
+			g.Log().Warningf(ctx, "setup config cache del[%s] failed: %v", key, err)
+		}
+	}
+}

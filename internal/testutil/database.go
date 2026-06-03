@@ -104,6 +104,7 @@ func SetupTestDB(t *testing.T) gdb.DB {
 func TruncateAllTables(ctx context.Context, t *testing.T) {
 	t.Helper()
 	tables := []string{
+		"system_setup",
 		"audit_logs",
 		"auth_login_attempts",
 		"auth_sessions",
@@ -127,5 +128,32 @@ func TruncateAllTables(ctx context.Context, t *testing.T) {
 		if _, err := db.Exec(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table)); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
+	}
+}
+
+// MarkSystemSetupInitialized inserts the singleton setup lock used by tests that
+// are not explicitly exercising the first-run setup flow.
+func MarkSystemSetupInitialized(ctx context.Context, t *testing.T) {
+	t.Helper()
+	_, err := g.DB().Exec(ctx, `
+		INSERT INTO system_setup(id, status, version, initialized_at, metadata)
+		VALUES (1, 'initialized', 'integration-test', now(), '{"source":"test"}'::jsonb)
+		ON CONFLICT (id) DO UPDATE SET status='initialized', version='integration-test', initialized_at=now(), metadata='{"source":"test"}'::jsonb`)
+	if err != nil {
+		t.Fatalf("mark system setup initialized: %v", err)
+	}
+	ensureTestRuntimeSecret(ctx, t, "auth.session.secret", "integration-test-session-secret-0123456789abcdef")
+	ensureTestRuntimeSecret(ctx, t, "auth.apiKey.secret", "integration-test-apikey-secret-0123456789abcdef")
+}
+
+func ensureTestRuntimeSecret(ctx context.Context, t *testing.T, key, value string) {
+	t.Helper()
+	if err := service.Config().Set(ctx, &service.ConfigSetParams{
+		Key:         key,
+		Value:       value,
+		ValueType:   "secret",
+		Description: "Integration test runtime secret",
+	}); err != nil {
+		t.Fatalf("set %s: %v", key, err)
 	}
 }

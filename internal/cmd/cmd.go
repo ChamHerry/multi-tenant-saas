@@ -47,8 +47,8 @@ var (
 				g.Log().Warningf(ctx, "[cmd] Redis init failed, config will query DB directly: %v", err)
 			}
 
-			// 5. Validate runtime auth config (reads from system_config table)
-			if err = validateRuntimeAuthConfig(ctx); err != nil {
+			// 5. Validate runtime auth config unless first-run setup is pending.
+			if err = service.SystemSetup().ValidateRuntimeOrSetupPending(ctx); err != nil {
 				return err
 			}
 
@@ -482,26 +482,7 @@ func validateBootstrapConfig(ctx context.Context) error {
 }
 
 func validateRuntimeAuthConfig(ctx context.Context) error {
-	env := service.Config().GetString(ctx, "server.env", "local")
-	devHeader := service.Config().GetBool(ctx, "auth.devHeader.enabled", false)
-	if devHeader && env != "local" && env != "test" {
-		return gerror.New("auth.devHeader.enabled is only allowed when server.env is local or test")
-	}
-	passwordEnabled := service.Config().GetBool(ctx, "auth.password.enabled", true)
-	sessionSecret := service.Config().GetString(ctx, "auth.session.secret", "")
-	if passwordEnabled && sessionSecret == "" {
-		return gerror.New("auth.session.secret is required when password login is enabled")
-	}
-	if env != "local" && env != "test" {
-		if strings.Contains(sessionSecret, "change-me") {
-			return gerror.New("auth.session.secret must be changed outside local/test")
-		}
-		apiKeySecret := service.Config().GetString(ctx, "auth.apiKey.secret", "")
-		if apiKeySecret == "" || strings.Contains(apiKeySecret, "change-me") {
-			return gerror.New("auth.apiKey.secret must be configured outside local/test")
-		}
-	}
-	return nil
+	return service.SystemSetup().ValidateRuntime(ctx)
 }
 
 // startBackgroundJobs launches background goroutines for periodic tasks

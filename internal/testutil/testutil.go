@@ -87,8 +87,10 @@ func (ts *TestSuite) TeardownSuite(t *testing.T) {
 // Returns a context for direct DAO assertions if needed.
 func (ts *TestSuite) SetupTest(t *testing.T) context.Context {
 	t.Helper()
-	TruncateAllTables(context.Background(), t)
-	return context.Background()
+	ctx := context.Background()
+	TruncateAllTables(ctx, t)
+	MarkSystemSetupInitialized(ctx, t)
+	return ctx
 }
 
 // TeardownTest is a no-op in the truncate-based isolation model.
