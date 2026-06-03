@@ -5,6 +5,7 @@ package integration_test
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/gogf/gf/v2/frame/g"
@@ -203,6 +204,18 @@ func TestMe_Unauthenticated(t *testing.T) {
 
 	resp := suite.Client.GET("/api/v1/me")
 	testutil.AssertStatus(t, resp, 401)
+}
+
+func TestMe_XUserIDHeaderIgnored(t *testing.T) {
+	suite.SetupTest(t)
+	defer suite.TeardownTest(t)
+
+	user := testutil.RegisterAdditionalUser(t, suite.Client.BaseURL(), "x-user-id-ignored@example.com", "X User Ignored")
+	unauthenticated := testutil.NewTestClient(t, suite.Client.BaseURL())
+	resp := unauthenticated.DoWithHeaders(http.MethodGet, "/api/v1/me", "", map[string]string{
+		"X-User-ID": fmt.Sprint(user["id"]),
+	})
+	testutil.AssertStatus(t, resp, http.StatusUnauthorized)
 }
 
 // TestChangePassword verifies password change flow:

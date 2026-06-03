@@ -28,7 +28,6 @@ export type CompleteSetupPayload = {
     display_name?: string
   }
   runtime: {
-    server_env: 'local' | 'test' | 'prod'
     web_base_url: string
     generate_session_secret: true
     generate_api_key_secret: true

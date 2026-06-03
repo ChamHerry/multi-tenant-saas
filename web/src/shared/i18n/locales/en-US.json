@@ -437,8 +437,7 @@
     "missing": {
       "admin": "Platform administrator",
       "sessionSecret": "Session signing secret",
-      "apiKeySecret": "API key signing secret",
-      "serverEnv": "Server environment"
+      "apiKeySecret": "API key signing secret"
     },
     "admin": {
       "email": "Admin email",
@@ -447,12 +446,6 @@
       "passwordHint": "Use at least 15 characters."
     },
     "security": {
-      "serverEnv": "Server environment",
-      "envOptions": {
-        "prod": "Production",
-        "local": "Local development",
-        "test": "Test"
-      },
       "webBaseUrl": "Web base URL",
       "webBaseUrlPlaceholder": "https://app.example.com",
       "generatedSecretsTitle": "Secrets are generated on the server",

@@ -132,7 +132,7 @@ func (s *sAuthSession) Create(ctx context.Context, userID, userAgent, ip string)
 	}
 
 	// Build cookies using batch-read values for name, path, and domain.
-	// Secure and SameSite still come from cookieAttrs (which reads auth.session.cookie.secure / server.env individually).
+	// Secure and SameSite still come from cookieAttrs (which reads auth.session.cookie.secure individually).
 	attrs := cookieAttrs(ctx)
 	attrs.Path = cookiePath
 	attrs.Domain = cookieDomain
@@ -359,11 +359,10 @@ func cookieAttrs(ctx context.Context) cookieConfig {
 		path = "/"
 	}
 	domain := strings.TrimSpace(service.Config().GetString(ctx, "auth.session.cookie.domain", ""))
-	secureDefault := !isLocalEnv(ctx)
 	return cookieConfig{
 		Path:     path,
 		Domain:   domain,
-		Secure:   service.Config().GetBool(ctx, "auth.session.cookie.secure", secureDefault),
+		Secure:   service.Config().GetBool(ctx, "auth.session.cookie.secure", true),
 		SameSite: http.SameSiteLaxMode,
 	}
 }
@@ -465,9 +464,4 @@ func nullableTime(value any) *time.Time {
 	}
 	t := v.Time()
 	return &t
-}
-
-func isLocalEnv(ctx context.Context) bool {
-	env := strings.ToLower(strings.TrimSpace(service.Config().GetString(ctx, "server.env", "local")))
-	return env == "local" || env == "test"
 }

@@ -26,7 +26,6 @@ func (c *ControllerV1) Complete(ctx context.Context, req *v1.CompleteReq) (res *
 			DisplayName: req.Admin.DisplayName,
 		},
 		Runtime: service.SetupRuntimeInput{
-			ServerEnv:             req.Runtime.ServerEnv,
 			WebBaseURL:            req.Runtime.WebBaseURL,
 			GenerateSessionSecret: req.Runtime.GenerateSessionSecret,
 			GenerateAPIKeySecret:  req.Runtime.GenerateAPIKeySecret,

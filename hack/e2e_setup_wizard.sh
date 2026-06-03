@@ -127,10 +127,10 @@ csrf_from_cookie_jar() {
 reset_to_uninitialized() {
   log "[E2E] reset database to uninitialized setup state"
   psql_query "DELETE FROM public.system_setup;" >/dev/null
-  psql_query "INSERT INTO public.system_config(key,value,value_type,description,is_encrypted,created_at,updated_at) VALUES('server.env','local','string','Server environment (local/test/prod)',false,now(),now()) ON CONFLICT(key) DO UPDATE SET value='local', value_type='string', is_encrypted=false, updated_at=now();" >/dev/null
   psql_query "INSERT INTO public.system_config(key,value,value_type,description,is_encrypted,created_at,updated_at) VALUES('web.baseUrl','http://127.0.0.1:5173','string','Frontend base URL for invitation links',false,now(),now()) ON CONFLICT(key) DO UPDATE SET value='http://127.0.0.1:5173', value_type='string', is_encrypted=false, updated_at=now();" >/dev/null
+  psql_query "INSERT INTO public.system_config(key,value,value_type,description,is_encrypted,created_at,updated_at) VALUES('auth.session.cookie.secure','false','bool','HTTP e2e cookie override',false,now(),now()) ON CONFLICT(key) DO UPDATE SET value='false', value_type='bool', is_encrypted=false, updated_at=now();" >/dev/null
   psql_query "DELETE FROM public.system_config WHERE key IN ('auth.session.secret','auth.apiKey.secret');" >/dev/null
-  redis_del config:server.env config:web.baseUrl config:auth.session.secret config:auth.apiKey.secret
+  redis_del config:web.baseUrl config:auth.session.cookie.secure config:auth.session.secret config:auth.apiKey.secret
 }
 
 stamp="$(date +%Y%m%d%H%M%S)-$$"
@@ -151,7 +151,7 @@ b="$(bodyfile)"; s="$(http_request POST /api/v1/auth/register "{\"email\":\"bloc
 assert_json_equals REGISTER_BLOCKED_CODE "$b" 'j["code"]' SYSTEM_SETUP_REQUIRED
 
 log "[E2E] complete first-run setup"
-setup_payload="{\"admin\":{\"email\":\"${admin_email}\",\"password\":\"${admin_password}\",\"display_name\":\"Setup Admin\"},\"runtime\":{\"server_env\":\"local\",\"web_base_url\":\"${BASE_URL}\",\"generate_session_secret\":true,\"generate_api_key_secret\":true}}"
+setup_payload="{\"admin\":{\"email\":\"${admin_email}\",\"password\":\"${admin_password}\",\"display_name\":\"Setup Admin\"},\"runtime\":{\"web_base_url\":\"${BASE_URL}\",\"generate_session_secret\":true,\"generate_api_key_secret\":true}}"
 b="$(bodyfile)"; s="$(http_request POST /api/v1/setup/complete "$setup_payload" "$b")"; assert_status SETUP_COMPLETE 200 "$s" "$b"
 assert_json_equals SETUP_COMPLETE_INITIALIZED "$b" 'j["data"]["initialized"]' true
 assert_json_equals SETUP_COMPLETE_EMAIL "$b" 'j["data"]["user"]["email"]' "$admin_email"

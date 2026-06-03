@@ -15,16 +15,19 @@ func TestIsSafeSecret(t *testing.T) {
 }
 
 func TestValidateRuntimeValues(t *testing.T) {
-	if err := validateRuntimeValues(runtimeValues{Env: "prod", DevHeader: false, PasswordEnabled: true, SessionSecret: "change-me", APIKeySecret: "0123456789abcdef0123456789abcdef"}); err == nil {
-		t.Fatal("prod session change-me should fail")
+	if err := validateRuntimeValues(runtimeValues{SessionSecret: "change-me", APIKeySecret: "0123456789abcdef0123456789abcdef"}); err == nil {
+		t.Fatal("session change-me should fail")
 	}
-	if err := validateRuntimeValues(runtimeValues{Env: "prod", DevHeader: false, PasswordEnabled: true, SessionSecret: "0123456789abcdef0123456789abcdef", APIKeySecret: "change-me"}); err == nil {
-		t.Fatal("prod api key change-me should fail")
+	if err := validateRuntimeValues(runtimeValues{SessionSecret: "0123456789abcdef0123456789abcdef", APIKeySecret: "change-me"}); err == nil {
+		t.Fatal("api key change-me should fail")
 	}
-	if err := validateRuntimeValues(runtimeValues{Env: "local", DevHeader: true, PasswordEnabled: true, SessionSecret: "change-me", APIKeySecret: "change-me"}); err != nil {
-		t.Fatalf("local placeholders should be allowed by strict runtime validator: %v", err)
+	if err := validateRuntimeValues(runtimeValues{SessionSecret: "short", APIKeySecret: "0123456789abcdef0123456789abcdef"}); err == nil {
+		t.Fatal("short session secret should fail")
 	}
-	if err := validateRuntimeValues(runtimeValues{Env: "prod", DevHeader: true, PasswordEnabled: true, SessionSecret: "0123456789abcdef0123456789abcdef", APIKeySecret: "0123456789abcdef0123456789abcdef"}); err == nil {
-		t.Fatal("dev header must fail outside local/test")
+	if err := validateRuntimeValues(runtimeValues{SessionSecret: "0123456789abcdef0123456789abcdef", APIKeySecret: "short"}); err == nil {
+		t.Fatal("short api key secret should fail")
+	}
+	if err := validateRuntimeValues(runtimeValues{SessionSecret: "0123456789abcdef0123456789abcdef", APIKeySecret: "fedcba9876543210fedcba9876543210"}); err != nil {
+		t.Fatalf("safe runtime secrets should pass: %v", err)
 	}
 }

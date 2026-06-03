@@ -30,13 +30,18 @@ psql_query() {
     psql -Atc "$sql"
     return
   fi
-  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx repomind-pg; then
-    docker exec -e PGPASSWORD="${PGPASSWORD}" repomind-pg psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
-    return
+  if command -v docker >/dev/null 2>&1; then
+    for container in multi-tenant-saas-postgres; do
+      if docker ps --format '{{.Names}}' | grep -qx "${container}"; then
+        docker exec -e PGPASSWORD="${PGPASSWORD}" "${container}" psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
+        return
+      fi
+    done
   fi
-  echo "missing dependency: psql or docker container repomind-pg" >&2
+  echo "missing dependency: psql or docker container multi-tenant-saas-postgres" >&2
   exit 1
 }
+source "${ROOT_DIR}/hack/lib/e2e_auth_session.sh"
 
 server_pid=""
 cleanup() {
@@ -89,8 +94,7 @@ start_server() {
 create_user() {
   local tag="$1"
   local email="${tag}@example.test"
-  (cd "${ROOT_DIR}" && go run . user-upsert --provider password --auth-id "${email}" --email "${email}" --name "${tag}" --email-verified >/dev/null)
-  psql_query "SELECT id FROM public.users WHERE email='${email}' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1"
+  e2e_create_password_user "$tag"
 }
 
 http_request() {
@@ -151,6 +155,9 @@ tenant_name="Frontend ${stamp}"
 log "[E2E] build frontend"
 (cd "${ROOT_DIR}/web" && npm run build >/dev/null)
 
+log "[E2E] configure local runtime for HTTP e2e"
+e2e_configure_local_runtime
+
 log "[E2E] setup users"
 owner_id="$(create_user "${owner_email}")"
 viewer_id="$(create_user "${viewer_email}")"
@@ -166,21 +173,25 @@ b="$(bodyfile)"; s="$(http_request GET /assets/not-found.js "" "${b}")"; assert_
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "${b}")"; assert_status API_NOT_FALLBACK 401 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /healthz "" "${b}")"; assert_status HEALTHZ_NOT_FALLBACK 200 "${s}" "${b}"
 b="$(bodyfile)"; s="$(http_request GET /readyz "" "${b}")"; assert_status READYZ_NOT_FALLBACK 200 "${s}" "${b}"
+owner_cookie="${LOG_DIR}/frontend-owner.cookies"
+e2e_login_user_tag "$owner_email" "$owner_cookie"
+owner_csrf="$(e2e_csrf_from_cookie_jar "$owner_cookie")"
+owner_auth=(-b "$owner_cookie" -c "$owner_cookie" -H "X-CSRF-Token: ${owner_csrf}")
 
 create_payload="{\"name\":\"${tenant_name}\",\"slug\":\"${tenant_slug}\"}"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "${create_payload}" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status TENANT_CREATE_FOR_UI 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "${create_payload}" "${b}" "${owner_auth[@]}")"; assert_status TENANT_CREATE_FOR_UI 200 "${s}" "${b}"
 tenant_id="$(json_value "${b}" 'j["data"]["tenant"]["id"]')"
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status DEV_LOGIN_ME 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/tenants "" "${b}" -H "X-User-ID: ${owner_id}")"; assert_status DEV_LOGIN_TENANTS 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_CONTEXT 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "${b}" "${owner_auth[@]}")"; assert_status DEV_LOGIN_ME 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/tenants "" "${b}" "${owner_auth[@]}")"; assert_status DEV_LOGIN_TENANTS 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status TENANT_CONTEXT 200 "${s}" "${b}"
 
 add_member_payload="{\"user_id\":\"${viewer_id}\",\"role\":\"viewer\",\"status\":\"active\"}"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/members" "${add_member_payload}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_ADD 200 "${s}" "${b}"
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/members" "" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_LIST 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/members" "${add_member_payload}" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_ADD 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_id}/members" "" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status MEMBER_LIST 200 "${s}" "${b}"
 
 personal_key_payload="{\"name\":\"frontend-smoke\",\"scopes\":[\"tenant:read\",\"member:read\"]}"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/api-keys" "${personal_key_payload}" "${b}" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status PERSONAL_APIKEY_CREATE 200 "${s}" "${b}"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_id}/api-keys" "${personal_key_payload}" "${b}" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_id}")"; assert_status PERSONAL_APIKEY_CREATE 200 "${s}" "${b}"
 raw_key="$(json_value "${b}" 'j["data"]["raw_key"]')"
 if [[ "${raw_key}" != saas_* ]]; then
   log "[FAIL] PERSONAL_APIKEY_RAW_PREFIX: unexpected raw key ${raw_key}"

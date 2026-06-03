@@ -32,16 +32,18 @@ psql_query() {
     fi
   fi
   if command -v docker >/dev/null 2>&1; then
-    for container in repomind-pg multi-tenant-saas-postgres; do
+    for container in multi-tenant-saas-postgres; do
       if docker ps --format '{{.Names}}' | grep -qx "${container}"; then
         docker exec -e PGPASSWORD="${PGPASSWORD}" "${container}" psql -U "${PGUSER}" -d "${PGDATABASE}" -Atc "$sql"
         return
       fi
     done
   fi
-  echo "missing usable database client: psql connection or docker container multi-tenant-saas-postgres/repomind-pg" >&2
+  echo "missing usable database client: psql connection or docker container multi-tenant-saas-postgres" >&2
   exit 1
 }
+
+source "${ROOT_DIR}/hack/lib/e2e_auth_session.sh"
 
 server_pid=""
 cleanup() {
@@ -99,6 +101,7 @@ MSG
     public.tenants,
     public.users
   RESTART IDENTITY CASCADE;" >/dev/null
+  e2e_configure_local_runtime
 }
 
 http_request() {
@@ -154,6 +157,7 @@ register_user() {
 }
 
 log "[E2E] start server"
+e2e_configure_local_runtime
 start_server
 
 log "[E2E] serial bootstrap scenario"

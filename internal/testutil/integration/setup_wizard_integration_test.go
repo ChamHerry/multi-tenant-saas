@@ -56,7 +56,7 @@ func TestSetupWizard_CompleteCreatesAdminSecretsAndLocks(t *testing.T) {
 
 	body := fmt.Sprintf(`{
 		"admin":{"email":"setup-admin@example.com","password":"%s","display_name":"Setup Admin"},
-		"runtime":{"server_env":"test","web_base_url":"http://127.0.0.1:5173","generate_session_secret":true,"generate_api_key_secret":true}
+		"runtime":{"web_base_url":"http://127.0.0.1:5173","generate_session_secret":true,"generate_api_key_secret":true}
 	}`, setupPassword)
 	complete := suite.Client.POST("/api/v1/setup/complete", body)
 	testutil.AssertSuccess(t, complete)
@@ -77,9 +77,6 @@ func TestSetupWizard_CompleteCreatesAdminSecretsAndLocks(t *testing.T) {
 	}
 	assertGeneratedSecretConfig(t, "auth.session.secret")
 	assertGeneratedSecretConfig(t, "auth.apiKey.secret")
-	if got := service.Config().GetString(context.Background(), "server.env", ""); got != "test" {
-		t.Fatalf("server.env=%q want test", got)
-	}
 
 	second := suite.Client.POST("/api/v1/setup/complete", body)
 	testutil.AssertStatus(t, second, http.StatusConflict)
@@ -150,8 +147,8 @@ func resetSetupState(t *testing.T) {
 func resetSetupRuntimeConfig(t *testing.T) {
 	t.Helper()
 	statements := []struct{ key, value, valueType, description string }{
-		{"server.env", "local", "string", "Server environment (local/test/prod)"},
 		{"web.baseUrl", "http://127.0.0.1:5173", "string", "Frontend base URL for invitation links"},
+		{"auth.session.cookie.secure", "false", "bool", "Integration test HTTP cookie override"},
 	}
 	for _, item := range statements {
 		_, err := g.DB().Exec(context.Background(), `

@@ -4,17 +4,14 @@ import { CheckCircle2, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AuthShell } from '@/layouts/AuthShell'
 import { useCompleteSetupMutation, useSetupState } from '@/features/setup/setup-hooks'
-import type { CompleteSetupPayload, SetupCheck } from '@/features/setup/setup-types'
+import type { SetupCheck } from '@/features/setup/setup-types'
 import { errorMessage } from '@/shared/api/errors'
-import { Button, Card, CardHeader, Input, Select, Toast, LoadingView, ErrorView } from '@/shared/ui'
-
-type ServerEnv = CompleteSetupPayload['runtime']['server_env']
+import { Button, Card, CardHeader, Input, Toast, LoadingView, ErrorView } from '@/shared/ui'
 
 type SetupForm = {
   email: string
   password: string
   displayName: string
-  serverEnv: ServerEnv
   webBaseUrl: string
 }
 
@@ -30,7 +27,6 @@ export function SetupWizardPage() {
     email: '',
     password: '',
     displayName: '',
-    serverEnv: 'prod',
     webBaseUrl: window.location.origin,
   })
   const [clientError, setClientError] = useState('')
@@ -76,7 +72,6 @@ export function SetupWizardPage() {
           display_name: form.displayName.trim() || undefined,
         },
         runtime: {
-          server_env: form.serverEnv,
           web_base_url: form.webBaseUrl.trim().replace(/\/$/, ''),
           generate_session_secret: true,
           generate_api_key_secret: true,
@@ -183,11 +178,6 @@ function SecurityStep({ form, setForm }: { form: SetupForm; setForm: (next: Setu
   const { t } = useTranslation()
   return (
     <div className="grid gap-4">
-      <Select label={t('setup.security.serverEnv')} value={form.serverEnv} onChange={(event) => setForm({ ...form, serverEnv: event.target.value as ServerEnv })}>
-        <option value="prod">{t('setup.security.envOptions.prod')}</option>
-        <option value="local">{t('setup.security.envOptions.local')}</option>
-        <option value="test">{t('setup.security.envOptions.test')}</option>
-      </Select>
       <Input label={t('setup.security.webBaseUrl')} value={form.webBaseUrl} onChange={(event) => setForm({ ...form, webBaseUrl: event.target.value })} placeholder={t('setup.security.webBaseUrlPlaceholder')} required />
       <div className="rounded-panel border border-line bg-surface-soft p-3 text-sm text-muted">
         <div className="font-bold text-ink">{t('setup.security.generatedSecretsTitle')}</div>
@@ -207,7 +197,6 @@ function ReviewStep({ form }: { form: SetupForm }) {
       </div>
       <div>
         <div className="font-bold text-ink">{t('setup.review.runtime')}</div>
-        <div className="text-muted">{form.serverEnv}</div>
         <div className="text-muted">{form.webBaseUrl}</div>
       </div>
       <div>
@@ -235,8 +224,6 @@ function missingLabel(t: (key: string) => string, item: string) {
       return t('setup.missing.sessionSecret')
     case 'auth.apiKey.secret':
       return t('setup.missing.apiKeySecret')
-    case 'server.env':
-      return t('setup.missing.serverEnv')
     default:
       return item
   }

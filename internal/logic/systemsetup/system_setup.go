@@ -130,11 +130,8 @@ func (s *sSystemSetup) ValidateRuntimeOrSetupPending(ctx context.Context) error 
 
 func (s *sSystemSetup) ValidateRuntime(ctx context.Context) error {
 	return validateRuntimeValues(runtimeValues{
-		Env:             service.Config().GetString(ctx, "server.env", "local"),
-		DevHeader:       service.Config().GetBool(ctx, "auth.devHeader.enabled", false),
-		PasswordEnabled: service.Config().GetBool(ctx, "auth.password.enabled", true),
-		SessionSecret:   service.Config().GetString(ctx, "auth.session.secret", ""),
-		APIKeySecret:    service.Config().GetString(ctx, "auth.apiKey.secret", ""),
+		SessionSecret: service.Config().GetString(ctx, "auth.session.secret", ""),
+		APIKeySecret:  service.Config().GetString(ctx, "auth.apiKey.secret", ""),
 	})
 }
 
@@ -144,10 +141,6 @@ func (s *sSystemSetup) Complete(ctx context.Context, in service.CompleteSetupInp
 		return nil, err
 	}
 	displayName := strings.TrimSpace(in.Admin.DisplayName)
-	serverEnv, err := normalizeServerEnv(in.Runtime.ServerEnv)
-	if err != nil {
-		return nil, err
-	}
 	webBaseURL, err := normalizeWebBaseURL(in.Runtime.WebBaseURL)
 	if err != nil {
 		return nil, err
@@ -165,11 +158,8 @@ func (s *sSystemSetup) Complete(ctx context.Context, in service.CompleteSetupInp
 		return nil, err
 	}
 	if err = validateRuntimeValues(runtimeValues{
-		Env:             serverEnv,
-		DevHeader:       service.Config().GetBool(ctx, "auth.devHeader.enabled", false),
-		PasswordEnabled: true,
-		SessionSecret:   sessionSecret,
-		APIKeySecret:    apiKeySecret,
+		SessionSecret: sessionSecret,
+		APIKeySecret:  apiKeySecret,
 	}); err != nil {
 		return nil, err
 	}
@@ -180,7 +170,7 @@ func (s *sSystemSetup) Complete(ctx context.Context, in service.CompleteSetupInp
 	}
 
 	var userID string
-	updatedConfigKeys := []string{"server.env", "web.baseUrl", "auth.session.secret", "auth.apiKey.secret"}
+	updatedConfigKeys := []string{"web.baseUrl", "auth.session.secret", "auth.apiKey.secret"}
 	err = dao.Users.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		row, err := tx.Ctx(ctx).GetOne("SELECT id FROM system_setup WHERE id=1 FOR UPDATE")
 		if err != nil {
@@ -202,9 +192,6 @@ func (s *sSystemSetup) Complete(ctx context.Context, in service.CompleteSetupInp
 		if err = upsertPlatformSuperAdminTx(ctx, tx, userID); err != nil {
 			return err
 		}
-		if err = upsertConfigTx(ctx, tx, "server.env", serverEnv, "string", "Server environment (local/test/prod)"); err != nil {
-			return err
-		}
 		if err = upsertConfigTx(ctx, tx, "web.baseUrl", webBaseURL, "string", "Frontend base URL for invitation and email links"); err != nil {
 			return err
 		}
@@ -216,7 +203,6 @@ func (s *sSystemSetup) Complete(ctx context.Context, in service.CompleteSetupInp
 		}
 		metadata, err := marshalJSON(map[string]any{
 			"source":         "initial_setup_wizard",
-			"server_env":     serverEnv,
 			"web_base_url":   webBaseURL,
 			"generated_keys": []string{"auth.session.secret", "auth.apiKey.secret"},
 		})
@@ -228,7 +214,7 @@ func (s *sSystemSetup) Complete(ctx context.Context, in service.CompleteSetupInp
 			VALUES (1, 'initialized', ?, ?, now(), ?::jsonb)`, setupVersion, userID, metadata); err != nil {
 			return gerror.Wrap(err, "insert system setup row")
 		}
-		return insertSetupAuditTx(ctx, tx, userID, in, serverEnv, webBaseURL)
+		return insertSetupAuditTx(ctx, tx, userID, in, webBaseURL)
 	})
 	if err != nil {
 		return nil, err
@@ -245,31 +231,16 @@ func (s *sSystemSetup) Complete(ctx context.Context, in service.CompleteSetupInp
 }
 
 type runtimeValues struct {
-	Env             string
-	DevHeader       bool
-	PasswordEnabled bool
-	SessionSecret   string
-	APIKeySecret    string
+	SessionSecret string
+	APIKeySecret  string
 }
 
 func validateRuntimeValues(values runtimeValues) error {
-	env := strings.TrimSpace(values.Env)
-	if env == "" {
-		env = "local"
+	if !isSafeSecret(values.SessionSecret) {
+		return gerror.New("auth.session.secret must be configured with a safe non-placeholder value")
 	}
-	if values.DevHeader && env != "local" && env != "test" {
-		return gerror.New("auth.devHeader.enabled is only allowed when server.env is local or test")
-	}
-	if values.PasswordEnabled && strings.TrimSpace(values.SessionSecret) == "" {
-		return gerror.New("auth.session.secret is required when password login is enabled")
-	}
-	if env != "local" && env != "test" {
-		if containsChangeMe(values.SessionSecret) {
-			return gerror.New("auth.session.secret must be changed outside local/test")
-		}
-		if strings.TrimSpace(values.APIKeySecret) == "" || containsChangeMe(values.APIKeySecret) {
-			return gerror.New("auth.apiKey.secret must be configured outside local/test")
-		}
+	if !isSafeSecret(values.APIKeySecret) {
+		return gerror.New("auth.apiKey.secret must be configured with a safe non-placeholder value")
 	}
 	return nil
 }
@@ -334,9 +305,6 @@ func (s *sSystemSetup) missing(ctx context.Context) ([]string, error) {
 	}
 	if !hasAdmin {
 		missing = append(missing, "admin")
-	}
-	if strings.TrimSpace(service.Config().GetString(ctx, "server.env", "")) == "" {
-		missing = append(missing, "server.env")
 	}
 	if !isSafeSecret(service.Config().GetString(ctx, "auth.session.secret", "")) {
 		missing = append(missing, "auth.session.secret")
@@ -520,10 +488,9 @@ func upsertConfigTx(ctx context.Context, tx gdb.TX, key, value, valueType, descr
 	return gerror.Wrapf(err, "upsert setup config %s", key)
 }
 
-func insertSetupAuditTx(ctx context.Context, tx gdb.TX, userID string, in service.CompleteSetupInput, serverEnv, webBaseURL string) error {
+func insertSetupAuditTx(ctx context.Context, tx gdb.TX, userID string, in service.CompleteSetupInput, webBaseURL string) error {
 	metadata, err := marshalJSON(map[string]any{
 		"email":          strings.ToLower(strings.TrimSpace(in.Admin.Email)),
-		"server_env":     serverEnv,
 		"web_base_url":   webBaseURL,
 		"generated_keys": []string{"auth.session.secret", "auth.apiKey.secret"},
 	})
@@ -555,19 +522,6 @@ func normalizeEmail(email string) (string, error) {
 		return "", gerror.NewCode(gcode.CodeInvalidParameter, "admin email is invalid")
 	}
 	return email, nil
-}
-
-func normalizeServerEnv(env string) (string, error) {
-	env = strings.ToLower(strings.TrimSpace(env))
-	if env == "" {
-		env = "prod"
-	}
-	switch env {
-	case "local", "test", "prod":
-		return env, nil
-	default:
-		return "", gerror.NewCodef(gcode.CodeInvalidParameter, "invalid server environment %q", env)
-	}
 }
 
 func normalizeWebBaseURL(value string) (string, error) {

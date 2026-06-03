@@ -39,6 +39,13 @@ var (
 		"server.env":                   {},
 		"automigrate.enabled":          {},
 	}
+	removedKeys = map[string]struct{}{
+		"auth.devHeader.enabled": {},
+	}
+	runtimeSecretKeys = map[string]struct{}{
+		"auth.session.secret": {},
+		"auth.apiKey.secret":  {},
+	}
 )
 
 type sSystemConfigAdmin struct{}
@@ -96,6 +103,9 @@ func (s *sSystemConfigAdmin) Upsert(ctx context.Context, input service.SystemCon
 	if err != nil {
 		return nil, err
 	}
+	if _, removed := removedKeys[key]; removed {
+		return nil, gerror.NewCodef(gcode.CodeInvalidParameter, "system config %q has been removed", key)
+	}
 	valueType := strings.TrimSpace(input.ValueType)
 	if _, ok := validValueTypes[valueType]; !ok {
 		return nil, gerror.NewCodef(gcode.CodeInvalidParameter, "invalid value_type %q", valueType)
@@ -122,6 +132,9 @@ func (s *sSystemConfigAdmin) Upsert(ctx context.Context, input service.SystemCon
 	normalizedValue, err := validateAndNormalizeValue(valueType, input.Value)
 	if err != nil {
 		return nil, err
+	}
+	if _, runtimeSecret := runtimeSecretKeys[key]; runtimeSecret && !isSafeRuntimeSecret(normalizedValue) {
+		return nil, gerror.NewCodef(gcode.CodeInvalidParameter, "system config %q requires a safe non-placeholder secret value", key)
 	}
 	if err = service.Config().Set(ctx, &service.ConfigSetParams{
 		Key:         key,
@@ -267,6 +280,11 @@ func validateAndNormalizeValue(valueType, value string) (string, error) {
 	default:
 		return "", gerror.NewCodef(gcode.CodeInvalidParameter, "invalid value_type %q", valueType)
 	}
+}
+
+func isSafeRuntimeSecret(value string) bool {
+	value = strings.TrimSpace(value)
+	return len(value) >= 32 && !strings.Contains(strings.ToLower(value), "change-me")
 }
 
 func mapItem(config *entity.SystemConfig) service.SystemConfigAdminItem {

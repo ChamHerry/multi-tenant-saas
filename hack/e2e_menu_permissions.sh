@@ -45,12 +45,7 @@ psql_query() {
   local sql="$1"
   compose exec -T -e PGPASSWORD=secret "$DB_SERVICE" psql -U saas_template -d saas_template -Atc "$sql"
 }
-
-enable_dev_header_auth() {
-  psql_query "UPDATE public.system_config SET value='true', updated_at=now() WHERE key='auth.devHeader.enabled';" >/dev/null
-  psql_query "UPDATE public.system_config SET value='local', updated_at=now() WHERE key='server.env';" >/dev/null
-  compose exec -T redis redis-cli DEL config:auth.devHeader.enabled config:server.env >/dev/null 2>&1 || true
-}
+source "${ROOT_DIR}/hack/lib/e2e_auth_session.sh"
 
 print_failure_context() {
   {
@@ -91,14 +86,13 @@ ensure_stack_ready() {
   esac
   log "[E2E] wait for /readyz"
   manage_docker ready >/dev/null
-  enable_dev_header_auth
+  e2e_ensure_setup_completed
 }
 
 create_user() {
   local tag="$1"
   local email="${tag}@example.test"
-  appctl user-upsert --provider password --auth-id "$email" --email "$email" --name "$tag" --email-verified >/dev/null
-  psql_query "SELECT id FROM public.users WHERE email='${email}' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1"
+  e2e_create_password_user "$tag"
 }
 
 http_request() {
@@ -166,44 +160,60 @@ admin_id="$(create_user "$admin_tag")"
 viewer_id="$(create_user "$viewer_tag")"
 support_id="$(create_user "$support_tag")"
 appctl platform-admin-grant --user "$support_id" --role support --actor "$support_id" >/dev/null
+owner_cookie="${LOG_DIR}/owner.cookies"
+admin_cookie="${LOG_DIR}/admin.cookies"
+viewer_cookie="${LOG_DIR}/viewer.cookies"
+support_cookie="${LOG_DIR}/support.cookies"
+e2e_login_user_tag "$owner_tag" "$owner_cookie"
+e2e_login_user_tag "$admin_tag" "$admin_cookie"
+e2e_login_user_tag "$viewer_tag" "$viewer_cookie"
+e2e_login_user_tag "$support_tag" "$support_cookie"
+owner_csrf="$(e2e_csrf_from_cookie_jar "$owner_cookie")"
+admin_csrf="$(e2e_csrf_from_cookie_jar "$admin_cookie")"
+viewer_csrf="$(e2e_csrf_from_cookie_jar "$viewer_cookie")"
+support_csrf="$(e2e_csrf_from_cookie_jar "$support_cookie")"
+owner_auth=(-b "$owner_cookie" -c "$owner_cookie" -H "X-CSRF-Token: ${owner_csrf}")
+admin_auth=(-b "$admin_cookie" -c "$admin_cookie" -H "X-CSRF-Token: ${admin_csrf}")
+viewer_auth=(-b "$viewer_cookie" -c "$viewer_cookie" -H "X-CSRF-Token: ${viewer_csrf}")
+support_auth=(-b "$support_cookie" -c "$support_cookie" -H "X-CSRF-Token: ${support_csrf}")
 
 log "[E2E] ready check"
 b="$(bodyfile)"; s="$(http_request GET /readyz "" "$b")"; assert_status READYZ 200 "$s" "$b"
 
 log "[E2E] create two tenants for owner"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"Menu A ${stamp}\",\"slug\":\"${tenant_a_slug}\"}" "$b" -H "X-User-ID: ${owner_id}")"; assert_status TENANT_A_CREATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"Menu A ${stamp}\",\"slug\":\"${tenant_a_slug}\"}" "$b" "${owner_auth[@]}")"; assert_status TENANT_A_CREATE 200 "$s" "$b"
 tenant_a_id="$(json_value "$b" 'j["data"]["tenant"]["id"]')"
-b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"Menu B ${stamp}\",\"slug\":\"${tenant_b_slug}\"}" "$b" -H "X-User-ID: ${owner_id}")"; assert_status TENANT_B_CREATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request POST /api/v1/tenants "{\"name\":\"Menu B ${stamp}\",\"slug\":\"${tenant_b_slug}\"}" "$b" "${owner_auth[@]}")"; assert_status TENANT_B_CREATE 200 "$s" "$b"
 tenant_b_id="$(json_value "$b" 'j["data"]["tenant"]["id"]')"
 
 log "[E2E] add tenant A admin/viewer members"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_a_id}/members" "{\"user_id\":\"${admin_id}\",\"role\":\"admin\",\"status\":\"active\"}" "$b" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status MEMBER_ADD_ADMIN 200 "$s" "$b"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_a_id}/members" "{\"user_id\":\"${viewer_id}\",\"role\":\"viewer\",\"status\":\"active\"}" "$b" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status MEMBER_ADD_VIEWER 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_a_id}/members" "{\"user_id\":\"${admin_id}\",\"role\":\"admin\",\"status\":\"active\"}" "$b" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status MEMBER_ADD_ADMIN 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_a_id}/members" "{\"user_id\":\"${viewer_id}\",\"role\":\"viewer\",\"status\":\"active\"}" "$b" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status MEMBER_ADD_VIEWER 200 "$s" "$b"
 
 log "[E2E] verify /me/* endpoints stay tenant-free"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" -H "X-User-ID: ${owner_id}")"; assert_status OWNER_ACCESS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" "${owner_auth[@]}")"; assert_status OWNER_ACCESS 200 "$s" "$b"
 assert_json_equals OWNER_HAS_TENANT_MANAGE "$b" "any(t['tenant_id'] == '${tenant_a_id}' and 'tenant:manage' in t['permissions'] for t in j['data']['tenants'])" true
 assert_json_equals OWNER_PLATFORM_NULL "$b" 'j["data"]["platform_admin"] is None' true
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/invitations "" "$b" -H "X-User-ID: ${owner_id}")"; assert_status OWNER_MY_INVITATIONS 200 "$s" "$b"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/security-events "" "$b" -H "X-User-ID: ${owner_id}")"; assert_status OWNER_SECURITY_EVENTS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/invitations "" "$b" "${owner_auth[@]}")"; assert_status OWNER_MY_INVITATIONS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/security-events "" "$b" "${owner_auth[@]}")"; assert_status OWNER_SECURITY_EVENTS 200 "$s" "$b"
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status ADMIN_ACCESS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" "${admin_auth[@]}")"; assert_status ADMIN_ACCESS 200 "$s" "$b"
 assert_json_equals ADMIN_HAS_MEMBER_MANAGE "$b" "any(t['tenant_id'] == '${tenant_a_id}' and 'member:manage' in t['permissions'] for t in j['data']['tenants'])" true
 assert_json_equals ADMIN_NO_TENANT_MANAGE "$b" "any(t['tenant_id'] == '${tenant_a_id}' and 'tenant:manage' in t['permissions'] for t in j['data']['tenants'])" false
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" -H "X-User-ID: ${viewer_id}")"; assert_status VIEWER_ACCESS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" "${viewer_auth[@]}")"; assert_status VIEWER_ACCESS 200 "$s" "$b"
 assert_json_equals VIEWER_HAS_TENANT_READ "$b" "any(t['tenant_id'] == '${tenant_a_id}' and 'tenant:read' in t['permissions'] for t in j['data']['tenants'])" true
 assert_json_equals VIEWER_NO_MEMBER_READ_EXTRA "$b" "any(t['tenant_id'] == '${tenant_a_id}' and 'member:manage' in t['permissions'] for t in j['data']['tenants'])" false
 
 log "[E2E] verify legacy API key route is removed"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "$b" -H "X-User-ID: ${owner_id}")"; assert_status LEGACY_APIKEY_ROUTE_REMOVED 404 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/api-keys "" "$b" "${owner_auth[@]}")"; assert_status LEGACY_APIKEY_ROUTE_REMOVED 404 "$s" "$b"
 
 log "[E2E] verify tenant-scoped API key flow"
-b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_a_id}/api-keys" "{\"name\":\"menu-key\",\"scopes\":[\"user:read\",\"user:tenant:read\",\"tenant:read\"]}" "$b" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status TENANT_APIKEY_CREATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request POST "/api/v1/tenants/${tenant_a_id}/api-keys" "{\"name\":\"menu-key\",\"scopes\":[\"user:read\",\"user:tenant:read\",\"tenant:read\"]}" "$b" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status TENANT_APIKEY_CREATE 200 "$s" "$b"
 raw_key="$(json_value "$b" 'j["data"]["raw_key"]')"
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_a_id}/api-keys" "" "$b" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status TENANT_A_APIKEY_LIST 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_a_id}/api-keys" "" "$b" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status TENANT_A_APIKEY_LIST 200 "$s" "$b"
 assert_json_equals TENANT_A_APIKEY_VISIBLE "$b" 'len(j["data"]["api_keys"]) == 1' true
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_b_id}/api-keys" "" "$b" -H "X-User-ID: ${owner_id}" -H "X-Tenant-ID: ${tenant_b_id}")"; assert_status TENANT_B_APIKEY_LIST 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/tenants/${tenant_b_id}/api-keys" "" "$b" "${owner_auth[@]}" -H "X-Tenant-ID: ${tenant_b_id}")"; assert_status TENANT_B_APIKEY_LIST 200 "$s" "$b"
 assert_json_equals TENANT_B_APIKEY_HIDDEN "$b" 'len(j["data"]["api_keys"]) == 0' true
 b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "$b" -H "Authorization: Bearer ${raw_key}" -H "X-Tenant-ID: ${tenant_a_id}")"; assert_status APIKEY_TENANT_CONTEXT_OK 200 "$s" "$b"
 assert_json_equals APIKEY_TENANT_CONTEXT_MATCH "$b" 'j["data"]["tenant_context"]["tenant_id"]' "$tenant_a_id"
@@ -213,11 +223,11 @@ b="$(bodyfile)"; s="$(http_request GET /api/v1/tenant-context "" "$b" -H "Author
 assert_json_equals APIKEY_CROSS_TENANT_CODE "$b" 'j["code"]' TENANT_GRANT_FORBIDDEN
 
 log "[E2E] verify platform routes do not require tenant and reject api-key identities"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" -H "X-User-ID: ${support_id}")"; assert_status SUPPORT_ACCESS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" "${support_auth[@]}")"; assert_status SUPPORT_ACCESS 200 "$s" "$b"
 assert_json_equals SUPPORT_HAS_PLATFORM_USER_READ "$b" '"platform:user:read" in j["data"]["platform_admin"]["permissions"]' true
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "$b" -H "X-User-ID: ${support_id}")"; assert_status PLATFORM_TENANTS_NO_TENANT 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "$b" "${support_auth[@]}")"; assert_status PLATFORM_TENANTS_NO_TENANT 200 "$s" "$b"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/tenants "" "$b" -H "Authorization: Bearer ${raw_key}")"; assert_status PLATFORM_APIKEY_REJECTED 403 "$s" "$b"
 assert_json_equals PLATFORM_APIKEY_REJECTED_CODE "$b" 'j["code"]' PLATFORM_ADMIN_SESSION_REQUIRED
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "$b" -H "X-User-ID: ${support_id}")"; assert_status ADMIN_PLANS_REMOVED 404 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/plans "" "$b" "${support_auth[@]}")"; assert_status ADMIN_PLANS_REMOVED 404 "$s" "$b"
 
 log "[E2E] all menu permission scenarios passed tenant_a=${tenant_a_id} tenant_b=${tenant_b_id}"

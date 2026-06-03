@@ -144,6 +144,14 @@ func MarkSystemSetupInitialized(ctx context.Context, t *testing.T) {
 	}
 	ensureTestRuntimeSecret(ctx, t, "auth.session.secret", "integration-test-session-secret-0123456789abcdef")
 	ensureTestRuntimeSecret(ctx, t, "auth.apiKey.secret", "integration-test-apikey-secret-0123456789abcdef")
+	if err = service.Config().Set(ctx, &service.ConfigSetParams{
+		Key:         "auth.session.cookie.secure",
+		Value:       "false",
+		ValueType:   "bool",
+		Description: "Integration test HTTP cookie override",
+	}); err != nil {
+		t.Fatalf("set auth.session.cookie.secure: %v", err)
+	}
 }
 
 func ensureTestRuntimeSecret(ctx context.Context, t *testing.T, key, value string) {

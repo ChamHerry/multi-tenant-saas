@@ -44,6 +44,10 @@ func TestSystemConfigAdmin_CRUDValidationSecretAuditCache(t *testing.T) {
 	}
 	stringSecretWrite := suite.Client.Do(http.MethodPut, "/api/v1/admin/system-config/auth.session.secret", `{"value":"unsafe","value_provided":true,"value_type":"string","description":"bad"}`)
 	testutil.AssertStatus(t, stringSecretWrite, http.StatusBadRequest)
+	weakSessionSecret := suite.Client.Do(http.MethodPut, "/api/v1/admin/system-config/auth.session.secret", `{"value":"change-me","value_provided":true,"value_type":"secret","description":"bad"}`)
+	testutil.AssertStatus(t, weakSessionSecret, http.StatusBadRequest)
+	removedDevHeader := suite.Client.Do(http.MethodPut, "/api/v1/admin/system-config/auth.devHeader.enabled", `{"value":"true","value_provided":true,"value_type":"bool","description":"removed"}`)
+	testutil.AssertStatus(t, removedDevHeader, http.StatusBadRequest)
 
 	create := suite.Client.Do(http.MethodPut, "/api/v1/admin/system-config/"+boolKey, `{"value":"true","value_provided":true,"value_type":"bool","description":"Integration bool flag"}`)
 	testutil.AssertSuccess(t, create)

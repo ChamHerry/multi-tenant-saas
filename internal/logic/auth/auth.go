@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"regexp"
 	"strings"
 
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -10,8 +9,6 @@ import (
 
 	"multi-tenant-saas/internal/service"
 )
-
-var internalIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 type sAuth struct{}
 
@@ -26,24 +23,7 @@ func (s *sAuth) Authenticate(ctx context.Context, r *ghttp.Request) (*service.Au
 	if cookie := r.Cookie.Get(service.AuthSessionService().SessionCookieName(ctx)); cookie != nil && strings.TrimSpace(cookie.String()) != "" {
 		return service.AuthSessionService().Authenticate(ctx, cookie.String())
 	}
-	if !devHeaderEnabled(ctx) {
-		return nil, gerror.New("authentication required")
-	}
-	userID := strings.TrimSpace(r.Header.Get("X-User-ID"))
-	if userID == "" {
-		return nil, gerror.New("authentication required")
-	}
-	if !internalIDPattern.MatchString(userID) {
-		return nil, gerror.New("invalid X-User-ID")
-	}
-	user, err := service.UserService().GetUser(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if user.Status != "active" {
-		return nil, gerror.Newf("user %s is not active", userID)
-	}
-	return &service.AuthIdentity{UserID: userID, Type: "dev_header"}, nil
+	return nil, gerror.New("authentication required")
 }
 
 func bearerToken(header string) string {
@@ -56,12 +36,4 @@ func bearerToken(header string) string {
 		return ""
 	}
 	return parts[1]
-}
-
-func devHeaderEnabled(ctx context.Context) bool {
-	if !service.Config().GetBool(ctx, "auth.devHeader.enabled", false) {
-		return false
-	}
-	env := strings.ToLower(strings.TrimSpace(service.Config().GetString(ctx, "server.env", "local")))
-	return env == "local" || env == "test"
 }

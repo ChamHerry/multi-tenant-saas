@@ -34,6 +34,7 @@ compose() { docker compose -f "$COMPOSE_FILE" "$@"; }
 manage_docker() { COMPOSE_FILE="$COMPOSE_FILE" APP_PORT="$APP_PORT" READY_TIMEOUT="$READY_TIMEOUT" READY_INTERVAL="$READY_INTERVAL" ./scripts/manage-docker.sh "$@"; }
 appctl() { compose exec -T "$APP_SERVICE" ./repomind "$@"; }
 psql_query() { compose exec -T -e PGPASSWORD=secret "$DB_SERVICE" psql -U saas_template -d saas_template -Atc "$1"; }
+source "${ROOT_DIR}/hack/lib/e2e_auth_session.sh"
 
 bodyfile() { mktemp "${LOG_DIR}/body.XXXXXX"; }
 
@@ -65,12 +66,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-enable_dev_header_auth() {
-  psql_query "UPDATE public.system_config SET value='true', value_type='bool', is_encrypted=false, updated_at=now() WHERE key='auth.devHeader.enabled';" >/dev/null
-  psql_query "UPDATE public.system_config SET value='local', value_type='string', is_encrypted=false, updated_at=now() WHERE key='server.env';" >/dev/null
-  compose exec -T "$REDIS_SERVICE" redis-cli DEL config:auth.devHeader.enabled config:server.env >/dev/null 2>&1 || true
-}
-
 ensure_stack_ready() {
   case "$E2E_DOCKER_ACTION" in
     skip) log "[E2E] reuse existing docker stack" ;;
@@ -80,14 +75,13 @@ ensure_stack_ready() {
   log "[E2E] wait for /readyz"
   manage_docker ready >/dev/null
   ensure_setup_completed
-  enable_dev_header_auth
+  e2e_configure_http_cookies
 }
 
 create_user() {
   local tag="$1"
   local email="${tag}@example.test"
-  appctl user-upsert --provider password --auth-id "$email" --email "$email" --name "$tag" --email-verified >/dev/null
-  psql_query "SELECT id FROM public.users WHERE email='${email}' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1"
+  e2e_create_password_user "$tag"
 }
 
 http_request() {
@@ -178,7 +172,7 @@ ensure_setup_completed() {
   log "[E2E] complete setup bootstrap for system-config scenario"
   setup_email="system-config-bootstrap-${stamp}@example.test"
   setup_password="SetupPassword12345!"
-  payload="$(printf '{"admin":{"email":"%s","password":"%s","display_name":"System Config Bootstrap"},"runtime":{"server_env":"local","web_base_url":"%s","generate_session_secret":true,"generate_api_key_secret":true}}' "$setup_email" "$setup_password" "$BASE_URL")"
+  payload="$(printf '{"admin":{"email":"%s","password":"%s","display_name":"System Config Bootstrap"},"runtime":{"web_base_url":"%s","generate_session_secret":true,"generate_api_key_secret":true}}' "$setup_email" "$setup_password" "$BASE_URL")"
   b="$(bodyfile)"; s="$(http_request POST /api/v1/setup/complete "$payload" "$b")"; assert_status SETUP_BOOTSTRAP_COMPLETE 200 "$s" "$b"
   assert_json_equals SETUP_BOOTSTRAP_INITIALIZED "$b" 'j["data"]["initialized"]' true
 }
@@ -200,65 +194,77 @@ support_id="$(create_user "$support_tag")"
 user_id="$(create_user "$user_tag")"
 appctl platform-admin-grant --user "$admin_id" --role super_admin --actor "$admin_id" >/dev/null
 appctl platform-admin-grant --user "$support_id" --role support --actor "$admin_id" >/dev/null
+admin_cookie="${LOG_DIR}/admin.cookies"
+support_cookie="${LOG_DIR}/support.cookies"
+user_cookie="${LOG_DIR}/user.cookies"
+e2e_login_user_tag "$admin_tag" "$admin_cookie"
+e2e_login_user_tag "$support_tag" "$support_cookie"
+e2e_login_user_tag "$user_tag" "$user_cookie"
+admin_csrf="$(e2e_csrf_from_cookie_jar "$admin_cookie")"
+support_csrf="$(e2e_csrf_from_cookie_jar "$support_cookie")"
+user_csrf="$(e2e_csrf_from_cookie_jar "$user_cookie")"
+admin_auth=(-b "$admin_cookie" -c "$admin_cookie" -H "X-CSRF-Token: ${admin_csrf}")
+support_auth=(-b "$support_cookie" -c "$support_cookie" -H "X-CSRF-Token: ${support_csrf}")
+user_auth=(-b "$user_cookie" -c "$user_cookie" -H "X-CSRF-Token: ${user_csrf}")
 
 log "[E2E] ready and admin access"
 b="$(bodyfile)"; s="$(http_request GET /readyz "" "$b")"; assert_status READYZ 200 "$s" "$b"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status ADMIN_ACCESS 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me/access "" "$b" "${admin_auth[@]}")"; assert_status ADMIN_ACCESS 200 "$s" "$b"
 assert_json_equals ADMIN_HAS_CONFIG_MANAGE "$b" '"platform:config:manage" in j["data"]["platform_admin"]["permissions"]' true
 
 log "[E2E] list, verify runtime secret, create and update bool config"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config?limit=5 "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_LIST_INITIAL 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config?limit=5 "" "$b" "${admin_auth[@]}")"; assert_status CONFIG_LIST_INITIAL 200 "$s" "$b"
 raw_session_secret="$(psql_query "SELECT value FROM public.system_config WHERE key='auth.session.secret'")"
 [[ -n "$raw_session_secret" ]] || { log "[FAIL] missing runtime auth.session.secret"; exit 1; }
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config/auth.session.secret "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_RUNTIME_SECRET_GET 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config/auth.session.secret "" "$b" "${admin_auth[@]}")"; assert_status CONFIG_RUNTIME_SECRET_GET 200 "$s" "$b"
 assert_body_not_contains CONFIG_RUNTIME_SECRET_MASKED "$b" "$raw_session_secret"
 assert_json_equals CONFIG_RUNTIME_SECRET_TYPE "$b" 'j["data"]["config"]["value_type"]' secret
 assert_json_equals CONFIG_RUNTIME_SECRET_VALUE_EMPTY "$b" 'j["data"]["config"]["value"]' ""
-b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"true","value_provided":true,"value_type":"bool","description":"Docker e2e bool"}' "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_BOOL_CREATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"true","value_provided":true,"value_type":"bool","description":"Docker e2e bool"}' "$b" "${admin_auth[@]}")"; assert_status CONFIG_BOOL_CREATE 200 "$s" "$b"
 assert_json_equals CONFIG_BOOL_VALUE "$b" 'j["data"]["config"]["value"]' true
 assert_json_equals CONFIG_BOOL_TYPE "$b" 'j["data"]["config"]["value_type"]' bool
 assert_json_equals CONFIG_BOOL_CATEGORY "$b" 'j["data"]["config"]["category"]' e2e
 assert_sql_equals CONFIG_BOOL_DB "SELECT value FROM public.system_config WHERE key='${bool_key}'" true
 
-b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"false","value_provided":true,"value_type":"bool","description":"Docker e2e bool updated"}' "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_BOOL_UPDATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"false","value_provided":true,"value_type":"bool","description":"Docker e2e bool updated"}' "$b" "${admin_auth[@]}")"; assert_status CONFIG_BOOL_UPDATE 200 "$s" "$b"
 assert_json_equals CONFIG_BOOL_UPDATED_VALUE "$b" 'j["data"]["config"]["value"]' false
 assert_sql_equals CONFIG_BOOL_DB_UPDATED "SELECT value FROM public.system_config WHERE key='${bool_key}'" false
 
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/admin/system-config?query=${stamp}&category=e2e" "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_LIST_FILTERED 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/admin/system-config?query=${stamp}&category=e2e" "" "$b" "${admin_auth[@]}")"; assert_status CONFIG_LIST_FILTERED 200 "$s" "$b"
 assert_json_equals CONFIG_LIST_HAS_BOOL "$b" "any(item['key'] == '${bool_key}' for item in j['data']['items'])" true
 
 log "[E2E] invalid input is rejected"
-b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"enabled","value_provided":true,"value_type":"bool","description":"bad"}' "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_INVALID_BOOL 400 "$s" "$b"
-b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/e2e.systemConfig.${stamp}.json" '{"value":"{bad}","value_provided":true,"value_type":"json","description":"bad"}' "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_INVALID_JSON 400 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"enabled","value_provided":true,"value_type":"bool","description":"bad"}' "$b" "${admin_auth[@]}")"; assert_status CONFIG_INVALID_BOOL 400 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/e2e.systemConfig.${stamp}.json" '{"value":"{bad}","value_provided":true,"value_type":"json","description":"bad"}' "$b" "${admin_auth[@]}")"; assert_status CONFIG_INVALID_JSON 400 "$s" "$b"
 
 log "[E2E] secret config is encrypted and masked"
-b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${secret_key}" "{\"value\":\"${secret_plaintext}\",\"value_provided\":true,\"value_type\":\"secret\",\"description\":\"Docker e2e secret\"}" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_SECRET_CREATE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${secret_key}" "{\"value\":\"${secret_plaintext}\",\"value_provided\":true,\"value_type\":\"secret\",\"description\":\"Docker e2e secret\"}" "$b" "${admin_auth[@]}")"; assert_status CONFIG_SECRET_CREATE 200 "$s" "$b"
 assert_body_not_contains CONFIG_SECRET_RESPONSE_MASKED "$b" "$secret_plaintext"
 assert_json_equals CONFIG_SECRET_VALUE_EMPTY "$b" 'j["data"]["config"]["value"]' ""
 assert_json_equals CONFIG_SECRET_MASK "$b" 'j["data"]["config"]["masked_value"]' "********"
 assert_json_equals CONFIG_SECRET_HAS_VALUE "$b" 'j["data"]["config"]["has_value"]' true
 assert_sql_equals CONFIG_SECRET_DB_ENCRYPTED "SELECT CASE WHEN value <> '${secret_plaintext}' AND value <> '' THEN 'true' ELSE 'false' END FROM public.system_config WHERE key='${secret_key}'" true
 
-b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${secret_key}" '{"value":"","value_provided":false,"value_type":"secret","description":"Docker e2e secret description only"}' "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_SECRET_PRESERVE 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${secret_key}" '{"value":"","value_provided":false,"value_type":"secret","description":"Docker e2e secret description only"}' "$b" "${admin_auth[@]}")"; assert_status CONFIG_SECRET_PRESERVE 200 "$s" "$b"
 assert_body_not_contains CONFIG_SECRET_PRESERVE_MASKED "$b" "$secret_plaintext"
 assert_sql_equals CONFIG_SECRET_DB_STILL_ENCRYPTED "SELECT CASE WHEN value <> '${secret_plaintext}' AND value <> '' THEN 'true' ELSE 'false' END FROM public.system_config WHERE key='${secret_key}'" true
 
 log "[E2E] audit log and permission boundaries"
-b="$(bodyfile)"; s="$(http_request GET "/api/v1/admin/audit-logs?action=system_config.updated&resource_type=system_config&resource_id=${secret_key}&limit=20" "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_AUDIT_LIST 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET "/api/v1/admin/audit-logs?action=system_config.updated&resource_type=system_config&resource_id=${secret_key}&limit=20" "" "$b" "${admin_auth[@]}")"; assert_status CONFIG_AUDIT_LIST 200 "$s" "$b"
 assert_body_not_contains CONFIG_AUDIT_NO_SECRET "$b" "$secret_plaintext"
 assert_json_equals CONFIG_AUDIT_FOUND "$b" 'len(j["data"]["logs"]) >= 1' true
 
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config?limit=1 "" "$b" -H "X-User-ID: ${support_id}")"; assert_status SUPPORT_CONFIG_READ 200 "$s" "$b"
-b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"true","value_provided":true,"value_type":"bool","description":"support attack"}' "$b" -H "X-User-ID: ${support_id}")"; assert_status SUPPORT_CONFIG_WRITE_FORBIDDEN 403 "$s" "$b"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config?limit=1 "" "$b" -H "X-User-ID: ${user_id}")"; assert_authz_failure NON_ADMIN_CONFIG_READ "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config?limit=1 "" "$b" "${support_auth[@]}")"; assert_status SUPPORT_CONFIG_READ 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request PUT "/api/v1/admin/system-config/${bool_key}" '{"value":"true","value_provided":true,"value_type":"bool","description":"support attack"}' "$b" "${support_auth[@]}")"; assert_status SUPPORT_CONFIG_WRITE_FORBIDDEN 403 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/admin/system-config?limit=1 "" "$b" "${user_auth[@]}")"; assert_authz_failure NON_ADMIN_CONFIG_READ "$s" "$b"
 
 log "[E2E] delete non-protected config and protect core keys"
-b="$(bodyfile)"; s="$(http_request DELETE /api/v1/admin/system-config/auth.session.secret "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_DELETE_PROTECTED 400 "$s" "$b"
-b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/admin/system-config/${bool_key}" "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status CONFIG_DELETE_BOOL 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request DELETE /api/v1/admin/system-config/auth.session.secret "" "$b" "${admin_auth[@]}")"; assert_status CONFIG_DELETE_PROTECTED 400 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request DELETE "/api/v1/admin/system-config/${bool_key}" "" "$b" "${admin_auth[@]}")"; assert_status CONFIG_DELETE_BOOL 200 "$s" "$b"
 assert_sql_equals CONFIG_BOOL_DELETED "SELECT count(*) FROM public.system_config WHERE key='${bool_key}'" 0
 
 log "[E2E] auth/session regression smoke"
-b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "$b" -H "X-User-ID: ${admin_id}")"; assert_status AUTH_DEV_HEADER_ME 200 "$s" "$b"
+b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "$b" "${admin_auth[@]}")"; assert_status AUTH_SESSION_ME 200 "$s" "$b"
 b="$(bodyfile)"; s="$(http_request GET /api/v1/me "" "$b")"; assert_status AUTH_MISSING_REJECTED 401 "$s" "$b"
 
 log "[E2E] system-config scenarios passed admin=${admin_id} support=${support_id}"
