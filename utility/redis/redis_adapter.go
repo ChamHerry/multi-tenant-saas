@@ -2,9 +2,9 @@ package redis
 
 import (
 	"context"
-	"fmt"
 	"time"
 
+	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -41,7 +41,7 @@ func NewRedisAdapter(ctx context.Context, group string) (*RedisAdapter, error) {
 	// Verify connection
 	if err := adapter.Ping(ctx); err != nil {
 		client.Close()
-		return nil, fmt.Errorf("redis[%s] ping failed: %w", group, err)
+		return nil, gerror.Wrapf(err, "redis[%s] ping failed", group)
 	}
 
 	return adapter, nil

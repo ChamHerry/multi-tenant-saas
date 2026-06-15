@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/uuid"
 )
@@ -70,33 +71,28 @@ func (s *sUser) EnsureUserByIdentity(ctx context.Context, in service.EnsureUserB
 	}
 
 	if err = dao.Users.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		userCols := dao.Users.Columns()
-		if _, err := dao.Users.Ctx(ctx).TX(tx).Data(g.Map{
-			userCols.Id:          userID,
-			userCols.Email:       in.Email,
-			userCols.DisplayName: nullableString(in.DisplayName),
-			userCols.AvatarUrl:   nullableString(in.AvatarURL),
-			userCols.Status:      "active",
-			userCols.Metadata:    metadata,
-			userCols.LastLoginAt: "now()",
-			userCols.CreatedAt:   "now()",
-			userCols.UpdatedAt:   "now()",
+		now := time.Now().UTC()
+		if _, err := dao.Users.Ctx(ctx).TX(tx).Data(do.Users{
+			Id:          userID,
+			Email:       in.Email,
+			DisplayName: nullableString(in.DisplayName),
+			AvatarUrl:   nullableString(in.AvatarURL),
+			Status:      "active",
+			Metadata:    gjson.New(metadata),
+			LastLoginAt: now,
 		}).Insert(); err != nil {
 			return gerror.Wrap(err, "insert public user")
 		}
 
-		identCols := dao.UserIdentities.Columns()
-		if _, err := dao.UserIdentities.Ctx(ctx).TX(tx).Data(g.Map{
-			identCols.Id:            identityID,
-			identCols.UserId:        userID,
-			identCols.Provider:      in.Provider,
-			identCols.AuthId:        in.AuthID,
-			identCols.Email:         nullableString(in.Email),
-			identCols.EmailVerified: in.EmailVerified,
-			identCols.RawProfile:    rawProfile,
-			identCols.LastLoginAt:   "now()",
-			identCols.CreatedAt:     "now()",
-			identCols.UpdatedAt:     "now()",
+		if _, err := dao.UserIdentities.Ctx(ctx).TX(tx).Data(do.UserIdentities{
+			Id:            identityID,
+			UserId:        userID,
+			Provider:      in.Provider,
+			AuthId:        in.AuthID,
+			Email:         nullableString(in.Email),
+			EmailVerified: in.EmailVerified,
+			RawProfile:    gjson.New(rawProfile),
+			LastLoginAt:   now,
 		}).Insert(); err != nil {
 			return gerror.Wrap(err, "insert user identity")
 		}
@@ -116,7 +112,6 @@ func (s *sUser) GetUser(ctx context.Context, userID string) (*service.User, erro
 		Fields("users.*, ui.email_verified").
 		LeftJoin("user_identities ui", "ui.user_id = users.id AND ui.provider = 'password'").
 		Where(userCols.Id, userID).
-		Where("users.deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select public user")
@@ -131,18 +126,17 @@ func (s *sUser) UpdateProfile(ctx context.Context, in service.UpdateProfileInput
 	if err := validateInternalID(in.UserID); err != nil {
 		return nil, err
 	}
-	data := g.Map{"updated_at": "now()"}
+	data := do.Users{}
 	if in.DisplayName != "" {
-		data["display_name"] = in.DisplayName
+		data.DisplayName = in.DisplayName
 	}
 	if in.AvatarURL != "" {
-		data["avatar_url"] = in.AvatarURL
+		data.AvatarUrl = in.AvatarURL
 	}
 
 	userCols := dao.Users.Columns()
 	_, err := dao.Users.Ctx(ctx).
 		Where(userCols.Id, in.UserID).
-		Where("deleted_at IS NULL").
 		Data(data).
 		Update()
 	if err != nil {
@@ -160,7 +154,7 @@ func (s *sUser) SetEmailVerified(ctx context.Context, userID, email string) erro
 	_, err := dao.UserIdentities.Ctx(ctx).
 		Where(identCols.UserId, userID).
 		Where("lower("+identCols.Email+") = lower(?)", email).
-		Data(g.Map{identCols.EmailVerified: true, identCols.UpdatedAt: "now()"}).
+		Data(do.UserIdentities{EmailVerified: true}).
 		Update()
 	return gerror.Wrap(err, "set email verified")
 }
@@ -193,14 +187,12 @@ func (s *sUser) GetIdentityByEmail(ctx context.Context, provider, email string) 
 }
 
 func fetchUserByIdentity(ctx context.Context, provider, authID string) (*service.User, error) {
-	identCols := dao.UserIdentities.Columns()
 	userCols := dao.Users.Columns()
-	record, err := dao.UserIdentities.Ctx(ctx).
-		LeftJoin("users u", "u.id = user_identities.user_id").
-		Fields("u.*").
-		Where(identCols.Provider, provider).
-		Where(identCols.AuthId, authID).
-		Where("u.deleted_at IS NULL").
+	record, err := dao.Users.Ctx(ctx).
+		Fields("users.*").
+		InnerJoin("user_identities ui", "ui.user_id = users.id").
+		Where("ui.provider", provider).
+		Where("ui.auth_id", authID).
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select user by identity")
@@ -231,17 +223,17 @@ func touchIdentityLogin(ctx context.Context, userID string, in service.EnsureUse
 
 	// Update user_identities
 	identCols := dao.UserIdentities.Columns()
-	identData := g.Map{
-		identCols.RawProfile:  rawProfile,
-		identCols.LastLoginAt: "now()",
-		identCols.UpdatedAt:   "now()",
+	now := time.Now().UTC()
+	identData := do.UserIdentities{
+		RawProfile:  gjson.New(rawProfile),
+		LastLoginAt: now,
 	}
 	// Only set email_verified to true; never overwrite an existing true with false.
 	if in.EmailVerified {
-		identData[identCols.EmailVerified] = true
+		identData.EmailVerified = true
 	}
 	if in.Email != "" {
-		identData[identCols.Email] = in.Email
+		identData.Email = in.Email
 	}
 	_, err = dao.UserIdentities.Ctx(ctx).
 		Where(identCols.Provider, in.Provider).
@@ -254,22 +246,20 @@ func touchIdentityLogin(ctx context.Context, userID string, in service.EnsureUse
 
 	// Update users
 	userCols := dao.Users.Columns()
-	userData := g.Map{
-		userCols.LastLoginAt: "now()",
-		userCols.UpdatedAt:   "now()",
+	userData := do.Users{
+		LastLoginAt: now,
 	}
 	if in.Email != "" {
-		userData[userCols.Email] = in.Email
+		userData.Email = in.Email
 	}
 	if in.DisplayName != "" {
-		userData[userCols.DisplayName] = in.DisplayName
+		userData.DisplayName = in.DisplayName
 	}
 	if in.AvatarURL != "" {
-		userData[userCols.AvatarUrl] = in.AvatarURL
+		userData.AvatarUrl = in.AvatarURL
 	}
 	_, err = dao.Users.Ctx(ctx).
 		Where(userCols.Id, userID).
-		Where("deleted_at IS NULL").
 		Data(userData).
 		Update()
 	if err != nil {

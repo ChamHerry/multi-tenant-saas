@@ -11,6 +11,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/uuid"
 )
@@ -74,7 +75,6 @@ func (s *sTenantMembership) AddMember(ctx context.Context, in service.AddTenantM
 	existing, err := dao.TenantMemberships.Ctx(ctx).
 		Where(cols.TenantId, in.TenantID).
 		Where(cols.UserId, in.UserID).
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select existing membership")
@@ -85,36 +85,32 @@ func (s *sTenantMembership) AddMember(ctx context.Context, in service.AddTenantM
 		if in.InvitedByUserID != "" {
 			invitedByVal = in.InvitedByUserID
 		}
-		_, err = dao.TenantMemberships.Ctx(ctx).Data(g.Map{
-			cols.Id:              membershipID,
-			cols.TenantId:        in.TenantID,
-			cols.UserId:          in.UserID,
-			cols.Role:            in.Role,
-			cols.Status:          status,
-			cols.InvitedByUserId: invitedByVal,
-			cols.CreatedAt:       now,
-			cols.UpdatedAt:       now,
+		_, err = dao.TenantMemberships.Ctx(ctx).Data(do.TenantMemberships{
+			Id:              membershipID,
+			TenantId:        in.TenantID,
+			UserId:          in.UserID,
+			Role:            in.Role,
+			Status:          status,
+			InvitedByUserId: invitedByVal,
 		}).Insert()
 		if err != nil {
 			return nil, gerror.Wrap(err, "insert tenant membership")
 		}
 	} else {
-		data := g.Map{
-			cols.Role:      in.Role,
-			cols.Status:    status,
-			cols.UpdatedAt: now,
+		data := do.TenantMemberships{
+			Role:   in.Role,
+			Status: status,
 		}
 		if in.InvitedByUserID != "" {
-			data[cols.InvitedByUserId] = in.InvitedByUserID
+			data.InvitedByUserId = in.InvitedByUserID
 		}
 		// If status was 'invited' and new status is 'active', set joined_at
 		if existing[cols.Status].String() == "invited" && status == "active" {
-			data[cols.JoinedAt] = now
+			data.JoinedAt = now
 		}
 		_, err = dao.TenantMemberships.Ctx(ctx).
 			Where(cols.TenantId, in.TenantID).
 			Where(cols.UserId, in.UserID).
-			Where("deleted_at IS NULL").
 			Data(data).
 			Update()
 		if err != nil {
@@ -126,7 +122,6 @@ func (s *sTenantMembership) AddMember(ctx context.Context, in service.AddTenantM
 	record, err := dao.TenantMemberships.Ctx(ctx).
 		Where(cols.TenantId, in.TenantID).
 		Where(cols.UserId, in.UserID).
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select tenant membership")
@@ -145,20 +140,27 @@ func (s *sTenantMembership) RemoveMember(ctx context.Context, tenantID, userID s
 		return err
 	}
 	cols := dao.TenantMemberships.Columns()
-	result, err := dao.TenantMemberships.Ctx(ctx).
-		Where(cols.TenantId, tenantID).
-		Where(cols.UserId, userID).
-		Where("deleted_at IS NULL").
-		Data(g.Map{cols.Status: "removed", cols.DeletedAt: "now()", cols.UpdatedAt: "now()"}).
-		Update()
-	if err != nil {
-		return gerror.Wrap(err, "remove tenant membership")
-	}
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return gerror.Newf("tenant membership tenant=%s user=%s not found", tenantID, userID)
-	}
-	return nil
+	return dao.TenantMemberships.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		result, err := dao.TenantMemberships.Ctx(ctx).TX(tx).
+			Where(cols.TenantId, tenantID).
+			Where(cols.UserId, userID).
+			Data(do.TenantMemberships{Status: "removed"}).
+			Update()
+		if err != nil {
+			return gerror.Wrap(err, "remove tenant membership")
+		}
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			return gerror.Newf("tenant membership tenant=%s user=%s not found", tenantID, userID)
+		}
+		if _, err = dao.TenantMemberships.Ctx(ctx).TX(tx).
+			Where(cols.TenantId, tenantID).
+			Where(cols.UserId, userID).
+			Delete(); err != nil {
+			return gerror.Wrap(err, "remove tenant membership")
+		}
+		return nil
+	})
 }
 
 func (s *sTenantMembership) ChangeRole(ctx context.Context, tenantID, userID, role string) error {
@@ -180,8 +182,7 @@ func (s *sTenantMembership) ChangeRole(ctx context.Context, tenantID, userID, ro
 	result, err := dao.TenantMemberships.Ctx(ctx).
 		Where(cols.TenantId, tenantID).
 		Where(cols.UserId, userID).
-		Where("deleted_at IS NULL").
-		Data(g.Map{cols.Role: role, cols.UpdatedAt: "now()"}).
+		Data(do.TenantMemberships{Role: role}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "change tenant member role")
@@ -219,17 +220,16 @@ func (s *sTenantMembership) UpdateMember(ctx context.Context, tenantID, userID s
 		}
 	}
 	cols := dao.TenantMemberships.Columns()
-	data := g.Map{cols.UpdatedAt: "now()"}
+	data := do.TenantMemberships{}
 	if in.Role != "" {
-		data[cols.Role] = in.Role
+		data.Role = in.Role
 	}
 	if in.Status != "" {
-		data[cols.Status] = in.Status
+		data.Status = in.Status
 	}
 	record, err := dao.TenantMemberships.Ctx(ctx).
 		Where(cols.TenantId, tenantID).
 		Where(cols.UserId, userID).
-		Where("deleted_at IS NULL").
 		Data(data).
 		Update()
 	if err != nil {
@@ -247,7 +247,6 @@ func (s *sTenantMembership) getMember(ctx context.Context, tenantID, userID stri
 	record, err := dao.TenantMemberships.Ctx(ctx).
 		Where(cols.TenantId, tenantID).
 		Where(cols.UserId, userID).
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select tenant membership")
@@ -284,8 +283,6 @@ func listUserTenantItems(ctx context.Context, userID string) ([]service.TenantMe
 		LeftJoin("tenants t", "t.id = tenant_memberships.tenant_id").
 		Fields("tenant_memberships.*, t.name AS tenant_name, t.slug AS tenant_slug, t.status AS tenant_status").
 		Where("tenant_memberships.user_id", userID).
-		Where("tenant_memberships.deleted_at IS NULL").
-		Where("t.deleted_at IS NULL").
 		Where("tenant_memberships.status IN(?)", g.Slice{"active", "invited"}).
 		OrderDesc("tenant_memberships.created_at").
 		All()
@@ -317,7 +314,6 @@ func (s *sTenantMembership) ListTenantMembers(ctx context.Context, tenantID stri
 		LeftJoin("users u", "u.id = tenant_memberships.user_id").
 		Fields("tenant_memberships.*, u.email, u.display_name, u.status AS user_status").
 		Where("tenant_memberships.tenant_id", tenantID).
-		Where("tenant_memberships.deleted_at IS NULL").
 		OrderDesc("tenant_memberships.created_at").
 		All()
 	if err != nil {
@@ -367,8 +363,6 @@ func resolveTenantContextRecord(ctx context.Context, userID, tenantSelector stri
 		Fields("tenant_memberships.tenant_id, tenant_memberships.user_id, tenant_memberships.role, t.slug AS tenant_slug").
 		Where("tenant_memberships.user_id", userID).
 		Where(where, arg).
-		Where("tenant_memberships.deleted_at IS NULL").
-		Where("t.deleted_at IS NULL").
 		Where("tenant_memberships.status", "active").
 		Where("t.status", "active").
 		One()
@@ -504,7 +498,6 @@ func ensureActiveUser(ctx context.Context, userID string) error {
 	record, err := dao.Users.Ctx(ctx).
 		Where(cols.Id, userID).
 		Where(cols.Status, "active").
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return gerror.Wrap(err, "select active user")
@@ -520,7 +513,6 @@ func ensureActiveTenant(ctx context.Context, tenantID string) error {
 	record, err := dao.Tenants.Ctx(ctx).
 		Where(cols.Id, tenantID).
 		Where(cols.Status, "active").
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return gerror.Wrap(err, "select active tenant")
@@ -538,7 +530,6 @@ func ensureNotRemovingLastOwner(ctx context.Context, tenantID, userID string) er
 		Where(cols.UserId, userID).
 		Where(cols.Role, "owner").
 		Where(cols.Status, "active").
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return gerror.Wrap(err, "select existing tenant membership role")
@@ -551,7 +542,6 @@ func ensureNotRemovingLastOwner(ctx context.Context, tenantID, userID string) er
 		Where(cols.UserId+" <> ?", userID).
 		Where(cols.Role, "owner").
 		Where(cols.Status, "active").
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return gerror.Wrap(err, "select other tenant owner")

@@ -15,6 +15,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/model/entity"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/crypto"
@@ -213,20 +214,19 @@ func (s *sConfig) Set(ctx context.Context, params *service.ConfigSetParams) erro
 	if params.ValueType == "secret" && value != "" {
 		encrypted, err := crypto.Encrypt(value)
 		if err != nil {
-			return fmt.Errorf("encrypt config value: %w", err)
+			return gerror.Wrap(err, "encrypt config value")
 		}
 		value = encrypted
 		isEncrypted = true
 	}
 
 	_, err := dao.SystemConfig.Ctx(ctx).
-		Data(g.Map{
-			dao.SystemConfig.Columns().Key:         params.Key,
-			dao.SystemConfig.Columns().Value:       value,
-			dao.SystemConfig.Columns().ValueType:   params.ValueType,
-			dao.SystemConfig.Columns().Description: params.Description,
-			dao.SystemConfig.Columns().IsEncrypted: isEncrypted,
-			dao.SystemConfig.Columns().UpdatedAt:   time.Now(),
+		Data(do.SystemConfig{
+			Key:         params.Key,
+			Value:       value,
+			ValueType:   params.ValueType,
+			Description: params.Description,
+			IsEncrypted: isEncrypted,
 		}).
 		OnConflict(dao.SystemConfig.Columns().Key).
 		Save()

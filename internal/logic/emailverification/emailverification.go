@@ -15,20 +15,21 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 )
 
 const (
-	passwordProvider       = "password"
-	defaultTokenTTL        = 24 * time.Hour
-	defaultResendCooldown  = 1 * time.Minute
+	passwordProvider      = "password"
+	defaultTokenTTL       = 24 * time.Hour
+	defaultResendCooldown = 1 * time.Minute
 )
 
 var (
-	codeTokenExpired   = gcode.New(410, "TokenExpired", nil)
-	codeTokenNotFound  = gcode.New(404, "TokenNotFound", nil)
+	codeTokenExpired    = gcode.New(410, "TokenExpired", nil)
+	codeTokenNotFound   = gcode.New(404, "TokenNotFound", nil)
 	codeAlreadyVerified = gcode.New(409, "EmailAlreadyVerified", nil)
-	codeRateLimited    = gcode.New(429, "RateLimited", nil)
+	codeRateLimited     = gcode.New(429, "RateLimited", nil)
 )
 
 type sEmailVerification struct{}
@@ -61,13 +62,11 @@ func (s *sEmailVerification) CreateAndSend(ctx context.Context, in service.Creat
 	expiresAt := time.Now().Add(ttl)
 
 	// Store token in DB
-	cols := dao.EmailVerificationTokens.Columns()
-	_, err = dao.EmailVerificationTokens.Ctx(ctx).Data(g.Map{
-		cols.UserId:    in.UserID,
-		cols.Email:     strings.ToLower(strings.TrimSpace(in.Email)),
-		cols.TokenHash: tokenHash,
-		cols.ExpiresAt: expiresAt,
-		cols.CreatedAt: "now()",
+	_, err = dao.EmailVerificationTokens.Ctx(ctx).Data(do.EmailVerificationTokens{
+		UserId:    in.UserID,
+		Email:     strings.ToLower(strings.TrimSpace(in.Email)),
+		TokenHash: tokenHash,
+		ExpiresAt: expiresAt,
 	}).Insert()
 	if err != nil {
 		return gerror.Wrap(err, "insert verification token")
@@ -110,7 +109,7 @@ func (s *sEmailVerification) Verify(ctx context.Context, in service.VerifyEmailI
 	record, err := dao.EmailVerificationTokens.Ctx(ctx).
 		Where(cols.TokenHash, tokenHash).
 		WhereNull(cols.UsedAt).
-		Where(cols.ExpiresAt+" > NOW()").
+		Where(cols.ExpiresAt + " > NOW()").
 		One()
 	if err != nil {
 		return gerror.Wrap(err, "select verification token")
@@ -134,7 +133,7 @@ func (s *sEmailVerification) Verify(ctx context.Context, in service.VerifyEmailI
 	// Mark token as used
 	_, err = dao.EmailVerificationTokens.Ctx(ctx).
 		Where(cols.Id, record[cols.Id].String()).
-		Data(g.Map{cols.UsedAt: "now()"}).
+		Data(do.EmailVerificationTokens{UsedAt: "now()"}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "mark verification token used")

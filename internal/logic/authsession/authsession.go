@@ -17,9 +17,9 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/uuid"
 )
@@ -109,15 +109,15 @@ func (s *sAuthSession) Create(ctx context.Context, userID, userAgent, ip string)
 	if normalized := normalizeIP(ip); normalized != "" {
 		ipVal = normalized
 	}
-	_, err = dao.AuthSessions.Ctx(ctx).Data(g.Map{
-		cols.Id:            sessionID,
-		cols.UserId:        userID,
-		cols.SecretHash:    hashToken(secretToken, sessionSecret),
-		cols.CsrfHash:      hashToken(csrfToken, sessionSecret),
-		cols.UserAgent:     trimForDB(userAgent),
-		cols.Ip:            ipVal,
-		cols.ExpiresAt:     expiresAt,
-		cols.IdleExpiresAt: idleExpiresAt,
+	_, err = dao.AuthSessions.Ctx(ctx).Data(do.AuthSessions{
+		Id:            sessionID,
+		UserId:        userID,
+		SecretHash:    hashToken(secretToken, sessionSecret),
+		CsrfHash:      hashToken(csrfToken, sessionSecret),
+		UserAgent:     trimForDB(userAgent),
+		Ip:            ipVal,
+		ExpiresAt:     expiresAt,
+		IdleExpiresAt: idleExpiresAt,
 	}).Insert()
 	if err != nil {
 		return nil, nil, gerror.Wrap(err, "insert auth session")
@@ -249,7 +249,7 @@ func (s *sAuthSession) Revoke(ctx context.Context, sessionID, reason string) err
 	_, err := dao.AuthSessions.Ctx(ctx).
 		Where(cols.Id, sessionID).
 		Where(cols.RevokedAt + " IS NULL").
-		Data(g.Map{cols.RevokedAt: "now()", cols.RevokeReason: reason, cols.UpdatedAt: "now()"}).
+		Data(do.AuthSessions{RevokedAt: time.Now().UTC(), RevokeReason: reason}).
 		Update()
 	return gerror.Wrap(err, "revoke auth session")
 }
@@ -267,10 +267,9 @@ func (s *sAuthSession) RevokeUserSessions(ctx context.Context, userID, exceptSes
 	m := dao.AuthSessions.Ctx(ctx).
 		Where(cols.UserId, userID).
 		Where(cols.RevokedAt + " IS NULL").
-		Data(g.Map{
-			cols.RevokedAt:    "now()",
-			cols.RevokeReason: reason,
-			cols.UpdatedAt:    "now()",
+		Data(do.AuthSessions{
+			RevokedAt:    time.Now().UTC(),
+			RevokeReason: reason,
 		})
 	if exceptSessionID != "" {
 		m = m.Where(cols.Id+" <> ?", exceptSessionID)
@@ -323,10 +322,9 @@ func (s *sAuthSession) touch(ctx context.Context, sessionID string) error {
 	_, err = dao.AuthSessions.Ctx(ctx).
 		Where(cols.Id, sessionID).
 		Where(cols.RevokedAt + " IS NULL").
-		Data(g.Map{
-			cols.LastUsedAt:    time.Now(),
-			cols.IdleExpiresAt: newIdle,
-			cols.UpdatedAt:     time.Now(),
+		Data(do.AuthSessions{
+			LastUsedAt:    time.Now().UTC(),
+			IdleExpiresAt: newIdle,
 		}).Update()
 	return gerror.Wrap(err, "touch auth session")
 }

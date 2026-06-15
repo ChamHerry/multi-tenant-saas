@@ -9,9 +9,9 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 )
 
@@ -115,7 +115,7 @@ func (s *sPlatformAdmin) Require(ctx context.Context, permission service.Platfor
 }
 
 func (s *sPlatformAdmin) ListTenants(ctx context.Context, filter service.PlatformTenantFilter) (*service.PlatformTenantList, error) {
-	where := []string{"deleted_at IS NULL"}
+	where := []string{}
 	args := []any{}
 	if status := strings.TrimSpace(filter.Status); status != "" {
 		where = append(where, "status=?")
@@ -127,21 +127,22 @@ func (s *sPlatformAdmin) ListTenants(ctx context.Context, filter service.Platfor
 		args = append(args, like, like, query)
 	}
 	limit, offset := normalizeLimitOffset(filter.Limit, filter.Offset)
-	whereSQL := strings.Join(where, " AND ")
 
 	cols := dao.Tenants.Columns()
-	total, err := dao.Tenants.Ctx(ctx).Where(whereSQL, args...).Count()
+	countQuery := dao.Tenants.Ctx(ctx)
+	if len(where) > 0 {
+		countQuery = countQuery.Where(strings.Join(where, " AND "), args...)
+	}
+	total, err := countQuery.Count()
 	if err != nil {
 		return nil, gerror.Wrap(err, "count platform tenants")
 	}
 
-	rows, err := dao.Tenants.Ctx(ctx).
-		Fields(cols.Id, cols.Name, cols.Slug, cols.Status, cols.CreatedAt, cols.UpdatedAt).
-		Where(whereSQL, args...).
-		OrderDesc(cols.CreatedAt).
-		Limit(limit).
-		Offset(offset).
-		All()
+	listQuery := dao.Tenants.Ctx(ctx).Fields(cols.Id, cols.Name, cols.Slug, cols.Status, cols.CreatedAt, cols.UpdatedAt)
+	if len(where) > 0 {
+		listQuery = listQuery.Where(strings.Join(where, " AND "), args...)
+	}
+	rows, err := listQuery.OrderDesc(cols.CreatedAt).Limit(limit).Offset(offset).All()
 	if err != nil {
 		return nil, gerror.Wrap(err, "list platform tenants")
 	}
@@ -157,7 +158,7 @@ func (s *sPlatformAdmin) ListTenants(ctx context.Context, filter service.Platfor
 }
 
 func (s *sPlatformAdmin) ListUsers(ctx context.Context, filter service.PlatformUserFilter) (*service.PlatformUserList, error) {
-	where := []string{"deleted_at IS NULL"}
+	where := []string{}
 	args := []any{}
 	if status := strings.TrimSpace(filter.Status); status != "" {
 		where = append(where, "status=?")
@@ -169,21 +170,22 @@ func (s *sPlatformAdmin) ListUsers(ctx context.Context, filter service.PlatformU
 		args = append(args, like, like, query)
 	}
 	limit, offset := normalizeLimitOffset(filter.Limit, filter.Offset)
-	whereSQL := strings.Join(where, " AND ")
 
 	cols := dao.Users.Columns()
-	total, err := dao.Users.Ctx(ctx).Where(whereSQL, args...).Count()
+	countQuery := dao.Users.Ctx(ctx)
+	if len(where) > 0 {
+		countQuery = countQuery.Where(strings.Join(where, " AND "), args...)
+	}
+	total, err := countQuery.Count()
 	if err != nil {
 		return nil, gerror.Wrap(err, "count platform users")
 	}
 
-	rows, err := dao.Users.Ctx(ctx).
-		Fields(cols.Id, cols.Email, cols.DisplayName, cols.AvatarUrl, cols.Status, cols.LastLoginAt, cols.Metadata, cols.CreatedAt, cols.UpdatedAt).
-		Where(whereSQL, args...).
-		OrderDesc(cols.CreatedAt).
-		Limit(limit).
-		Offset(offset).
-		All()
+	listQuery := dao.Users.Ctx(ctx).Fields(cols.Id, cols.Email, cols.DisplayName, cols.AvatarUrl, cols.Status, cols.LastLoginAt, cols.Metadata, cols.CreatedAt, cols.UpdatedAt)
+	if len(where) > 0 {
+		listQuery = listQuery.Where(strings.Join(where, " AND "), args...)
+	}
+	rows, err := listQuery.OrderDesc(cols.CreatedAt).Limit(limit).Offset(offset).All()
 	if err != nil {
 		return nil, gerror.Wrap(err, "list platform users")
 	}
@@ -213,8 +215,7 @@ func (s *sPlatformAdmin) UpdateUserStatus(ctx context.Context, actorUserID, targ
 	userCols := dao.Users.Columns()
 	result, err := dao.Users.Ctx(ctx).
 		Where(userCols.Id, targetUserID).
-		Where("deleted_at IS NULL").
-		Data(g.Map{userCols.Status: status, userCols.UpdatedAt: "now()"}).
+		Data(do.Users{Status: status}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "update platform user status")
@@ -284,7 +285,6 @@ func (s *sPlatformAdmin) Grant(ctx context.Context, actorUserID, targetUserID, r
 	}
 
 	cols := dao.PlatformAdmins.Columns()
-	now := time.Now()
 
 	// Check existing admin record, then Insert or Update
 	existing, err := dao.PlatformAdmins.Ctx(ctx).Where(cols.UserId, targetUserID).One()
@@ -293,21 +293,18 @@ func (s *sPlatformAdmin) Grant(ctx context.Context, actorUserID, targetUserID, r
 	}
 
 	if existing.IsEmpty() {
-		_, err = dao.PlatformAdmins.Ctx(ctx).Data(g.Map{
-			cols.UserId:          targetUserID,
-			cols.Role:            role,
-			cols.Status:          "active",
-			cols.CreatedByUserId: actorUserID,
-			cols.CreatedAt:       now,
-			cols.UpdatedAt:       now,
+		_, err = dao.PlatformAdmins.Ctx(ctx).Data(do.PlatformAdmins{
+			UserId:          targetUserID,
+			Role:            role,
+			Status:          "active",
+			CreatedByUserId: actorUserID,
 		}).Insert()
 	} else {
 		_, err = dao.PlatformAdmins.Ctx(ctx).
 			Where(cols.UserId, targetUserID).
-			Data(g.Map{
-				cols.Role:      role,
-				cols.Status:    "active",
-				cols.UpdatedAt: now,
+			Data(do.PlatformAdmins{
+				Role:   role,
+				Status: "active",
 			}).Update()
 	}
 	if err != nil {
@@ -328,7 +325,7 @@ func (s *sPlatformAdmin) Revoke(ctx context.Context, actorUserID, targetUserID s
 	result, err := dao.PlatformAdmins.Ctx(ctx).
 		Where(cols.UserId, targetUserID).
 		Where(cols.Status, "active").
-		Data(g.Map{cols.Status: "suspended", cols.UpdatedAt: "now()"}).
+		Data(do.PlatformAdmins{Status: "suspended"}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "revoke platform admin")

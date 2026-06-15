@@ -20,7 +20,6 @@ func GetTenant(ctx context.Context, tenantID string) (*service.Tenant, error) {
 	cols := dao.Tenants.Columns()
 	record, err := dao.Tenants.Ctx(ctx).
 		Where(cols.Id, tenantID).
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, err

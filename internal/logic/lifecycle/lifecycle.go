@@ -16,6 +16,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/uuid"
 )
@@ -46,7 +47,7 @@ func (s *sTenantLifecycle) RunPendingJobs(ctx context.Context, limit int) error 
 	cols := dao.TenantLifecycleJobs.Columns()
 	rows, err := dao.TenantLifecycleJobs.Ctx(ctx).
 		Where(cols.Status, "pending").
-		Where(cols.ScheduledAt+" <= NOW()").
+		Where(cols.ScheduledAt + " <= NOW()").
 		OrderAsc(cols.ScheduledAt).
 		Limit(limit).
 		All()
@@ -76,7 +77,7 @@ func (s *sTenantLifecycle) CancelJob(ctx context.Context, jobID, actorUserID str
 	result, err := dao.TenantLifecycleJobs.Ctx(ctx).
 		Where(cols.Id, jobID).
 		Where(cols.Status, "pending").
-		Data(g.Map{cols.Status: "cancelled", cols.UpdatedAt: "now()"}).
+		Data(do.TenantLifecycleJobs{Status: "cancelled"}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "cancel tenant lifecycle job")
@@ -110,18 +111,18 @@ func (s *sTenantLifecycle) createJob(ctx context.Context, tenantID, actorUserID,
 	if err != nil {
 		return nil, gerror.Wrap(err, "parse lifecycle metadata")
 	}
-	cols := dao.TenantLifecycleJobs.Columns()
-	_, err = dao.TenantLifecycleJobs.Ctx(ctx).Data(g.Map{
-		cols.Id:                jobID,
-		cols.TenantId:          tenantID,
-		cols.Type:              jobType,
-		cols.RequestedByUserId: requestedByVal,
-		cols.ScheduledAt:       scheduledAt,
-		cols.Metadata:          jsonMeta,
+	_, err = dao.TenantLifecycleJobs.Ctx(ctx).Data(do.TenantLifecycleJobs{
+		Id:                jobID,
+		TenantId:          tenantID,
+		Type:              jobType,
+		RequestedByUserId: requestedByVal,
+		ScheduledAt:       scheduledAt,
+		Metadata:          jsonMeta,
 	}).Insert()
 	if err != nil {
 		return nil, gerror.Wrap(err, "insert tenant lifecycle job")
 	}
+	cols := dao.TenantLifecycleJobs.Columns()
 	record, err := dao.TenantLifecycleJobs.Ctx(ctx).Where(cols.Id, jobID).One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select created lifecycle job")
@@ -139,7 +140,7 @@ func (s *sTenantLifecycle) runOne(ctx context.Context, jobID, tenantID, jobType 
 	_, err := dao.TenantLifecycleJobs.Ctx(ctx).
 		Where(cols.Id, jobID).
 		Where(cols.Status, "pending").
-		Data(g.Map{cols.Status: "running", cols.StartedAt: "now()", cols.UpdatedAt: "now()"}).
+		Data(do.TenantLifecycleJobs{Status: "running", StartedAt: gdb.Raw("NOW()")}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "mark lifecycle job running")
@@ -157,13 +158,13 @@ func (s *sTenantLifecycle) runOne(ctx context.Context, jobID, tenantID, jobType 
 	if runErr != nil {
 		_, _ = dao.TenantLifecycleJobs.Ctx(ctx).
 			Where(cols.Id, jobID).
-			Data(g.Map{cols.Status: "failed", cols.ErrorMessage: runErr.Error(), cols.FinishedAt: "now()", cols.UpdatedAt: "now()"}).
+			Data(do.TenantLifecycleJobs{Status: "failed", ErrorMessage: runErr.Error(), FinishedAt: gdb.Raw("NOW()")}).
 			Update()
 		return runErr
 	}
 	_, err = dao.TenantLifecycleJobs.Ctx(ctx).
 		Where(cols.Id, jobID).
-		Data(g.Map{cols.Status: "succeeded", cols.ArtifactUri: artifactURI, cols.FinishedAt: "now()", cols.UpdatedAt: "now()"}).
+		Data(do.TenantLifecycleJobs{Status: "succeeded", ArtifactUri: artifactURI, FinishedAt: gdb.Raw("NOW()")}).
 		Update()
 	return gerror.Wrap(err, "mark lifecycle job succeeded")
 }
@@ -174,6 +175,7 @@ func purgeTenant(ctx context.Context, tenantID string) error {
 	}
 	cols := dao.Tenants.Columns()
 	record, err := dao.Tenants.Ctx(ctx).
+		Unscoped().
 		Where(cols.Id, tenantID).
 		Where(cols.Status, "deleted").
 		One()
@@ -184,9 +186,10 @@ func purgeTenant(ctx context.Context, tenantID string) error {
 		return gerror.NewCode(gcode.CodeInvalidParameter, "tenant is not in deleted status")
 	}
 	_, err = dao.Tenants.Ctx(ctx).
+		Unscoped().
 		Where(cols.Id, tenantID).
 		Where(cols.Status, "deleted").
-		Data(g.Map{cols.Status: "purged", cols.UpdatedAt: "now()"}).
+		Data(do.Tenants{Status: "purged"}).
 		Update()
 	return gerror.Wrap(err, "mark public-schema tenant purge complete")
 }

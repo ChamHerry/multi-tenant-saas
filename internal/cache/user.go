@@ -20,7 +20,6 @@ func GetUser(ctx context.Context, userID string) (*service.User, error) {
 	cols := dao.Users.Columns()
 	record, err := dao.Users.Ctx(ctx).
 		Where(cols.Id, userID).
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, err

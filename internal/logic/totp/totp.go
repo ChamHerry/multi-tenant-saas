@@ -18,6 +18,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/model/entity"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/crypto"
@@ -81,14 +82,12 @@ func (s *sTOTP) Setup(ctx context.Context, userID, password string) (*service.TO
 		return nil, gerror.Wrap(err, "encrypt TOTP secret")
 	}
 	cols := dao.UserTotpConfigs.Columns()
-	now := time.Now().UTC()
 	_, err = dao.UserTotpConfigs.Ctx(ctx).
-		Data(g.Map{
-			cols.UserId:          userID,
-			cols.SecretEncrypted: encrypted,
-			cols.Enabled:         false,
-			cols.EnabledAt:       nil,
-			cols.UpdatedAt:       now,
+		Data(do.UserTotpConfigs{
+			UserId:          userID,
+			SecretEncrypted: encrypted,
+			Enabled:         false,
+			EnabledAt:       gdb.Raw("NULL"),
 		}).
 		OnConflict(cols.UserId).
 		Save()
@@ -128,7 +127,7 @@ func (s *sTOTP) Enable(ctx context.Context, userID, code string) ([]string, erro
 		result, err := dao.UserTotpConfigs.Ctx(ctx).TX(tx).
 			Where(cols.UserId, userID).
 			Where(cols.Enabled, false).
-			Data(g.Map{cols.Enabled: true, cols.EnabledAt: now, cols.UpdatedAt: now}).
+			Data(do.UserTotpConfigs{Enabled: true, EnabledAt: now}).
 			Update()
 		if err != nil {
 			return gerror.Wrap(err, "enable TOTP")
@@ -187,7 +186,7 @@ func (s *sTOTP) Disable(ctx context.Context, userID, password, code string) erro
 		cols := dao.UserTotpConfigs.Columns()
 		if _, err := dao.UserTotpConfigs.Ctx(ctx).TX(tx).
 			Where(cols.UserId, userID).
-			Data(g.Map{cols.Enabled: false, cols.EnabledAt: nil, cols.UpdatedAt: time.Now().UTC()}).
+			Data(do.UserTotpConfigs{Enabled: false, EnabledAt: gdb.Raw("NULL")}).
 			Update(); err != nil {
 			return gerror.Wrap(err, "disable TOTP")
 		}
@@ -418,9 +417,9 @@ func (s *sTOTP) generateAndStoreBackupCodesTx(ctx context.Context, tx gdb.TX, us
 		if err != nil {
 			return nil, gerror.Wrap(err, "hash backup code")
 		}
-		if _, err = dao.UserTotpBackupCodes.Ctx(ctx).TX(tx).Data(g.Map{
-			backupCols.UserId:   userID,
-			backupCols.CodeHash: string(hash),
+		if _, err = dao.UserTotpBackupCodes.Ctx(ctx).TX(tx).Data(do.UserTotpBackupCodes{
+			UserId:   userID,
+			CodeHash: string(hash),
 		}).Insert(); err != nil {
 			return nil, gerror.Wrap(err, "insert backup code")
 		}
@@ -453,7 +452,7 @@ func (s *sTOTP) validateBackupCode(ctx context.Context, userID, code string) (*s
 			updateResult, err := dao.UserTotpBackupCodes.Ctx(ctx).TX(tx).
 				Where(backupCols.Id, candidate.Id.String()).
 				Where(backupCols.UsedAt + " IS NULL").
-				Data(g.Map{backupCols.UsedAt: time.Now().UTC()}).
+				Data(do.UserTotpBackupCodes{UsedAt: time.Now().UTC()}).
 				Update()
 			if err != nil {
 				return gerror.Wrap(err, "mark backup code used")

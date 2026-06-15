@@ -8,6 +8,7 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 )
 
@@ -67,16 +68,15 @@ func (s *sAudit) Write(ctx context.Context, in service.AuditLogInput) error {
 	if err != nil {
 		return gerror.Wrap(err, "parse audit metadata")
 	}
-	cols := dao.AuditLogs.Columns()
-	_, err = dao.AuditLogs.Ctx(ctx).Data(map[string]any{
-		cols.TenantId:     nilIfEmpty(in.TenantID),
-		cols.UserId:       nilIfEmpty(in.UserID),
-		cols.Action:       in.Action,
-		cols.ResourceType: in.ResourceType,
-		cols.ResourceId:   nilIfEmpty(in.ResourceID),
-		cols.Ip:           nilIfEmpty(in.IP),
-		cols.UserAgent:    in.UserAgent,
-		cols.Metadata:     jsonMetadata,
+	_, err = dao.AuditLogs.Ctx(ctx).Data(do.AuditLogs{
+		TenantId:     nilIfEmpty(in.TenantID),
+		UserId:       nilIfEmpty(in.UserID),
+		Action:       in.Action,
+		ResourceType: in.ResourceType,
+		ResourceId:   nilIfEmpty(in.ResourceID),
+		Ip:           nilIfEmpty(in.IP),
+		UserAgent:    in.UserAgent,
+		Metadata:     jsonMetadata,
 	}).Insert()
 	return gerror.Wrap(err, "insert audit log")
 }

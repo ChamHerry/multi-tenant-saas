@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 )
 
@@ -45,7 +46,7 @@ func LoadRedisConfig(ctx context.Context, group string) (*RedisConfig, error) {
 	}
 
 	if cfg.Address == "" {
-		return nil, fmt.Errorf("redis.%s.address is required", group)
+		return nil, gerror.Newf("redis.%s.address is required", group)
 	}
 
 	return cfg, nil
