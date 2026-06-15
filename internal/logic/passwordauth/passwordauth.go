@@ -14,12 +14,14 @@ import (
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"golang.org/x/crypto/bcrypt"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/uuid"
 )
@@ -66,7 +68,6 @@ func (s *sPasswordAuth) Login(ctx context.Context, in service.PasswordLoginInput
 		InnerJoin("user_password_credentials c", "c.user_id = users.id").
 		Where("ui.provider", passwordProvider).
 		Where("lower(ui.email) = lower(?)", email).
-		Where("users.deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select password credential")
@@ -266,32 +267,26 @@ func passwordIdentityExistsTx(ctx context.Context, tx gdb.TX, email string) (boo
 }
 
 func insertPasswordUserTx(ctx context.Context, tx gdb.TX, in passwordRegistrationInsert) error {
-	userCols := dao.Users.Columns()
-	if _, err := dao.Users.Ctx(ctx).TX(tx).Data(g.Map{
-		userCols.Id:          in.UserID,
-		userCols.Email:       in.Email,
-		userCols.DisplayName: nilIfEmptyString(in.DisplayName),
-		userCols.AvatarUrl:   nil,
-		userCols.Status:      "active",
-		userCols.Metadata:    in.Metadata,
-		userCols.LastLoginAt: "now()",
-		userCols.CreatedAt:   "now()",
-		userCols.UpdatedAt:   "now()",
+	now := time.Now().UTC()
+	if _, err := dao.Users.Ctx(ctx).TX(tx).Data(do.Users{
+		Id:          in.UserID,
+		Email:       in.Email,
+		DisplayName: nilIfEmptyString(in.DisplayName),
+		Status:      "active",
+		Metadata:    gjson.New(in.Metadata),
+		LastLoginAt: now,
 	}).Insert(); err != nil {
 		return gerror.Wrap(err, "insert public user")
 	}
-	identCols := dao.UserIdentities.Columns()
-	if _, err := dao.UserIdentities.Ctx(ctx).TX(tx).Data(g.Map{
-		identCols.Id:            in.IdentityID,
-		identCols.UserId:        in.UserID,
-		identCols.Provider:      passwordProvider,
-		identCols.AuthId:        in.Email,
-		identCols.Email:         in.Email,
-		identCols.EmailVerified: false,
-		identCols.RawProfile:    in.RawProfile,
-		identCols.LastLoginAt:   "now()",
-		identCols.CreatedAt:     "now()",
-		identCols.UpdatedAt:     "now()",
+	if _, err := dao.UserIdentities.Ctx(ctx).TX(tx).Data(do.UserIdentities{
+		Id:            in.IdentityID,
+		UserId:        in.UserID,
+		Provider:      passwordProvider,
+		AuthId:        in.Email,
+		Email:         in.Email,
+		EmailVerified: false,
+		RawProfile:    gjson.New(in.RawProfile),
+		LastLoginAt:   now,
 	}).Insert(); err != nil {
 		return gerror.Wrap(err, "insert user identity")
 	}
@@ -306,7 +301,7 @@ func upsertCredentialTx(ctx context.Context, tx gdb.TX, userID, passwordHash str
 		return err
 	}
 	cols := dao.UserPasswordCredentials.Columns()
-	now := time.Now()
+	now := time.Now().UTC()
 
 	existing, err := dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Where(cols.UserId, userID).One()
 	if err != nil {
@@ -314,22 +309,19 @@ func upsertCredentialTx(ctx context.Context, tx gdb.TX, userID, passwordHash str
 	}
 
 	if existing.IsEmpty() {
-		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Data(g.Map{
-			cols.UserId:            userID,
-			cols.PasswordHash:      passwordHash,
-			cols.HashCost:          cost,
-			cols.PasswordChangedAt: now,
-			cols.CreatedAt:         now,
-			cols.UpdatedAt:         now,
+		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Data(do.UserPasswordCredentials{
+			UserId:            userID,
+			PasswordHash:      passwordHash,
+			HashCost:          cost,
+			PasswordChangedAt: now,
 		}).Insert()
 	} else {
 		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).
 			Where(cols.UserId, userID).
-			Data(g.Map{
-				cols.PasswordHash:      passwordHash,
-				cols.HashCost:          cost,
-				cols.PasswordChangedAt: now,
-				cols.UpdatedAt:         now,
+			Data(do.UserPasswordCredentials{
+				PasswordHash:      passwordHash,
+				HashCost:          cost,
+				PasswordChangedAt: now,
 			}).Update()
 	}
 	return gerror.Wrap(err, "upsert password credential")
@@ -343,7 +335,6 @@ func bootstrapFirstPlatformAdminIfNeeded(ctx context.Context, tx gdb.TX, userID 
 		return false, err
 	}
 	cols := dao.PlatformAdmins.Columns()
-	now := time.Now()
 
 	existing, err := dao.PlatformAdmins.Ctx(ctx).TX(tx).Where(cols.UserId, userID).One()
 	if err != nil {
@@ -351,21 +342,18 @@ func bootstrapFirstPlatformAdminIfNeeded(ctx context.Context, tx gdb.TX, userID 
 	}
 
 	if existing.IsEmpty() {
-		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).Data(g.Map{
-			cols.UserId:          userID,
-			cols.Role:            platformSuperAdminRole,
-			cols.Status:          "active",
-			cols.CreatedByUserId: userID,
-			cols.CreatedAt:       now,
-			cols.UpdatedAt:       now,
+		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).Data(do.PlatformAdmins{
+			UserId:          userID,
+			Role:            platformSuperAdminRole,
+			Status:          "active",
+			CreatedByUserId: userID,
 		}).Insert()
 	} else {
 		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).
 			Where(cols.UserId, userID).
-			Data(g.Map{
-				cols.Role:      platformSuperAdminRole,
-				cols.Status:    "active",
-				cols.UpdatedAt: now,
+			Data(do.PlatformAdmins{
+				Role:   platformSuperAdminRole,
+				Status: "active",
 			}).Update()
 	}
 	if err != nil {
@@ -389,15 +377,12 @@ func insertBootstrapAuditTx(ctx context.Context, tx gdb.TX, userID string) error
 	if err != nil {
 		return err
 	}
-	auditCols := dao.AuditLogs.Columns()
-	_, err = dao.AuditLogs.Ctx(ctx).TX(tx).Data(g.Map{
-		auditCols.TenantId:     nil,
-		auditCols.UserId:       userID,
-		auditCols.Action:       platformAdminBootstrapLog,
-		auditCols.ResourceType: "platform_admin",
-		auditCols.ResourceId:   userID,
-		auditCols.Metadata:     metadata,
-		auditCols.CreatedAt:    "now()",
+	_, err = dao.AuditLogs.Ctx(ctx).TX(tx).Data(do.AuditLogs{
+		UserId:       userID,
+		Action:       platformAdminBootstrapLog,
+		ResourceType: "platform_admin",
+		ResourceId:   userID,
+		Metadata:     gjson.New(metadata),
 	}).Insert()
 	return gerror.Wrap(err, "insert platform admin bootstrap audit log")
 }
@@ -567,16 +552,14 @@ func (s *sPasswordAuth) recordLoginFailure(ctx context.Context, email, ip string
 
 	if record.IsEmpty() {
 		// First failure for this login key
-		data := g.Map{
-			cols.LoginKey:     email,
-			cols.Ip:           ipVal,
-			cols.FailedCount:  1,
-			cols.LastFailedAt: now,
-			cols.CreatedAt:    now,
-			cols.UpdatedAt:    now,
+		data := do.AuthLoginAttempts{
+			LoginKey:     email,
+			Ip:           ipVal,
+			FailedCount:  1,
+			LastFailedAt: now,
 		}
 		if 1 >= maxAttempts {
-			data[cols.LockedUntil] = now.Add(lockDuration)
+			data.LockedUntil = now.Add(lockDuration)
 		}
 		_, err = dao.AuthLoginAttempts.Ctx(ctx).Data(data).Insert()
 		if err != nil {
@@ -599,14 +582,13 @@ func (s *sPasswordAuth) recordLoginFailure(ctx context.Context, email, ip string
 		}
 	}
 
-	data := g.Map{
-		cols.FailedCount:  newCount,
-		cols.LastFailedAt: now,
-		cols.Ip:           ipVal,
-		cols.UpdatedAt:    now,
+	data := do.AuthLoginAttempts{
+		FailedCount:  newCount,
+		LastFailedAt: now,
+		Ip:           ipVal,
 	}
 	if newCount >= maxAttempts {
-		data[cols.LockedUntil] = now.Add(lockDuration)
+		data.LockedUntil = now.Add(lockDuration)
 	}
 	_, err = dao.AuthLoginAttempts.Ctx(ctx).Where(cols.LoginKey, email).Data(data).Update()
 	if err != nil {
@@ -636,7 +618,7 @@ func (s *sPasswordAuth) recordLoginSuccess(ctx context.Context, email string) er
 	cols := dao.AuthLoginAttempts.Columns()
 	_, err := dao.AuthLoginAttempts.Ctx(ctx).
 		Where(cols.LoginKey, email).
-		Data(g.Map{cols.FailedCount: 0, cols.LockedUntil: nil, cols.LastSuccessAt: "now()", cols.UpdatedAt: "now()"}).
+		Data(do.AuthLoginAttempts{FailedCount: 0, LockedUntil: gdb.Raw("NULL"), LastSuccessAt: time.Now().UTC()}).
 		Update()
 	return gerror.Wrap(err, "record login success")
 }
@@ -650,10 +632,9 @@ func (s *sPasswordAuth) UnlockUser(ctx context.Context, in service.UnlockUserInp
 	cols := dao.AuthLoginAttempts.Columns()
 	_, err := dao.AuthLoginAttempts.Ctx(ctx).
 		Where(cols.LoginKey, normalizeEmail(in.Email)).
-		Data(g.Map{
-			cols.FailedCount: 0,
-			cols.LockedUntil: nil,
-			cols.UpdatedAt:   "now()",
+		Data(do.AuthLoginAttempts{
+			FailedCount: 0,
+			LockedUntil: gdb.Raw("NULL"),
 		}).
 		Update()
 	if err != nil {
@@ -667,7 +648,7 @@ func touchPasswordIdentityLogin(ctx context.Context, userID, email string) error
 	_, err := dao.UserIdentities.Ctx(ctx).
 		Where(identCols.Provider, passwordProvider).
 		Where("lower("+identCols.AuthId+") = lower(?)", email).
-		Data(g.Map{identCols.LastLoginAt: "now()", identCols.UpdatedAt: "now()"}).
+		Data(do.UserIdentities{LastLoginAt: time.Now().UTC()}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "touch password identity login")
@@ -675,8 +656,7 @@ func touchPasswordIdentityLogin(ctx context.Context, userID, email string) error
 	userCols := dao.Users.Columns()
 	_, err = dao.Users.Ctx(ctx).
 		Where(userCols.Id, userID).
-		Where("deleted_at IS NULL").
-		Data(g.Map{userCols.LastLoginAt: "now()", userCols.UpdatedAt: "now()"}).
+		Data(do.Users{LastLoginAt: time.Now().UTC()}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "touch password user login")
@@ -689,7 +669,7 @@ func upsertCredential(ctx context.Context, userID, passwordHash string, cost int
 		return err
 	}
 	cols := dao.UserPasswordCredentials.Columns()
-	now := time.Now()
+	now := time.Now().UTC()
 
 	existing, err := dao.UserPasswordCredentials.Ctx(ctx).Where(cols.UserId, userID).One()
 	if err != nil {
@@ -697,22 +677,19 @@ func upsertCredential(ctx context.Context, userID, passwordHash string, cost int
 	}
 
 	if existing.IsEmpty() {
-		_, err = dao.UserPasswordCredentials.Ctx(ctx).Data(g.Map{
-			cols.UserId:            userID,
-			cols.PasswordHash:      passwordHash,
-			cols.HashCost:          cost,
-			cols.PasswordChangedAt: now,
-			cols.CreatedAt:         now,
-			cols.UpdatedAt:         now,
+		_, err = dao.UserPasswordCredentials.Ctx(ctx).Data(do.UserPasswordCredentials{
+			UserId:            userID,
+			PasswordHash:      passwordHash,
+			HashCost:          cost,
+			PasswordChangedAt: now,
 		}).Insert()
 	} else {
 		_, err = dao.UserPasswordCredentials.Ctx(ctx).
 			Where(cols.UserId, userID).
-			Data(g.Map{
-				cols.PasswordHash:      passwordHash,
-				cols.HashCost:          cost,
-				cols.PasswordChangedAt: now,
-				cols.UpdatedAt:         now,
+			Data(do.UserPasswordCredentials{
+				PasswordHash:      passwordHash,
+				HashCost:          cost,
+				PasswordChangedAt: now,
 			}).Update()
 	}
 	return gerror.Wrap(err, "upsert password credential")
@@ -924,12 +901,11 @@ func (s *sPasswordAuth) ForgotPassword(ctx context.Context, email, ip string) er
 	}
 
 	// Store hashed token
-	cols := dao.PasswordResetTokens.Columns()
-	_, err = dao.PasswordResetTokens.Ctx(ctx).Data(g.Map{
-		cols.UserId:      userID,
-		cols.TokenHash:   hashResetToken(token),
-		cols.ExpiresAt:   time.Now().Add(1 * time.Hour),
-		cols.RequestedIp: attemptIP(ip),
+	_, err = dao.PasswordResetTokens.Ctx(ctx).Data(do.PasswordResetTokens{
+		UserId:      userID,
+		TokenHash:   hashResetToken(token),
+		ExpiresAt:   time.Now().Add(1 * time.Hour),
+		RequestedIp: attemptIP(ip),
 	}).Insert()
 	if err != nil {
 		return gerror.Wrap(err, "insert password reset token")
@@ -1032,13 +1008,17 @@ func (s *sPasswordAuth) ResetPassword(ctx context.Context, token, newPassword, i
 	// Execute in transaction: mark token used + update password
 	err = dao.PasswordResetTokens.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		// Mark current token as used
-		_, err := dao.PasswordResetTokens.Ctx(ctx).TX(tx).
+		result, err := dao.PasswordResetTokens.Ctx(ctx).TX(tx).
 			Where(cols.TokenHash, hashedToken).
 			WhereNull(cols.UsedAt).
-			Data(g.Map{cols.UsedAt: "now()"}).
+			Data(do.PasswordResetTokens{UsedAt: "now()"}).
 			Update()
 		if err != nil {
 			return gerror.Wrap(err, "mark reset token used")
+		}
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			return gerror.NewCode(gcode.CodeNotAuthorized, "invalid or expired reset token")
 		}
 
 		// Revoke all other unused tokens for this user
@@ -1046,7 +1026,7 @@ func (s *sPasswordAuth) ResetPassword(ctx context.Context, token, newPassword, i
 			Where(cols.UserId, userID).
 			WhereNull(cols.UsedAt).
 			Where(cols.TokenHash+" != ?", hashedToken).
-			Data(g.Map{cols.UsedAt: "now()"}).
+			Data(do.PasswordResetTokens{UsedAt: "now()"}).
 			Update()
 		if err != nil {
 			return gerror.Wrap(err, "revoke other reset tokens")

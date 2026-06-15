@@ -9,13 +9,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/model/entity"
 	"multi-tenant-saas/internal/service"
 )
@@ -183,10 +182,7 @@ func (s *sSystemConfigAdmin) updateMetadataOnly(ctx context.Context, existing *e
 	cols := dao.SystemConfig.Columns()
 	_, err := dao.SystemConfig.Ctx(ctx).
 		Where(cols.Key, existing.Key).
-		Data(g.Map{
-			cols.Description: description,
-			cols.UpdatedAt:   time.Now(),
-		}).
+		Data(do.SystemConfig{Description: description}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "update secret config metadata")

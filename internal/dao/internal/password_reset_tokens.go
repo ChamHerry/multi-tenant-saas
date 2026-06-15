@@ -13,21 +13,21 @@ import (
 
 // PasswordResetTokensDao is the data access object for the table password_reset_tokens.
 type PasswordResetTokensDao struct {
-	table    string                         // table is the underlying table name of the DAO.
-	group    string                         // group is the database configuration group name of the current DAO.
-	columns  PasswordResetTokensColumns     // columns contains all the column names of Table for convenient usage.
-	handlers []gdb.ModelHandler             // handlers for customized model modification.
+	table    string                     // table is the underlying table name of the DAO.
+	group    string                     // group is the database configuration group name of the current DAO.
+	columns  PasswordResetTokensColumns // columns contains all the column names of Table for convenient usage.
+	handlers []gdb.ModelHandler         // handlers for customized model modification.
 }
 
 // PasswordResetTokensColumns defines and stores column names for the table password_reset_tokens.
 type PasswordResetTokensColumns struct {
-	Id          string
-	UserId      string
-	TokenHash   string
-	ExpiresAt   string
-	UsedAt      string
-	CreatedAt   string
-	RequestedIp string
+	Id          string //
+	UserId      string //
+	TokenHash   string //
+	ExpiresAt   string //
+	UsedAt      string //
+	CreatedAt   string //
+	RequestedIp string //
 }
 
 // passwordResetTokensColumns holds the columns for the table password_reset_tokens.
@@ -81,6 +81,11 @@ func (dao *PasswordResetTokensDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Transaction wraps the transaction logic using function f.
+// It rolls back the transaction and returns the error if function f returns a non-nil error.
+// It commits the transaction and returns nil if function f returns nil.
+//
+// Note: Do not commit or roll back the transaction in function f,
+// as it is automatically handled by this function.
 func (dao *PasswordResetTokensDao) Transaction(ctx context.Context, f func(ctx context.Context, tx gdb.TX) error) (err error) {
 	return dao.Ctx(ctx).Transaction(ctx, f)
 }

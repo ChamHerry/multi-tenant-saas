@@ -6,11 +6,13 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/frame/g"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/uuid"
 )
@@ -52,31 +54,23 @@ func (s *sTenant) CreateTenant(ctx context.Context, in service.CreateTenantInput
 	if err != nil {
 		return nil, gerror.Wrap(err, "marshal tenant metadata")
 	}
-	now := time.Now()
 
-	cols := dao.Tenants.Columns()
-	_, err = dao.Tenants.Ctx(ctx).Data(g.Map{
-		cols.Id:        tenantID,
-		cols.Name:      in.Name,
-		cols.Slug:      in.Slug,
-		cols.Status:    "active",
-		cols.Metadata:  string(metadata),
-		cols.CreatedAt: "now()",
-		cols.UpdatedAt: "now()",
+	_, err = dao.Tenants.Ctx(ctx).Data(do.Tenants{
+		Id:       tenantID,
+		Name:     in.Name,
+		Slug:     in.Slug,
+		Status:   "active",
+		Metadata: gjson.New(string(metadata)),
 	}).Insert()
 	if err != nil {
 		return nil, gerror.Wrap(err, "insert public tenant metadata")
 	}
 
-	created := &service.Tenant{
-		ID:          tenantID,
-		Name:        in.Name,
-		Slug:        in.Slug,
-		Status:      "active",
-		OwnerUserID: in.OwnerUserID,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+	created, err := fetchTenant(ctx, tenantID)
+	if err != nil {
+		return nil, err
 	}
+	created.OwnerUserID = in.OwnerUserID
 
 	if in.OwnerUserID != "" {
 		if _, err = service.TenantMembershipService().AddMember(ctx, service.AddTenantMemberInput{
@@ -124,21 +118,20 @@ func (s *sTenant) UpdateTenant(ctx context.Context, tenantID string, in service.
 		metadata = string(payload)
 	}
 
-	cols := dao.Tenants.Columns()
-	data := g.Map{cols.UpdatedAt: "now()"}
+	data := do.Tenants{}
 	if in.Name != "" {
-		data[cols.Name] = in.Name
+		data.Name = in.Name
 	}
 	if in.Slug != "" {
-		data[cols.Slug] = in.Slug
+		data.Slug = in.Slug
 	}
 	if metadata != "" {
-		data[cols.Metadata] = metadata
+		data.Metadata = gjson.New(metadata)
 	}
 
+	cols := dao.Tenants.Columns()
 	_, err := dao.Tenants.Ctx(ctx).
 		Where(cols.Id, tenantID).
-		Where("deleted_at IS NULL").
 		Data(data).
 		Update()
 	if err != nil {
@@ -160,9 +153,8 @@ func (s *sTenant) SuspendTenant(ctx context.Context, tenantID, actorUserID strin
 	cols := dao.Tenants.Columns()
 	result, err := dao.Tenants.Ctx(ctx).
 		Where(cols.Id, tenantID).
-		Where("deleted_at IS NULL").
 		Where(cols.Status+" <> ?", "deleted").
-		Data(g.Map{cols.Status: "suspended", cols.UpdatedAt: "now()"}).
+		Data(do.Tenants{Status: "suspended"}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "suspend tenant")
@@ -187,9 +179,8 @@ func (s *sTenant) RestoreTenant(ctx context.Context, tenantID, actorUserID strin
 	cols := dao.Tenants.Columns()
 	result, err := dao.Tenants.Ctx(ctx).
 		Where(cols.Id, tenantID).
-		Where("deleted_at IS NULL").
 		Where(cols.Status+" <> ?", "deleted").
-		Data(g.Map{cols.Status: "active", cols.UpdatedAt: "now()"}).
+		Data(do.Tenants{Status: "active"}).
 		Update()
 	if err != nil {
 		return gerror.Wrap(err, "restore tenant")
@@ -212,19 +203,26 @@ func (s *sTenant) DeleteTenant(ctx context.Context, tenantID, actorUserID string
 	}
 
 	cols := dao.Tenants.Columns()
-	result, err := dao.Tenants.Ctx(ctx).
-		Where(cols.Id, tenantID).
-		Where("deleted_at IS NULL").
-		Data(g.Map{cols.Status: "deleted", cols.DeletedAt: "now()", cols.UpdatedAt: "now()"}).
-		Update()
-	if err != nil {
-		return gerror.Wrap(err, "delete tenant")
+	if err := dao.Tenants.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		result, err := dao.Tenants.Ctx(ctx).TX(tx).
+			Where(cols.Id, tenantID).
+			Data(do.Tenants{Status: "deleted"}).
+			Update()
+		if err != nil {
+			return gerror.Wrap(err, "delete tenant")
+		}
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			return gerror.Newf("tenant %s not found", tenantID)
+		}
+		if _, err = dao.Tenants.Ctx(ctx).TX(tx).Where(cols.Id, tenantID).Delete(); err != nil {
+			return gerror.Wrap(err, "delete tenant")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return gerror.Newf("tenant %s not found", tenantID)
-	}
-	if err = service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: actorUserID, Action: "tenant.delete", ResourceType: "tenant", ResourceID: tenantID}); err != nil {
+	if err := service.Audit().Write(ctx, service.AuditLogInput{TenantID: tenantID, UserID: actorUserID, Action: "tenant.delete", ResourceType: "tenant", ResourceID: tenantID}); err != nil {
 		return err
 	}
 	purgeDelayHours := service.Config().GetInt(ctx, "tenant.lifecycle.purgeDelayHours", 720)
@@ -273,7 +271,6 @@ func fetchTenantByWhere(ctx context.Context, where string, arg any) (*service.Te
 	record, err := dao.Tenants.Ctx(ctx).
 		Fields(cols.Id, cols.Name, cols.Slug, cols.Status, cols.CreatedAt, cols.UpdatedAt).
 		Where(where, arg).
-		Where("deleted_at IS NULL").
 		One()
 	if err != nil {
 		return nil, gerror.Wrap(err, "select tenant")

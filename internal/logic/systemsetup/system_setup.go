@@ -12,12 +12,14 @@ import (
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"golang.org/x/crypto/bcrypt"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/crypto"
 	credis "multi-tenant-saas/utility/redis"
@@ -369,31 +371,23 @@ func upsertSetupAdminTx(ctx context.Context, tx gdb.TX, in setupAdminUpsert) (st
 		return "", err
 	}
 	rawProfile := metadata
-	userCols := dao.Users.Columns()
-	if _, err = dao.Users.Ctx(ctx).TX(tx).Data(g.Map{
-		userCols.Id:          userID,
-		userCols.Email:       in.Email,
-		userCols.DisplayName: nilIfEmpty(in.DisplayName),
-		userCols.AvatarUrl:   nil,
-		userCols.Status:      "active",
-		userCols.Metadata:    metadata,
-		userCols.LastLoginAt: nil,
-		userCols.CreatedAt:   "now()",
-		userCols.UpdatedAt:   "now()",
+	if _, err = dao.Users.Ctx(ctx).TX(tx).Data(do.Users{
+		Id:          userID,
+		Email:       in.Email,
+		DisplayName: nilIfEmpty(in.DisplayName),
+		Status:      "active",
+		Metadata:    gjson.New(metadata),
 	}).Insert(); err != nil {
 		return "", gerror.Wrap(err, "insert setup admin user")
 	}
-	if _, err = dao.UserIdentities.Ctx(ctx).TX(tx).Data(g.Map{
-		identCols.Id:            identityID,
-		identCols.UserId:        userID,
-		identCols.Provider:      passwordProvider,
-		identCols.AuthId:        in.Email,
-		identCols.Email:         in.Email,
-		identCols.EmailVerified: true,
-		identCols.RawProfile:    rawProfile,
-		identCols.LastLoginAt:   nil,
-		identCols.CreatedAt:     "now()",
-		identCols.UpdatedAt:     "now()",
+	if _, err = dao.UserIdentities.Ctx(ctx).TX(tx).Data(do.UserIdentities{
+		Id:            identityID,
+		UserId:        userID,
+		Provider:      passwordProvider,
+		AuthId:        in.Email,
+		Email:         in.Email,
+		EmailVerified: true,
+		RawProfile:    gjson.New(rawProfile),
 	}).Insert(); err != nil {
 		return "", gerror.Wrap(err, "insert setup admin identity")
 	}
@@ -405,9 +399,9 @@ func upsertSetupAdminTx(ctx context.Context, tx gdb.TX, in setupAdminUpsert) (st
 
 func updateExistingSetupAdminTx(ctx context.Context, tx gdb.TX, userID string, in setupAdminUpsert) error {
 	userCols := dao.Users.Columns()
-	data := g.Map{userCols.Status: "active", userCols.UpdatedAt: "now()"}
+	data := do.Users{Status: "active"}
 	if in.DisplayName != "" {
-		data[userCols.DisplayName] = in.DisplayName
+		data.DisplayName = in.DisplayName
 	}
 	if _, err := dao.Users.Ctx(ctx).TX(tx).Where(userCols.Id, userID).Data(data).Update(); err != nil {
 		return gerror.Wrap(err, "update setup admin user")
@@ -416,7 +410,7 @@ func updateExistingSetupAdminTx(ctx context.Context, tx gdb.TX, userID string, i
 	if _, err := dao.UserIdentities.Ctx(ctx).TX(tx).
 		Where(identCols.Provider, passwordProvider).
 		Where("lower("+identCols.Email+") = lower(?)", in.Email).
-		Data(g.Map{identCols.EmailVerified: true, identCols.UpdatedAt: "now()"}).
+		Data(do.UserIdentities{EmailVerified: true}).
 		Update(); err != nil {
 		return gerror.Wrap(err, "verify setup admin identity")
 	}
@@ -425,20 +419,18 @@ func updateExistingSetupAdminTx(ctx context.Context, tx gdb.TX, userID string, i
 
 func upsertCredentialTx(ctx context.Context, tx gdb.TX, userID, passwordHash string, cost int) error {
 	cols := dao.UserPasswordCredentials.Columns()
-	now := time.Now()
+	now := time.Now().UTC()
 	existing, err := dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Where(cols.UserId, userID).One()
 	if err != nil {
 		return gerror.Wrap(err, "select setup admin password credential")
 	}
-	data := g.Map{
-		cols.PasswordHash:      passwordHash,
-		cols.HashCost:          cost,
-		cols.PasswordChangedAt: now,
-		cols.UpdatedAt:         now,
+	data := do.UserPasswordCredentials{
+		PasswordHash:      passwordHash,
+		HashCost:          cost,
+		PasswordChangedAt: now,
 	}
 	if existing.IsEmpty() {
-		data[cols.UserId] = userID
-		data[cols.CreatedAt] = now
+		data.UserId = userID
 		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Data(data).Insert()
 	} else {
 		_, err = dao.UserPasswordCredentials.Ctx(ctx).TX(tx).Where(cols.UserId, userID).Data(data).Update()
@@ -448,16 +440,14 @@ func upsertCredentialTx(ctx context.Context, tx gdb.TX, userID, passwordHash str
 
 func upsertPlatformSuperAdminTx(ctx context.Context, tx gdb.TX, userID string) error {
 	cols := dao.PlatformAdmins.Columns()
-	now := time.Now()
 	existing, err := dao.PlatformAdmins.Ctx(ctx).TX(tx).Where(cols.UserId, userID).One()
 	if err != nil {
 		return gerror.Wrap(err, "select setup platform admin")
 	}
-	data := g.Map{cols.Role: platformSuperAdminRole, cols.Status: "active", cols.UpdatedAt: now}
+	data := do.PlatformAdmins{Role: platformSuperAdminRole, Status: "active"}
 	if existing.IsEmpty() {
-		data[cols.UserId] = userID
-		data[cols.CreatedByUserId] = userID
-		data[cols.CreatedAt] = now
+		data.UserId = userID
+		data.CreatedByUserId = userID
 		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).Data(data).Insert()
 	} else {
 		_, err = dao.PlatformAdmins.Ctx(ctx).TX(tx).Where(cols.UserId, userID).Data(data).Update()
@@ -476,15 +466,17 @@ func upsertConfigTx(ctx context.Context, tx gdb.TX, key, value, valueType, descr
 		storedValue = encrypted
 		isEncrypted = true
 	}
-	_, err := tx.Ctx(ctx).Exec(`
-		INSERT INTO system_config(key, value, value_type, description, is_encrypted, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, now(), now())
-		ON CONFLICT (key) DO UPDATE SET
-			value = EXCLUDED.value,
-			value_type = EXCLUDED.value_type,
-			description = EXCLUDED.description,
-			is_encrypted = EXCLUDED.is_encrypted,
-			updated_at = now()`, key, storedValue, valueType, description, isEncrypted)
+	cols := dao.SystemConfig.Columns()
+	_, err := dao.SystemConfig.Ctx(ctx).TX(tx).
+		Data(do.SystemConfig{
+			Key:         key,
+			Value:       storedValue,
+			ValueType:   valueType,
+			Description: description,
+			IsEncrypted: isEncrypted,
+		}).
+		OnConflict(cols.Key).
+		Save()
 	return gerror.Wrapf(err, "upsert setup config %s", key)
 }
 
@@ -497,17 +489,14 @@ func insertSetupAuditTx(ctx context.Context, tx gdb.TX, userID string, in servic
 	if err != nil {
 		return err
 	}
-	cols := dao.AuditLogs.Columns()
-	_, err = dao.AuditLogs.Ctx(ctx).TX(tx).Data(g.Map{
-		cols.TenantId:     nil,
-		cols.UserId:       userID,
-		cols.Action:       actionSetupCompleted,
-		cols.ResourceType: "system_setup",
-		cols.ResourceId:   "1",
-		cols.Ip:           nilIfEmpty(in.IP),
-		cols.UserAgent:    nilIfEmpty(in.UserAgent),
-		cols.Metadata:     metadata,
-		cols.CreatedAt:    "now()",
+	_, err = dao.AuditLogs.Ctx(ctx).TX(tx).Data(do.AuditLogs{
+		UserId:       userID,
+		Action:       actionSetupCompleted,
+		ResourceType: "system_setup",
+		ResourceId:   "1",
+		Ip:           nilIfEmpty(in.IP),
+		UserAgent:    nilIfEmpty(in.UserAgent),
+		Metadata:     gjson.New(metadata),
 	}).Insert()
 	return gerror.Wrap(err, "insert setup completion audit log")
 }

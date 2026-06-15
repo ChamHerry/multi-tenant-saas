@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
@@ -24,6 +25,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"multi-tenant-saas/internal/dao"
+	"multi-tenant-saas/internal/model/do"
 	"multi-tenant-saas/internal/service"
 	"multi-tenant-saas/utility/uuid"
 )
@@ -113,8 +115,8 @@ func (s *sOAuth) CreateState(ctx context.Context, provider, redirectURI string) 
 	metadata, _ := json.Marshal(map[string]any{"request_ip": service.BizCtx().GetClientIP(ctx)})
 	expiresAt := time.Now().UTC().Add(stateTTL(ctx))
 	_, err = g.DB().Exec(ctx, `
-		INSERT INTO oauth_states ("state", provider, redirect_uri, "metadata", expires_at, created_at)
-		VALUES ($1, $2, $3, CAST($4 AS jsonb), $5, now())`,
+		INSERT INTO oauth_states ("state", provider, redirect_uri, "metadata", expires_at)
+		VALUES ($1, $2, $3, CAST($4 AS jsonb), $5)`,
 		state, provider, redirectPath, string(metadata), expiresAt)
 	if err != nil {
 		return nil, gerror.Wrap(err, "create OAuth state")
@@ -300,16 +302,16 @@ func (s *sOAuth) finalizeOAuthLogin(ctx context.Context, userID string, info *se
 		return err
 	}
 	identCols := dao.UserIdentities.Columns()
-	identData := g.Map{
-		identCols.RawProfile:  rawProfile,
-		identCols.LastLoginAt: "now()",
-		identCols.UpdatedAt:   "now()",
+	now := time.Now().UTC()
+	identData := do.UserIdentities{
+		RawProfile:  gjson.New(rawProfile),
+		LastLoginAt: now,
 	}
 	if info.Email != "" {
-		identData[identCols.Email] = info.Email
+		identData.Email = info.Email
 	}
 	if info.EmailVerified {
-		identData[identCols.EmailVerified] = true
+		identData.EmailVerified = true
 	}
 	result, err := dao.UserIdentities.Ctx(ctx).
 		Where(identCols.Provider, info.Provider).
@@ -321,36 +323,33 @@ func (s *sOAuth) finalizeOAuthLogin(ctx context.Context, userID string, info *se
 	}
 	if rows, _ := result.RowsAffected(); rows == 0 {
 		identityID := uuid.GenerateV4()
-		if _, err = dao.UserIdentities.Ctx(ctx).Data(g.Map{
-			identCols.Id:            identityID,
-			identCols.UserId:        userID,
-			identCols.Provider:      info.Provider,
-			identCols.AuthId:        info.AuthID,
-			identCols.Email:         nullableString(info.Email),
-			identCols.EmailVerified: info.EmailVerified,
-			identCols.RawProfile:    rawProfile,
-			identCols.LastLoginAt:   "now()",
-			identCols.CreatedAt:     "now()",
-			identCols.UpdatedAt:     "now()",
+		if _, err = dao.UserIdentities.Ctx(ctx).Data(do.UserIdentities{
+			Id:            identityID,
+			UserId:        userID,
+			Provider:      info.Provider,
+			AuthId:        info.AuthID,
+			Email:         nullableString(info.Email),
+			EmailVerified: info.EmailVerified,
+			RawProfile:    gjson.New(rawProfile),
+			LastLoginAt:   now,
 		}).Insert(); err != nil {
 			return gerror.Wrap(err, "insert OAuth identity login")
 		}
 	}
 
 	userCols := dao.Users.Columns()
-	userData := g.Map{userCols.LastLoginAt: "now()", userCols.UpdatedAt: "now()"}
+	userData := do.Users{LastLoginAt: now}
 	if info.Email != "" {
-		userData[userCols.Email] = info.Email
+		userData.Email = info.Email
 	}
 	if info.DisplayName != "" {
-		userData[userCols.DisplayName] = info.DisplayName
+		userData.DisplayName = info.DisplayName
 	}
 	if info.AvatarURL != "" {
-		userData[userCols.AvatarUrl] = info.AvatarURL
+		userData.AvatarUrl = info.AvatarURL
 	}
 	if _, err = dao.Users.Ctx(ctx).
 		Where(userCols.Id, userID).
-		Where("deleted_at IS NULL").
 		Data(userData).
 		Update(); err != nil {
 		return gerror.Wrap(err, "touch OAuth user login")
@@ -482,7 +481,7 @@ func getJSON(ctx context.Context, client *http.Client, endpoint string, out any)
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return fmt.Errorf("GET %s returned %d: %s", endpoint, resp.StatusCode, string(body))
+		return gerror.Newf("GET %s returned %d: %s", endpoint, resp.StatusCode, string(body))
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
 }
@@ -542,8 +541,8 @@ func createChallenge(ctx context.Context, user *service.User, info *service.OAut
 	}
 	expiresAt := time.Now().UTC().Add(challengeTTL(ctx))
 	_, err = g.DB().Exec(ctx, `
-		INSERT INTO auth_login_challenges (challenge_hash, user_id, provider, auth_id, login_key, redirect_uri, metadata, expires_at, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, CAST($7 AS jsonb), $8, now())`,
+		INSERT INTO auth_login_challenges (challenge_hash, user_id, provider, auth_id, login_key, redirect_uri, metadata, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, CAST($7 AS jsonb), $8)`,
 		hashToken(token), user.ID, info.Provider, info.AuthID, info.Email, redirectURI, string(metadata), expiresAt)
 	if err != nil {
 		return "", gerror.Wrap(err, "create OAuth login challenge")
