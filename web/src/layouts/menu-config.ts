@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { PlatformPermission, TenantPermission } from '@/features/access/access-types'
+import { PLATFORM_CONSOLE_ROOT, TENANT_CONSOLE_HOME, TENANT_CONSOLE_ROOT } from './console-scope'
 
 export type PermissionMode = 'all' | 'any'
 
@@ -31,29 +32,29 @@ export const accountNavItems: MenuItem[] = [
 ]
 
 export const tenantNavItems: MenuItem[] = [
-  { to: '/', labelKey: 'nav.items.dashboard', icon: LayoutDashboard },
-  { to: '/tenants', labelKey: 'nav.items.tenants', icon: Building2 },
+  { to: TENANT_CONSOLE_HOME, labelKey: 'nav.items.dashboard', icon: LayoutDashboard },
+  { to: `${TENANT_CONSOLE_ROOT}/tenants`, labelKey: 'nav.items.tenants', icon: Building2 },
   {
-    to: '/tenant/settings',
+    to: `${TENANT_CONSOLE_ROOT}/settings`,
     labelKey: 'nav.items.tenantSettings',
     icon: Settings2,
     requiredTenantPermissions: ['tenant:read'],
   },
   {
-    to: '/tenant/access?tab=members',
+    to: `${TENANT_CONSOLE_ROOT}/access?tab=members`,
     labelKey: 'nav.items.tenantAccess',
     icon: Users,
     requiredTenantPermissions: ['member:read', 'tenant:invitation:manage'],
     permissionMode: 'any',
   },
   {
-    to: '/tenant/api-keys',
+    to: `${TENANT_CONSOLE_ROOT}/api-keys`,
     labelKey: 'nav.items.tenantApiKeys',
     icon: KeyRound,
     requiredTenantPermissions: ['tenant:read'],
   },
   {
-    to: '/tenant/audit-logs',
+    to: `${TENANT_CONSOLE_ROOT}/audit-logs`,
     labelKey: 'nav.items.tenantAudit',
     icon: ScrollText,
     requiredTenantPermissions: ['tenant:audit:read'],
@@ -62,25 +63,25 @@ export const tenantNavItems: MenuItem[] = [
 
 export const platformNavItems: MenuItem[] = [
   {
-    to: '/admin/tenants',
+    to: `${PLATFORM_CONSOLE_ROOT}/tenants`,
     labelKey: 'nav.items.platformTenants',
     icon: ShieldCheck,
     requiredPlatformPermissions: ['platform:tenant:read'],
   },
   {
-    to: '/admin/users',
+    to: `${PLATFORM_CONSOLE_ROOT}/users`,
     labelKey: 'nav.items.platformUsers',
     icon: UserCog,
     requiredPlatformPermissions: ['platform:user:read'],
   },
   {
-    to: '/admin/audit-logs',
+    to: `${PLATFORM_CONSOLE_ROOT}/audit-logs`,
     labelKey: 'nav.items.platformAudit',
     icon: ScrollText,
     requiredPlatformPermissions: ['platform:audit:read'],
   },
   {
-    to: '/admin/system-config',
+    to: `${PLATFORM_CONSOLE_ROOT}/system-config`,
     labelKey: 'nav.items.systemConfig',
     icon: Settings2,
     requiredPlatformPermissions: ['platform:config:read'],

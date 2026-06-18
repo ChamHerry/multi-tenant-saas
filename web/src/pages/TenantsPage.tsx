@@ -21,6 +21,7 @@ import {
   Th,
 } from '@/shared/ui'
 import { validateForm, type FieldErrors } from '@/shared/lib/validate'
+import { TENANT_CONSOLE_ROOT } from '@/layouts/console-scope'
 
 const CJK_TEXT_PATTERN = /[\u3400-\u9fff\uf900-\ufaff]+/g
 
@@ -226,9 +227,7 @@ export function TenantsPage() {
                             ? t('tenants.current', 'Current')
                             : t('tenants.switch', 'Switch')}
                         </Button>
-                        <Link
-                          to={`/tenant/settings?tenantId=${tenant.tenant_id}`}
-                        >
+                        <Link to={`${TENANT_CONSOLE_ROOT}/tenants/${tenant.tenant_id}`}>
                           <Button
                             size="sm"
                             variant="ghost"

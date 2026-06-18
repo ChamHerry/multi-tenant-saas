@@ -1,6 +1,10 @@
 import { hasAll, hasAny } from '@/features/access/can'
 import type { PlatformPermission, TenantPermission } from '@/features/access/access-types'
 import {
+  CONSOLE_SCOPE_PLATFORM,
+  type ConsoleScope,
+} from './console-scope'
+import {
   accountNavItems,
   platformNavItems,
   tenantNavItems,
@@ -17,6 +21,7 @@ export type ScopeNavSection = {
 type BuildScopeNavSectionsInput = {
   tenantPermissions?: TenantPermission[]
   platformPermissions?: PlatformPermission[]
+  consoleScope: ConsoleScope
 }
 
 function matchesPermissions<T extends string>(
@@ -44,24 +49,35 @@ function isItemVisible(
 export function buildScopeNavSections({
   tenantPermissions,
   platformPermissions,
+  consoleScope,
 }: BuildScopeNavSectionsInput): ScopeNavSection[] {
-  const sections: ScopeNavSection[] = [
-    {
-      titleKey: 'nav.sections.account',
-      tone: 'default',
-      items: accountNavItems,
-    },
-    {
+  const tenantItems = tenantNavItems.filter((item) => isItemVisible(item, tenantPermissions, platformPermissions))
+  const platformItems = platformNavItems.filter((item) => isItemVisible(item, tenantPermissions, platformPermissions))
+  const sections: ScopeNavSection[] = []
+
+  if (consoleScope === CONSOLE_SCOPE_PLATFORM) {
+    if (platformItems.length > 0) {
+      sections.push({
+        titleKey: 'nav.sections.platform',
+        tone: 'platform',
+        items: platformItems,
+      })
+    }
+    return sections.filter((section) => section.items.length > 0)
+  }
+
+  sections.push({
+    titleKey: 'nav.sections.account',
+    tone: 'default',
+    items: accountNavItems,
+  })
+
+  if (tenantItems.length > 0) {
+    sections.push({
       titleKey: 'nav.sections.tenant',
       tone: 'default',
-      items: tenantNavItems.filter((item) => isItemVisible(item, tenantPermissions, platformPermissions)),
-    },
-    {
-      titleKey: 'nav.sections.platform',
-      tone: 'platform',
-      items: platformNavItems.filter((item) => isItemVisible(item, tenantPermissions, platformPermissions)),
-    },
-  ]
-
+      items: tenantItems,
+    })
+  }
   return sections.filter((section) => section.items.length > 0)
 }

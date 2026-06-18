@@ -10,6 +10,7 @@ import type { Tenant } from '@/features/tenants/tenant-types'
 import { Button, Card, CardHeader, Dialog, EmptyState, Input, ErrorView, LoadingView } from '@/shared/ui'
 import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 import { pageTitle, usePageTitle } from '@/layouts/page-title'
+import { TENANT_CONSOLE_ROOT } from '@/layouts/console-scope'
 
 function TenantEditForm({
   tenantId,
@@ -95,7 +96,7 @@ export function TenantDetailPage() {
       <EmptyState
         title={t('tenantDetail.noTenantTitle', 'Select an organization first')}
         description={t('tenantDetail.noTenantDescription', 'Organization settings require the current organization context. Go to My organizations first to select one.')}
-        action={<Link to="/tenants"><Button variant="secondary">{t('tenantDetail.goToOrganizations', 'Go to my organizations')}</Button></Link>}
+        action={<Link to={`${TENANT_CONSOLE_ROOT}/tenants`}><Button variant="secondary">{t('tenantDetail.goToOrganizations', 'Go to my organizations')}</Button></Link>}
       />
     )
   }
@@ -105,7 +106,7 @@ export function TenantDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap justify-end gap-2">
         <Button disabled={!tenant || !canManageTenant} onClick={() => setIsEditOpen(true)}>{t('tenantDetail.editBasics', 'Edit basics')}</Button>
-        <Button variant="secondary" onClick={() => navigate('/tenants')}>{t('tenantDetail.backToOrganizations', 'Back to my organizations')}</Button>
+        <Button variant="secondary" onClick={() => navigate(`${TENANT_CONSOLE_ROOT}/tenants`)}>{t('tenantDetail.backToOrganizations', 'Back to my organizations')}</Button>
       </div>
 
       {firstError ? <ErrorView error={firstError} title={t('tenantDetail.operationErrorTitle', 'Organization action failed')} /> : null}

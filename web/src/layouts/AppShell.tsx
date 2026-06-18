@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useMatches, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useMatches, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Building2, CircleUser, LogOut } from 'lucide-react'
+import { Building2, CircleUser, LogOut, ShieldCheck } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccess } from '@/features/access/access-hooks'
 import { useLogoutMutation, useMe } from '@/features/auth/auth-hooks'
@@ -12,6 +12,15 @@ import { Badge, Button, ErrorView } from '@/shared/ui'
 import { cn } from '@/shared/lib/cn'
 import { buildScopeNavSections } from './scope-nav'
 import { PageTitleContext, resolvePageTitle, type PageTitleDescriptor } from './page-title'
+import {
+  CONSOLE_SCOPE_PLATFORM,
+  getConsoleScopeFromPath,
+  getPlatformConsoleHome,
+  hasPlatformConsoleAccess,
+  hasTenantConsoleAccess,
+  TENANT_CONSOLE_HOME,
+  TENANT_CONSOLE_ROOT,
+} from './console-scope'
 
 type RouteTitleHandle = {
   titleKey?: string
@@ -30,6 +39,7 @@ function getRouteTitleDescriptor(matches: { handle?: unknown }[]): PageTitleDesc
 
 export function AppShell() {
   const navigate = useNavigate()
+  const location = useLocation()
   const matches = useMatches()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -48,6 +58,8 @@ export function AppShell() {
   const emailNotVerified = me?.user.email_verified === false
   const tenants = useMemo(() => access?.tenants ?? [], [access?.tenants])
   const currentMembership = tenants.find((tenant) => tenant.tenant_id === currentTenantId)
+  const consoleScope = getConsoleScopeFromPath(location.pathname)
+  const hasActiveTenantAccess = hasTenantConsoleAccess(tenants)
   const currentUserLabel = me?.user.display_name || me?.user.email || t('appShell.user.devUser')
   const routeTitle = getRouteTitleDescriptor(matches)
   const setPageTitle = useCallback((title?: PageTitleDescriptor) => {
@@ -60,9 +72,33 @@ export function AppShell() {
       buildScopeNavSections({
         tenantPermissions: currentMembership?.permissions,
         platformPermissions: access?.platform_admin?.permissions,
+        consoleScope,
       }),
-    [access?.platform_admin?.permissions, currentMembership?.permissions],
+    [access?.platform_admin?.permissions, consoleScope, currentMembership?.permissions],
   );
+  const consoleSwitch = useMemo(() => {
+    if (consoleScope === CONSOLE_SCOPE_PLATFORM) {
+      return hasActiveTenantAccess
+        ? {
+            to: TENANT_CONSOLE_HOME,
+            labelKey: 'nav.items.tenantConsole',
+            icon: Building2,
+            tone: 'default' as const,
+          }
+        : undefined
+    }
+
+    const platformPermissions = access?.platform_admin?.permissions
+    return hasPlatformConsoleAccess(platformPermissions)
+      ? {
+          to: getPlatformConsoleHome(platformPermissions),
+          labelKey: 'nav.items.platformConsole',
+          icon: ShieldCheck,
+          tone: 'platform' as const,
+        }
+      : undefined
+  }, [access?.platform_admin?.permissions, consoleScope, hasActiveTenantAccess])
+  const ConsoleSwitchIcon = consoleSwitch?.icon
 
   useEffect(() => {
     if (tenants.length === 0) {
@@ -144,7 +180,14 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-page">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[18rem] flex-col border-r border-line bg-white/85 px-4 py-5 shadow-soft backdrop-blur lg:flex">
-        {currentMembership ? (
+        {consoleScope === CONSOLE_SCOPE_PLATFORM ? (
+          <div className="rounded-panel border border-line bg-transparent px-3 py-3 text-ink">
+            <div className="flex items-center gap-2 text-sm font-black text-danger">
+              <ShieldCheck className="size-4" />
+              {t('nav.items.platformConsole')}
+            </div>
+          </div>
+        ) : currentMembership ? (
           <div ref={tenantMenuRef} className="relative">
             <button
               type="button"
@@ -195,7 +238,7 @@ export function AppShell() {
             <div>{t('appShell.tenant.emptyTitle')}</div>
             <div className="mt-1 text-xs text-subtle">{t('appShell.tenant.emptyDescription')}</div>
             <div className="mt-3">
-              <Link to="/tenants">
+              <Link to={`${TENANT_CONSOLE_ROOT}/tenants`}>
                 <Button variant="secondary" size="sm" leftIcon={<Building2 className="size-4" />}>
                   {t('appShell.tenant.manageCta')}
                 </Button>
@@ -218,7 +261,7 @@ export function AppShell() {
                     <NavLink
                       key={item.to}
                       to={item.to}
-                      end={item.to === "/"}
+                      end={item.to === TENANT_CONSOLE_HOME}
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-3 rounded-panel px-3 py-2.5 text-sm font-bold transition",
@@ -285,6 +328,20 @@ export function AppShell() {
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <LanguageSwitcher />
+                {consoleSwitch && ConsoleSwitchIcon ? (
+                  <Link
+                    to={consoleSwitch.to}
+                    className={cn(
+                      'inline-flex h-9 items-center gap-2 rounded-control border bg-white px-3 text-sm font-bold transition whitespace-nowrap',
+                      consoleSwitch.tone === 'platform'
+                        ? 'border-danger/20 text-danger hover:bg-red-50'
+                        : 'border-line text-brand hover:bg-brand-soft',
+                    )}
+                  >
+                    <ConsoleSwitchIcon className="size-4" />
+                    {t(consoleSwitch.labelKey)}
+                  </Link>
+                ) : null}
               </div>
             </div>
           </header>

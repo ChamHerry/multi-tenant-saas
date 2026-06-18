@@ -16,6 +16,7 @@ import { TrendChart } from './TrendChart'
 import { DistributionChart } from './DistributionChart'
 import { RecentActivityList } from './RecentActivityList'
 import { HealthPanel } from './HealthPanel'
+import { PLATFORM_CONSOLE_ROOT, TENANT_CONSOLE_ROOT } from '@/layouts/console-scope'
 import type { DashboardSummary } from './dashboard-types'
 
 export function DashboardShell() {
@@ -50,7 +51,7 @@ export function DashboardShell() {
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <RecentActivityList
           activities={summary?.recent_activities ?? []}
-          auditLogLink={isPlatformView ? '/admin/audit-logs' : '/tenant/audit-logs'}
+          auditLogLink={isPlatformView ? `${PLATFORM_CONSOLE_ROOT}/audit-logs` : `${TENANT_CONSOLE_ROOT}/audit-logs`}
           loading={isLoading}
         />
         <HealthPanel
@@ -58,14 +59,14 @@ export function DashboardShell() {
           quickActions={
             isPlatformView
               ? [
-                  { label: t('dashboard.platformActions.tenants'), to: '/admin/tenants', icon: <Building2 className="size-3.5" /> },
-                  { label: t('dashboard.platformActions.users'), to: '/admin/users', icon: <UserCog className="size-3.5" /> },
-                  { label: t('dashboard.platformActions.audit'), to: '/admin/audit-logs', icon: <ShieldCheck className="size-3.5" /> },
+                  { label: t('dashboard.platformActions.tenants'), to: `${PLATFORM_CONSOLE_ROOT}/tenants`, icon: <Building2 className="size-3.5" /> },
+                  { label: t('dashboard.platformActions.users'), to: `${PLATFORM_CONSOLE_ROOT}/users`, icon: <UserCog className="size-3.5" /> },
+                  { label: t('dashboard.platformActions.audit'), to: `${PLATFORM_CONSOLE_ROOT}/audit-logs`, icon: <ShieldCheck className="size-3.5" /> },
                 ]
               : [
-                  { label: t('dashboard.quickActions.invite'), to: '/tenant/access?tab=invitations', icon: <Inbox className="size-3.5" /> },
-                  { label: t('dashboard.quickActions.apiKey'), to: '/tenant/api-keys', icon: <KeyRound className="size-3.5" /> },
-                  { label: t('dashboard.quickActions.audit'), to: '/tenant/audit-logs', icon: <Activity className="size-3.5" /> },
+                  { label: t('dashboard.quickActions.invite'), to: `${TENANT_CONSOLE_ROOT}/access?tab=invitations`, icon: <Inbox className="size-3.5" /> },
+                  { label: t('dashboard.quickActions.apiKey'), to: `${TENANT_CONSOLE_ROOT}/api-keys`, icon: <KeyRound className="size-3.5" /> },
+                  { label: t('dashboard.quickActions.audit'), to: `${TENANT_CONSOLE_ROOT}/audit-logs`, icon: <Activity className="size-3.5" /> },
                 ]
           }
           loading={isLoading}
@@ -83,23 +84,23 @@ function renderTenantKpi(summary: DashboardSummary | undefined, loading: boolean
         value={summary?.kpi.member_count ?? '-'}
         trend={summary?.kpi.member_trend ? t('dashboard.kpi.newThisMonth', { count: summary.kpi.member_trend }) : undefined}
         trendUp={summary?.kpi.member_trend ? summary.kpi.member_trend > 0 : undefined}
-        tone="brand" to="/tenant/access?tab=members" loading={loading} />
+        tone="brand" to={`${TENANT_CONSOLE_ROOT}/access?tab=members`} loading={loading} />
       <KpiCard icon={<Inbox className="size-4" />} label={t('dashboard.kpi.pendingInvitations')}
         value={summary?.kpi.pending_invitations ?? '-'}
         trend={summary?.kpi.expiring_invitations ? t('dashboard.kpi.expiringSoon', { count: summary.kpi.expiring_invitations }) : undefined}
         trendUp={false}
         tone={(summary?.kpi.pending_invitations ?? 0) > 0 ? 'warning' : 'default'}
-        to="/tenant/access?tab=invitations" loading={loading} />
+        to={`${TENANT_CONSOLE_ROOT}/access?tab=invitations`} loading={loading} />
       <KpiCard icon={<KeyRound className="size-4" />} label={t('dashboard.kpi.activeApiKeys')}
         value={summary?.kpi.active_api_keys ?? '-'}
         trend={summary?.kpi.expiring_api_keys ? t('dashboard.kpi.expiringSoon', { count: summary.kpi.expiring_api_keys }) : undefined}
         trendUp={false}
-        to="/tenant/api-keys" loading={loading} />
+        to={`${TENANT_CONSOLE_ROOT}/api-keys`} loading={loading} />
       <KpiCard icon={<Activity className="size-4" />} label={t('dashboard.kpi.monthlyAuditEvents')}
         value={summary?.kpi.monthly_audit_events ?? '-'}
         trend={summary?.kpi.audit_trend_percent !== undefined ? `${summary.kpi.audit_trend_percent}%` : undefined}
         trendUp={summary?.kpi.audit_trend_percent ? summary.kpi.audit_trend_percent > 0 : undefined}
-        to="/tenant/audit-logs" loading={loading} />
+        to={`${TENANT_CONSOLE_ROOT}/audit-logs`} loading={loading} />
       <KpiCard icon={<Server className="size-4" />} label={t('dashboard.kpi.systemStatus')}
         value={summary?.system_health.api === 'ok' && summary?.system_health.database === 'ok' ? t('dashboard.health.ok') : '!'}
         tone={summary?.system_health.api === 'ok' && summary?.system_health.database === 'ok' ? 'success' : 'warning'}
@@ -115,12 +116,12 @@ function renderPlatformKpi(summary: DashboardSummary, loading: boolean, t: Retur
         value={summary.kpi.tenant_count ?? '-'}
         trend={summary.kpi.tenant_trend ? t('dashboard.kpi.newThisMonth', { count: summary.kpi.tenant_trend }) : undefined}
         trendUp={summary.kpi.tenant_trend ? summary.kpi.tenant_trend > 0 : undefined}
-        tone="brand" to="/admin/tenants" loading={loading} />
+        tone="brand" to={`${PLATFORM_CONSOLE_ROOT}/tenants`} loading={loading} />
       <KpiCard icon={<Users className="size-4" />} label={t('dashboard.kpi.userCount')}
         value={summary.kpi.user_count ?? '-'}
         trend={summary.kpi.user_trend ? t('dashboard.kpi.newThisMonth', { count: summary.kpi.user_trend }) : undefined}
         trendUp={summary.kpi.user_trend ? summary.kpi.user_trend > 0 : undefined}
-        to="/admin/users" loading={loading} />
+        to={`${PLATFORM_CONSOLE_ROOT}/users`} loading={loading} />
       <KpiCard icon={<Inbox className="size-4" />} label={t('dashboard.kpi.pendingInvitations')}
         value={summary.kpi.pending_invitations ?? '-'}
         tone={(summary.kpi.pending_invitations ?? 0) > 0 ? 'warning' : 'default'}
@@ -130,7 +131,7 @@ function renderPlatformKpi(summary: DashboardSummary, loading: boolean, t: Retur
         trend={summary.kpi.anomaly_events ? t('dashboard.kpi.anomalyEvents', { count: summary.kpi.anomaly_events }) : undefined}
         trendUp={false}
         tone={(summary.kpi.anomaly_events ?? 0) > 0 ? 'warning' : 'default'}
-        to="/admin/audit-logs" loading={loading} />
+        to={`${PLATFORM_CONSOLE_ROOT}/audit-logs`} loading={loading} />
       <KpiCard icon={<Server className="size-4" />} label={t('dashboard.kpi.systemStatus')}
         value={summary.system_health.api === 'ok' && summary.system_health.database === 'ok' ? t('dashboard.health.ok') : '!'}
         tone={summary.system_health.api === 'ok' && summary.system_health.database === 'ok' ? 'success' : 'warning'}

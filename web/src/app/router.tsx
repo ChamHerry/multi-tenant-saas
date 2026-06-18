@@ -2,6 +2,13 @@ import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { RequireAuth } from './RequireAuth'
 import { RequireSetup } from './RequireSetup'
 import { RequirePermission } from '@/features/access/RequirePermission'
+import { TENANT_CONSOLE_HOME } from '@/layouts/console-scope'
+import {
+  ConsoleEntryRedirect,
+  PlatformConsoleIndexRedirect,
+  RedirectWithLocation,
+  TenantDetailLegacyRedirect,
+} from './console-redirects'
 import {
   AdminAuditPage,
   AdminSystemConfigPage,
@@ -99,15 +106,22 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: <ConsoleEntryRedirect />,
+        handle: { titleKey: 'routes.dashboard.title' },
+      },
+      {
+        path: 'console',
         element: (
           <LazyRoute>
-            <DashboardPage />
+            <RequirePermission tenant={['tenant:read']}>
+              <DashboardPage />
+            </RequirePermission>
           </LazyRoute>
         ),
         handle: { titleKey: 'routes.dashboard.title' },
       },
       {
-        path: 'tenants',
+        path: 'console/tenants',
         element: (
           <LazyRoute>
             <TenantsPage />
@@ -116,7 +130,7 @@ export const router = createBrowserRouter([
         handle: { titleKey: 'routes.tenants.title' },
       },
       {
-        path: 'tenant/settings',
+        path: 'console/settings',
         handle: { titleKey: 'routes.tenantSettings.title' },
         element: (
           <LazyRoute>
@@ -127,7 +141,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'tenants/:tenantId',
+        path: 'console/tenants/:tenantId',
         handle: { titleKey: 'routes.tenantSettings.title' },
         element: (
           <LazyRoute>
@@ -138,7 +152,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'tenant/access',
+        path: 'console/access',
         handle: { titleKey: 'routes.tenantAccess.title' },
         element: (
           <LazyRoute>
@@ -149,7 +163,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'tenant/api-keys',
+        path: 'console/api-keys',
         element: (
           <LazyRoute>
             <RequirePermission tenant={['tenant:read']}>
@@ -160,7 +174,7 @@ export const router = createBrowserRouter([
         handle: { titleKey: 'routes.tenantApiKeys.title' },
       },
       {
-        path: 'tenant/audit-logs',
+        path: 'console/audit-logs',
         handle: { titleKey: 'routes.tenantAudit.title' },
         element: (
           <LazyRoute>
@@ -169,6 +183,41 @@ export const router = createBrowserRouter([
             </RequirePermission>
           </LazyRoute>
         ),
+      },
+      {
+        path: 'dashboard',
+        element: <Navigate to={TENANT_CONSOLE_HOME} replace />,
+        handle: { titleKey: 'routes.dashboard.title' },
+      },
+      {
+        path: 'tenants',
+        element: <RedirectWithLocation to="/console/tenants" />,
+        handle: { titleKey: 'routes.tenants.title' },
+      },
+      {
+        path: 'tenant/settings',
+        element: <RedirectWithLocation to="/console/settings" />,
+        handle: { titleKey: 'routes.tenantSettings.title' },
+      },
+      {
+        path: 'tenants/:tenantId',
+        element: <TenantDetailLegacyRedirect />,
+        handle: { titleKey: 'routes.tenantSettings.title' },
+      },
+      {
+        path: 'tenant/access',
+        element: <RedirectWithLocation to="/console/access" />,
+        handle: { titleKey: 'routes.tenantAccess.title' },
+      },
+      {
+        path: 'tenant/api-keys',
+        element: <RedirectWithLocation to="/console/api-keys" />,
+        handle: { titleKey: 'routes.tenantApiKeys.title' },
+      },
+      {
+        path: 'tenant/audit-logs',
+        element: <RedirectWithLocation to="/console/audit-logs" />,
+        handle: { titleKey: 'routes.tenantAudit.title' },
       },
       {
         path: 'me/invitations',
@@ -217,21 +266,26 @@ export const router = createBrowserRouter([
       },
       {
         path: 'members',
-        element: <Navigate to="/tenant/access?tab=members" replace />,
+        element: <Navigate to="/console/access?tab=members" replace />,
         handle: { titleKey: 'routes.tenantAccess.title' },
       },
       {
         path: 'invitations',
-        element: <Navigate to="/tenant/access?tab=invitations" replace />,
+        element: <Navigate to="/console/access?tab=invitations" replace />,
         handle: { titleKey: 'routes.tenantAccess.title' },
       },
       {
         path: 'audit-logs',
-        element: <Navigate to="/tenant/audit-logs" replace />,
+        element: <Navigate to="/console/audit-logs" replace />,
         handle: { titleKey: 'routes.tenantAudit.title' },
       },
       {
-        path: 'admin/tenants',
+        path: 'platform-admin-console',
+        element: <PlatformConsoleIndexRedirect />,
+        handle: { titleKey: 'routes.platformTenants.title' },
+      },
+      {
+        path: 'platform-admin-console/tenants',
         handle: { titleKey: 'routes.platformTenants.title' },
         element: (
           <LazyRoute>
@@ -242,7 +296,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/users',
+        path: 'platform-admin-console/users',
         handle: { titleKey: 'routes.platformUsers.title' },
         element: (
           <LazyRoute>
@@ -253,7 +307,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/audit-logs',
+        path: 'platform-admin-console/audit-logs',
         handle: { titleKey: 'routes.platformAudit.title' },
         element: (
           <LazyRoute>
@@ -264,7 +318,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/system-config',
+        path: 'platform-admin-console/system-config',
         handle: { titleKey: 'routes.systemConfig.title' },
         element: (
           <LazyRoute>
@@ -273,6 +327,26 @@ export const router = createBrowserRouter([
             </RequirePermission>
           </LazyRoute>
         ),
+      },
+      {
+        path: 'admin/tenants',
+        element: <RedirectWithLocation to="/platform-admin-console/tenants" />,
+        handle: { titleKey: 'routes.platformTenants.title' },
+      },
+      {
+        path: 'admin/users',
+        element: <RedirectWithLocation to="/platform-admin-console/users" />,
+        handle: { titleKey: 'routes.platformUsers.title' },
+      },
+      {
+        path: 'admin/audit-logs',
+        element: <RedirectWithLocation to="/platform-admin-console/audit-logs" />,
+        handle: { titleKey: 'routes.platformAudit.title' },
+      },
+      {
+        path: 'admin/system-config',
+        element: <RedirectWithLocation to="/platform-admin-console/system-config" />,
+        handle: { titleKey: 'routes.systemConfig.title' },
       },
       { path: '*', element: <NotFoundPage />, handle: { titleKey: 'routes.notFound.title' } },
     ],

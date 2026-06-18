@@ -391,7 +391,8 @@
     "sections": {
       "account": "账号",
       "tenant": "组织",
-      "platform": "平台"
+      "platform": "平台",
+      "switch": "控制台"
     },
     "items": {
       "myInvitations": "我的邀请",
@@ -406,7 +407,9 @@
       "platformUsers": "平台用户",
       "platformAudit": "平台审计日志",
       "sessions": "活跃会话",
-      "systemConfig": "系统配置"
+      "systemConfig": "系统配置",
+      "tenantConsole": "租户控制台",
+      "platformConsole": "平台控制台"
     }
   },
   "setup": {

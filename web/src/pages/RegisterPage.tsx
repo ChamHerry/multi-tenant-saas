@@ -11,6 +11,7 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { Button, Card, CardHeader, Input, Toast } from '@/shared/ui'
 import { validateForm, type FieldErrors } from '@/shared/lib/validate'
 import { errorMessage } from '@/shared/api/errors'
+import { TENANT_CONSOLE_ROOT } from '@/layouts/console-scope'
 
 type RegisterLocationState = {
   from?: {
@@ -36,7 +37,7 @@ export function RegisterPage() {
   const registerPayloadSchema = useMemo(() => createRegisterPayloadSchema(schemaTranslator), [schemaTranslator])
   const from = useMemo(() => {
     const state = location.state as RegisterLocationState | null
-    const path = state?.from?.pathname && !['/login', '/register', '/'].includes(state.from.pathname) ? state.from.pathname : '/tenants'
+    const path = state?.from?.pathname && !['/login', '/register', '/'].includes(state.from.pathname) ? state.from.pathname : `${TENANT_CONSOLE_ROOT}/tenants`
     return `${path}${state?.from?.search ?? ''}`
   }, [location.state])
 
